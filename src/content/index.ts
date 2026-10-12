@@ -1,0 +1,1 @@
+console.log('[AdFilter] Content Script injected into YouTube');
