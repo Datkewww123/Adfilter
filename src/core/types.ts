@@ -1,0 +1,1 @@
+export type AdPhase = 'UNKNOWN' | 'NORMAL' | 'AD';
