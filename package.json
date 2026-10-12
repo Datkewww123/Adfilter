@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "build": "node scripts/build.mjs",
+  "typecheck": "tsc --noEmit",
+  "test": "vitest run"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
