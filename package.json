@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-  "build": "node scripts/build.mjs",
-  "typecheck": "tsc --noEmit",
-  "test": "vitest run"
-},
+ "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
