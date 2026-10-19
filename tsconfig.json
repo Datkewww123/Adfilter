@@ -9,5 +9,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["chrome", "vitest/globals"]
   },
-  "include": ["src/**/*", "tests/**/*", "scripts/**/*", "unit"]
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*", "unit", "tests/unit/message.test.ts"]
 }

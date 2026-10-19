@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { AdPhase } from '../src/core/types';
+import type { AdPhase } from '../../src/core/types';
 
 describe('Smoke Test - Môi trường kiểm thử', () => {
   it('toán tử cơ bản hoạt động đúng', () => {
