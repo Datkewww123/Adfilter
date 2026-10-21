@@ -7,7 +7,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["chrome", "vitest/globals"]
+    "types": ["chrome", "vitest/globals", "node"]
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*", "unit", "tests/unit/message.test.ts"]
 }
