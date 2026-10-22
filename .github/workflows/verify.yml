@@ -18,4 +18,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm eval --min-precision=0.9 --min-recall=0.9
       - run: pnpm build
