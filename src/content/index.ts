@@ -3,10 +3,12 @@ import { log } from '../core/log';
 import { emptyStatus, type Msg, type TabStatus } from '../core/messages';
 import type { AdPhase, Signals } from '../core/types';
 import { PlayerObserver } from './playerObserver';
+import { Recorder } from './recorder';
 
 let currentStatus: TabStatus = emptyStatus();
 let lastPhase: AdPhase = currentStatus.phase;
 let adStartedAt = 0;
+const recorder = new Recorder();
 
 function send(msg: Msg): void {
   try {
@@ -18,6 +20,8 @@ function send(msg: Msg): void {
 }
 
 function handle(s: Signals): void {
+  recorder.feed(s);
+
   const phase: AdPhase = !s.playerFound ? 'UNKNOWN' : s.adShowing ? 'AD' : 'NORMAL';
   if (phase === lastPhase) return;
 
