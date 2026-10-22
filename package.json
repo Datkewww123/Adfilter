@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
+    "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "pull": "node scripts/pull-fixtures.mjs",
+    "fixtures:pull": "node scripts/pull-fixtures.mjs",
+    "fixtures:check": "tsx scripts/check-fixtures.ts",
+    "relabel": "tsx scripts/relabel.ts"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +32,7 @@
     "eslint": "^10.12.0",
     "happy-dom": "^21.0.3",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   }
