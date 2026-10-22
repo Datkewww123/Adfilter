@@ -1,14 +1,17 @@
 import { ext } from '../platform/api';
 import { log } from '../core/log';
+import { initialState, step, type DetectorState } from '../core/detector';
 import { emptyStatus, type Msg, type TabStatus } from '../core/messages';
 import type { AdPhase, Signals } from '../core/types';
 import { PlayerObserver } from './playerObserver';
 import { Recorder } from './recorder';
 
 let currentStatus: TabStatus = emptyStatus();
-let lastPhase: AdPhase = currentStatus.phase;
+let det: DetectorState = initialState;
+let lastShown: AdPhase = 'UNKNOWN';
 let adStartedAt = 0;
 const recorder = new Recorder();
+const clock = (t: number): string => new Date(t).toISOString().slice(11, 19);
 
 function send(msg: Msg): void {
   try {
@@ -21,22 +24,33 @@ function send(msg: Msg): void {
 
 function handle(s: Signals): void {
   recorder.feed(s);
+  const { next, events } = step(det, s);
+  det = next;
+  let changed = false;
 
-  const phase: AdPhase = !s.playerFound ? 'UNKNOWN' : s.adShowing ? 'AD' : 'NORMAL';
-  if (phase === lastPhase) return;
-
-  if (phase === 'AD') adStartedAt = s.t;
-  if (lastPhase === 'AD') {
-    currentStatus = {
-      ...currentStatus,
-      adsDetected: currentStatus.adsDetected + 1,
-      adSeconds: currentStatus.adSeconds + (s.t - adStartedAt) / 1000,
-    };
+  for (const e of events) {
+    changed = true;
+    if (e.type === 'AD_START') {
+      adStartedAt = e.at;
+      log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
+    } else {
+      currentStatus = {
+        ...currentStatus,
+        adsDetected: currentStatus.adsDetected + 1,
+        adSeconds: currentStatus.adSeconds + (e.at - adStartedAt) / 1000,
+      };
+      log.info(clock(e.emittedAt), 'AD_END');
+    }
   }
 
-  log.info(new Date(s.t).toISOString().slice(11, 19), lastPhase, '->', phase);
-  lastPhase = phase;
-  currentStatus = { ...currentStatus, phase, updatedAt: s.t };
+  const shown: AdPhase = s.playerFound ? det.phase : 'UNKNOWN';
+  if (shown !== lastShown) {
+    lastShown = shown;
+    changed = true;
+  }
+
+  if (!changed) return;
+  currentStatus = { ...currentStatus, phase: shown, updatedAt: s.t };
   send({ kind: 'STATUS_UPDATE', status: currentStatus });
 }
 
