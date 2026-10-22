@@ -8,6 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "tsc --noEmit",
+    "pull": "node scripts/pull-fixtures.mjs",
+    "fixtures:pull": "node scripts/pull-fixtures.mjs",
     "fixtures:check": "tsx scripts/check-fixtures.ts",
     "relabel": "tsx scripts/relabel.ts"
   },
