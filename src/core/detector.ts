@@ -14,6 +14,16 @@ export interface DetectorEvent {
 export const START_DEBOUNCE_MS = 150;
 export const END_DEBOUNCE_MS = 400;
 
+export interface DetectorConfig {
+  startDebounceMs: number;
+  endDebounceMs: number;
+}
+
+export const DEFAULT_CONFIG: DetectorConfig = {
+  startDebounceMs: START_DEBOUNCE_MS,
+  endDebounceMs: END_DEBOUNCE_MS,
+};
+
 export const initialState: DetectorState = {
   phase: 'UNKNOWN',
   pendingSince: null,
@@ -34,6 +44,7 @@ function confirm(pendingSince: number | null, now: number, active: boolean, ms: 
 export function step(
   prev: DetectorState,
   s: Signals,
+  cfg: DetectorConfig = DEFAULT_CONFIG,
 ): { next: DetectorState; events: DetectorEvent[] } {
   const ad = looksLikeAd(s);
 
@@ -50,7 +61,7 @@ export function step(
     }
 
     case 'NORMAL': {
-      const c = confirm(prev.pendingSince, s.t, ad, START_DEBOUNCE_MS);
+      const c = confirm(prev.pendingSince, s.t, ad, cfg.startDebounceMs);
       if (c.confirmed) {
         return {
           next: { phase: 'AD', pendingSince: null },
@@ -61,7 +72,7 @@ export function step(
     }
 
     case 'AD': {
-      const c = confirm(prev.pendingSince, s.t, !ad, END_DEBOUNCE_MS);
+      const c = confirm(prev.pendingSince, s.t, !ad, cfg.endDebounceMs);
       if (c.confirmed) {
         return {
           next: { phase: 'NORMAL', pendingSince: null },
@@ -74,11 +85,14 @@ export function step(
 }
 
 /** Chạy detector qua một chuỗi frame, dùng cho test và script đo. */
-export function runDetector(frames: Signals[]): DetectorEvent[] {
+export function runDetector(
+  frames: Signals[],
+  cfg: DetectorConfig = DEFAULT_CONFIG,
+): DetectorEvent[] {
   let state = initialState;
   const out: DetectorEvent[] = [];
   for (const f of frames) {
-    const r = step(state, f);
+    const r = step(state, f, cfg);
     state = r.next;
     out.push(...r.events);
   }

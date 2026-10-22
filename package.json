@@ -12,7 +12,8 @@
     "fixtures:pull": "node scripts/pull-fixtures.mjs",
     "fixtures:check": "tsx scripts/check-fixtures.ts",
     "relabel": "tsx scripts/relabel.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "sweep": "tsx scripts/sweep.ts"
   },
   "keywords": [],
   "author": "",
