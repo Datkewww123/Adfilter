@@ -37,10 +37,10 @@ export function getSkipButton(doc: Document): HTMLElement | null {
 
   const candidates = doc.querySelectorAll<HTMLElement>(SEL.skipButton);
   for (const el of candidates) {
-    // 1. Loại trừ các nút quảng cáo cài đặt app / liên kết tài trợ
+    // 1. Chỉ loại trừ các nút cài đặt app / liên kết trang của nhà tài trợ
     if (
       el.closest(
-        '.ytp-ad-avatar-lockup-card, .ytp-ad-action-interstitial, .ytp-ad-visit-advertiser-button',
+        '.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button',
       )
     ) {
       continue;
@@ -51,30 +51,29 @@ export function getSkipButton(doc: Document): HTMLElement | null {
       continue;
     }
 
-    // 3. Nếu nút đang trong thời gian đếm ngược (opacity: 0.5) thì chưa sẵn sàng bấm
-    if (el.style.opacity === '0.5' || el.getAttribute('style')?.includes('opacity: 0.5')) {
-      continue;
-    }
-
-    // 4. Phải có chữ "Skip" hoặc "Bỏ qua"
+    // 3. Nhận diện chữ "Skip" / "Bỏ qua" hoặc class skip đặc thù của YouTube
     const text = (el.textContent || '').trim().toLowerCase();
     const isSkipWord = text.includes('skip') || text.includes('bỏ qua');
+    const isSkipClass =
+      el.classList.contains('ytp-skip-ad-button') ||
+      el.classList.contains('ytp-ad-skip-button') ||
+      el.classList.contains('ytp-ad-skip-button-modern') ||
+      el.closest('.ytp-ad-skip-button-slot, .ytp-skip-ad-button-slot') !== null;
 
-    // Nếu chỉ là số đếm ngược (5, 4, 3, 2, 1) mà chưa có chữ Skip thì chưa được bấm
+    // Nếu chỉ là số đếm ngược đơn thuần (5, 4, 3, 2, 1) mà chưa có chữ Skip thì chưa được bấm
     const isCountdownOnly = /^\d+$/.test(text);
     if (isCountdownOnly) continue;
 
     const isVisible = el.getClientRects().length > 0 || el.offsetWidth > 0 || el.offsetHeight > 0;
-    if (isSkipWord && isVisible) {
+    if ((isSkipWord || isSkipClass) && isVisible) {
       return el;
     }
   }
 
-  // Fallback: Tìm bất kỳ button nào trong player có chữ Skip và không bị mờ đếm ngược
+  // Fallback: Tìm bất kỳ button nào trong player có chữ Skip
   const buttons = player.querySelectorAll<HTMLElement>('button, [role="button"]');
   for (const b of buttons) {
-    if (b.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-action-interstitial')) continue;
-    if (b.style.opacity === '0.5' || b.getAttribute('style')?.includes('opacity: 0.5')) continue;
+    if (b.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button')) continue;
     const text = (b.textContent || '').trim().toLowerCase();
     if (
       (text.includes('skip') || text.includes('bỏ qua')) &&
