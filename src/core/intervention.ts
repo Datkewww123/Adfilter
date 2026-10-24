@@ -20,17 +20,22 @@ export function plan(ctx: PlanContext, cfg: Config): Action[] {
   if (!cfg.enabled || !ctx.inAd) return [];
   const has = (t: ActionType): boolean => ctx.done.includes(t);
 
-  if (ctx.skipVisible) {
-    return has('CLICK_SKIP') ? [] : [{ type: 'CLICK_SKIP' }];
-  }
-
   const out: Action[] = [];
-  if (!has('MUTE_SPEEDUP')) {
-    out.push({ type: 'MUTE_SPEEDUP', speed: cfg.maxSpeed });
-  }
 
-  if (cfg.allowSeek && ctx.msIntoAd >= SEEK_AFTER_MS && !has('SEEK_TO_END')) {
-    out.push({ type: 'SEEK_TO_END' });
+  if (ctx.skipVisible) {
+    if (!has('CLICK_SKIP')) {
+      out.push({ type: 'CLICK_SKIP' });
+    }
+    if (cfg.allowSeek && !has('SEEK_TO_END')) {
+      out.push({ type: 'SEEK_TO_END' });
+    }
+  } else {
+    if (!has('MUTE_SPEEDUP')) {
+      out.push({ type: 'MUTE_SPEEDUP', speed: cfg.maxSpeed });
+    }
+    if (cfg.allowSeek && ctx.msIntoAd >= SEEK_AFTER_MS && !has('SEEK_TO_END')) {
+      out.push({ type: 'SEEK_TO_END' });
+    }
   }
 
   return out;

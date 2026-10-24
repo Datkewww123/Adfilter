@@ -37,4 +37,9 @@ describe('extractSignals', () => {
     const { duration } = extractSignals(document, 4);
     expect(duration === null || Number.isFinite(duration)).toBe(true);
   });
+  it('nhận ra phần tử cảnh báo khi được cấu hình selector', () => {
+    document.body.innerHTML = `${load('normal.html')}<div id='warn'></div>`;
+    expect(extractSignals(document, 5, ['#warn']).enforcement).toBe(true);
+    expect(extractSignals(document, 6, []).enforcement).toBe(false);
+  });
 });

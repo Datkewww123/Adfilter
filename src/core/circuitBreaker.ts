@@ -36,3 +36,11 @@ export const trip = (now: number, cfg: BreakerConfig = DEFAULT_BREAKER): Breaker
   failures: [],
   openUntil: now + cfg.cooldownMs,
 });
+export function normalizeBreaker(raw: unknown): Breaker {
+  const r = typeof raw === 'object' && raw !== null ? (raw as Partial<Breaker>) : {};
+  const failures = Array.isArray(r.failures)
+    ? r.failures.filter((x): x is number => typeof x === 'number' && Number.isFinite(x))
+    : [];
+  const openUntil = typeof r.openUntil === 'number' && Number.isFinite(r.openUntil) ? r.openUntil : 0;
+  return { failures, openUntil };
+}
