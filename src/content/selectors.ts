@@ -6,3 +6,4 @@ export const SEL = {
   adBadge: '.ytp-ad-simple-ad-badge, .ytp-ad-text',
 } as const;
 export const AD_CLASSES = ['ad-showing', 'ad-interrupting'] as const;
+export const ENFORCEMENT_SELECTORS: readonly string[] = [];

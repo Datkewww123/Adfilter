@@ -10,4 +10,7 @@ export interface Signals {
   currentTime: number | null;
   paused: boolean | null;
   label?: boolean; // dùng ở tuần 4: nhãn thật do bạn bấm phím
+  muted?: boolean | null;
+  playbackRate?: number | null;
+  enforcement?: boolean; 
 }
