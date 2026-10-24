@@ -53,7 +53,7 @@ export class Actuator {
           const v = this.deps.getVideo();
           if (!v) return { ok: false, error: 'no video' };
           if (!Number.isFinite(v.duration) || v.duration <= 0) {
-            return { ok: false, error: 'duration unknown' };
+            return { ok: false, skipped: true, error: 'duration unknown' };
           }
           v.currentTime = Math.max(0, v.duration - 0.1);
           return { ok: true };
