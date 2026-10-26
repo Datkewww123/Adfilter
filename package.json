@@ -13,7 +13,8 @@
     "fixtures:check": "tsx scripts/check-fixtures.ts",
     "relabel": "tsx scripts/relabel.ts",
     "eval": "tsx scripts/eval.ts",
-    "sweep": "tsx scripts/sweep.ts"
+    "sweep": "tsx scripts/sweep.ts",
+    "summarize": "tsx scripts/summarize-actions.ts"
   },
   "keywords": [],
   "author": "",
