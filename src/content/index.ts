@@ -15,11 +15,13 @@ import { extractSignals } from './extractSignals';
 import { PlayerObserver } from './playerObserver';
 import { Recorder } from './recorder';
 import { getActiveVideo, getSkipButton, SEL } from './selectors';
+import { isStuck } from '../core/playbackGuard';
 
 const VERIFY_AFTER_MS = 250;
 let currentStatus: TabStatus = emptyStatus();
 let det: DetectorState = initialState;
 let lastShown: AdPhase = 'UNKNOWN';
+let intervenedThisAd = false;
 let adStartedAt = 0;
 let cfg: Config = {
   ...defaultConfig,
@@ -136,6 +138,25 @@ function verifyLater(a: Action, startedAt: number): void {
     }
   }, VERIFY_AFTER_MS);
 }
+function watchPlayback(): void {
+  const first = lastSignals;
+  if (!first) return;
+  window.setTimeout(() => {
+    const second = lastSignals;
+    if (second && isStuck(first, second)) {
+      log.warn('video có vẻ bị kẹt sau can thiệp');
+      recordAction({
+        at: second.t,
+        action: 'PLAYBACK_STUCK',
+        dryRun: false,
+        ok: false,
+        error: 'playback-stuck',
+      });
+      breaker = trip(second.t);
+      void saveBreaker(breaker).catch(() => undefined);
+    }
+  }, 3000);
+}
 
 function execute(a: Action, s: Signals): void {
   // KHÓA BẢO VỆ TUYỆT ĐỐI CHO VIDEO CỦA NGƯỜI DÙNG:
@@ -181,6 +202,7 @@ function execute(a: Action, s: Signals): void {
   const res = actuator.apply(a);
   recordAction({ at: s.t, action: a.type, dryRun: false, ok: res.ok, error: res.error });
   if (res.ok) {
+    intervenedThisAd = true;
     verifyLater(a, s.t);
     return;
   }
@@ -270,6 +292,8 @@ function handle(s: Signals): void {
       lastSoughtDuration = null;
       lastCurrentTime = 0;
       actuator.restore();
+      if (intervenedThisAd) watchPlayback();
+      intervenedThisAd = false;
       log.info(clock(e.emittedAt), 'AD_END');
     }
   }
