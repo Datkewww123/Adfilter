@@ -23,5 +23,6 @@ export function extractSignals(
     muted: video ? video.muted : null,
     playbackRate: video ? video.playbackRate : null,
     enforcement: enforcementSelectors.some((s) => doc.querySelector(s) !== null),
+    adBadgeText: doc.querySelector(SEL.adBadge)?.textContent?.trim() ?? null,
   };
 }

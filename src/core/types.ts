@@ -13,4 +13,5 @@ export interface Signals {
   muted?: boolean | null;
   playbackRate?: number | null;
   enforcement?: boolean; 
+  adBadgeText?: string | null
 }
