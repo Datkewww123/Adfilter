@@ -11,6 +11,7 @@ async function build() {
       background: 'src/background/index.ts',
       content: 'src/content/index.ts',
       popup: 'src/popup/popup.ts',
+      options: 'src/options/options.ts',
     },
     bundle: true,
     outdir: 'dist',
@@ -20,8 +21,9 @@ async function build() {
   });
 
   // 2. Copy static files (manifest, popup.html)
-  await fs.copyFile('src/manifest.json', 'dist/manifest.json');
+ await fs.copyFile('src/manifest.json', 'dist/manifest.json');
   await fs.copyFile('src/popup/popup.html', 'dist/popup.html');
+  await fs.copyFile('src/options/options.html', 'dist/options.html');
 
   console.log('✅ Build completed -> dist/');
 }
