@@ -1,15 +1,7 @@
 import { ext } from '../platform/api';
 import { pushRing } from '../core/ring';
-
-export interface ActionRecord {
-  at: number;
-  action: string;
-  dryRun: boolean;
-  ok?: boolean;
-  verified?: boolean;
-  latencyMs?: number;
-  error?: string;
-}
+import type { ActionRecord } from '../core/actionRecord';
+export type { ActionRecord } from '../core/actionRecord';
 
 const KEY = 'actions';
 const CAP = 500;
