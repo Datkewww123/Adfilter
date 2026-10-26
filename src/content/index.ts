@@ -16,6 +16,14 @@ import { PlayerObserver } from './playerObserver';
 import { Recorder } from './recorder';
 import { getActiveVideo, getSkipButton, SEL } from './selectors';
 import { isStuck } from '../core/playbackGuard';
+import {
+  classify,
+  endObservation,
+  newObservation,
+  observeAd,
+  type AdObservation,
+} from '../core/classifier';
+let obs: AdObservation | null = null;
 
 const VERIFY_AFTER_MS = 250;
 let currentStatus: TabStatus = emptyStatus();
@@ -129,6 +137,10 @@ function verifyLater(a: Action, startedAt: number): void {
       verified: ok,
       latencyMs: s.t - startedAt,
     });
+    currentStatus = ok
+      ? { ...currentStatus, interventionsOk: currentStatus.interventionsOk + 1 }
+      : { ...currentStatus, interventionsFail: currentStatus.interventionsFail + 1 };
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
       done = done.filter((t) => t !== a.type);
@@ -280,8 +292,14 @@ function handle(s: Signals): void {
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
+      obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
     } else {
+      if (obs) {
+        const c = classify(endObservation(obs, e.at));
+        currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };
+        obs = null;
+      }
       currentStatus = {
         ...currentStatus,
         adsDetected: currentStatus.adsDetected + 1,
@@ -304,6 +322,14 @@ function handle(s: Signals): void {
   }
 
   if (s.playerFound) actuator.noteBaseline();
+  if (det.phase === 'AD' && obs) {
+    obs = observeAd(obs, s);
+    const c = classify(obs);
+    if (c.kind !== currentStatus.adKind) {
+      currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };
+      send({ kind: 'STATUS_UPDATE', status: currentStatus });
+    }
+  }
   if (det.phase === 'AD' && s.adShowing) planStep(s);
 
   const shown: AdPhase = s.playerFound ? det.phase : 'UNKNOWN';
