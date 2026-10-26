@@ -5,6 +5,10 @@ export interface TabStatus {
   adsDetected: number;
   adSeconds: number;
   updatedAt: number;
+  adKind: string | null;
+  confidence: number;
+  interventionsOk: number;
+  interventionsFail: number;
 }
 
 export type Msg =
@@ -18,6 +22,10 @@ export const emptyStatus = (): TabStatus => ({
   adsDetected: 0,
   adSeconds: 0,
   updatedAt: 0,
+  adKind: null,
+  confidence: 0,
+  interventionsOk: 0,
+  interventionsFail: 0,
 });
 
 export function isMsg(x: unknown): x is Msg {

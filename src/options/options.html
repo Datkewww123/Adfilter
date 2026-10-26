@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>AdFilter - Cài đặt</title>
+    <style>
+      body {
+        font: 14px system-ui, sans-serif;
+        max-width: 480px;
+        margin: 24px;
+      }
+      label {
+        display: block;
+        margin: 12px 0;
+      }
+      small {
+        color: #666;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Cài đặt AdFilter</h1>
+    <label>
+      Tốc độ khi quảng cáo (1 đến 4)
+      <input type="number" id="maxSpeed" min="1" max="4" step="0.25" />
+    </label>
+    <label>
+      <input type="checkbox" id="allowSeek" /> Cho phép tua tới cuối quảng cáo
+      <small>Thí nghiệm, mặc định tắt.</small>
+    </label>
+    <label>
+      <input type="checkbox" id="telemetry" /> Gửi số liệu kỹ thuật ẩn danh
+      <small>Chỉ có tác dụng từ tuần 16; mặc định tắt.</small>
+    </label>
+    <script src="options.js"></script>
+  </body>
+</html>
