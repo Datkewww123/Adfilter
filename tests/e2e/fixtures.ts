@@ -34,13 +34,13 @@ export const test = base.extend<{
   getConfig: async ({ context }, use) => {
     await use(async () => {
       const sw = await serviceWorker(context);
-      return sw.evaluate(async () => (await chrome.storage.local.get('config')).config ?? {});
+      return (await sw.evaluate(async () => (await chrome.storage.local.get('config')).config ?? {})) as Rec;
     });
   },
   readActions: async ({ context }, use) => {
     await use(async () => {
       const sw = await serviceWorker(context);
-      return sw.evaluate(async () => (await chrome.storage.local.get('actions')).actions ?? []);
+      return (await sw.evaluate(async () => (await chrome.storage.local.get('actions')).actions ?? [])) as Rec[];
     });
   },
 });

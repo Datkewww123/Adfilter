@@ -33,8 +33,6 @@ let intervenedThisAd = false;
 let adStartedAt = 0;
 let cfg: Config = {
   ...defaultConfig,
-  dryRun: false,
-  allowSeek: true,
 };
 let done: ActionType[] = [];
 let breaker: Breaker = emptyBreaker();
@@ -86,8 +84,7 @@ const actuator = new Actuator({
 const clock = (t: number): string => new Date(t).toISOString().slice(11, 19);
 
 void loadConfig().then((c) => {
-  cfg = { ...c, allowSeek: true, dryRun: false };
-  void saveConfig(cfg).catch(() => undefined);
+  cfg = c;
   log.info('config', cfg);
 }).catch(() => undefined);
 
@@ -279,6 +276,15 @@ function handle(s: Signals): void {
   det = res.next;
 
   if (s.enforcement) {
+    if (canAct(breaker, s.t)) {
+      recordAction({
+        at: s.t,
+        action: 'ENFORCEMENT_SEEN',
+        dryRun: false,
+        ok: false,
+        error: 'enforcement-seen',
+      });
+    }
     breaker = trip(s.t);
     void saveBreaker(breaker).catch(() => undefined);
     log.warn('phát hiện cảnh báo trang, ngắt mạch tạm khóa can thiệp');
