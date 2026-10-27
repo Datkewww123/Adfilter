@@ -20,3 +20,31 @@ jobs:
       - run: pnpm test
       - run: pnpm eval --min-precision=0.9 --min-recall=0.9
       - run: pnpm build
+  e2e:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: adfilter/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: adfilter
+      - name: Build Dev
+        run: pnpm build:dev
+        working-directory: adfilter
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: adfilter
+      - name: Run E2E Tests
+        run: pnpm e2e
+        working-directory: adfilter
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: adfilter/playwright-report  
