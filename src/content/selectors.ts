@@ -8,7 +8,9 @@ export const SEL = {
 } as const;
 
 export const AD_CLASSES = ['ad-showing', 'ad-interrupting'] as const;
-export const ENFORCEMENT_SELECTORS: readonly string[] = [];
+declare const __E2E__: boolean | undefined;
+const E2E = typeof __E2E__ !== 'undefined' && __E2E__ === true;
+export const ENFORCEMENT_SELECTORS: readonly string[] = E2E ? ['#adblock-warning'] : [];
 
 /** Tìm thẻ video đang thực sự phát (hỗ trợ nhiều thẻ video trong Ad Pod 1 of 3, 2 of 3) */
 export function getActiveVideo(doc: Document): HTMLVideoElement | null {
