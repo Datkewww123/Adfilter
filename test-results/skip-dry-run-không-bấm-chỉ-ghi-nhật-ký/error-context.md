@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: fake-youtube\skip.spec.ts >> dry-run: không bấm, chỉ ghi nhật ký
-- Location: tests\e2e\fake-youtube\skip.spec.ts:14:1
+- Name: skip.spec.ts >> dry-run: không bấm, chỉ ghi nhật ký
+- Location: tests\e2e\skip.spec.ts:14:1
 
 # Error details
 
