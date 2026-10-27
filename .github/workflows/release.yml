@@ -1,0 +1,59 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: adfilter/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: adfilter
+
+      - name: Kiểm tra Tag khớp phiên bản trong package.json
+        run: |
+          VERSION=$(jq -r .version package.json)
+          test "v$VERSION" = "$GITHUB_REF_NAME"
+        working-directory: adfilter
+
+      - name: Kiểm tra Lint & Typecheck
+        run: pnpm lint && pnpm typecheck
+        working-directory: adfilter
+
+      - name: Chạy Unit Tests
+        run: pnpm test
+        working-directory: adfilter
+
+      - name: Đóng gói bản Production
+        run: pnpm build
+        working-directory: adfilter
+
+      - name: Nén zip và tính checksum SHA-256
+        run: |
+          (cd dist/chromium && zip -qr ../../adfilter-chromium-$GITHUB_REF_NAME.zip .)
+          sha256sum adfilter-*.zip > SHA256SUMS.txt
+        working-directory: adfilter
+
+      - name: Tạo GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            adfilter/adfilter-*.zip
+            adfilter/SHA256SUMS.txt
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
