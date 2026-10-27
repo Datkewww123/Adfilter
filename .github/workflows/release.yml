@@ -1,0 +1,52 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Kiểm tra Tag khớp phiên bản trong package.json
+        run: |
+          VERSION=$(jq -r .version package.json)
+          test "v$VERSION" = "$GITHUB_REF_NAME"
+
+      - name: Kiểm tra Lint & Typecheck
+        run: pnpm lint && pnpm typecheck
+
+      - name: Chạy Unit Tests
+        run: pnpm test
+
+      - name: Đóng gói bản Production
+        run: pnpm build
+
+      - name: Nén zip và tính checksum SHA-256
+        run: |
+          (cd dist/chromium && zip -qr ../../adfilter-chromium-$GITHUB_REF_NAME.zip .)
+          sha256sum adfilter-*.zip > SHA256SUMS.txt
+
+      - name: Tạo GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            adfilter-*.zip
+            SHA256SUMS.txt
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
