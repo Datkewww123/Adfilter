@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 
 async function build() {
   const dev = process.argv.includes('--dev');
-  const out = dev ? 'dist/chromium-dev' : 'dist';
+  const out = dev ? 'dist/chromium-dev' : 'dist/chromium';
   await fs.mkdir(out, { recursive: true });
 
   // 1. Build TypeScript
@@ -22,8 +22,14 @@ async function build() {
     define: { __E2E__: String(dev) },
   });
 
-  // 2. Xử lý manifest (nếu dev thì thêm quyền cho localhost)
+  // 2. Đồng bộ version từ package.json vào manifest
+  const pkg = JSON.parse(await fs.readFile('package.json', 'utf8'));
   const manifest = JSON.parse(await fs.readFile('src/manifest.json', 'utf8'));
+  manifest.version = String(pkg.version).split('-')[0];
+  if (String(pkg.version).includes('-')) {
+    manifest.version_name = pkg.version;
+  }
+
   if (dev) {
     manifest.host_permissions = manifest.host_permissions || [];
     manifest.host_permissions.push('*://localhost/*', 'http://localhost/*');
