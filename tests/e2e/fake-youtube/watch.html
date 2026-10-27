@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8" />
+<div id="movie_player" class="html5-video-player">
+  <video class="html5-main-video"></video>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const scenario = params.get('scenario') || 'skippable';
+  const p = document.getElementById('movie_player');
+  const v = document.querySelector('video');
+  v.playbackRate = Number(params.get('rate') || '1');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'ytp-ad-player-overlay';
+  const badge = document.createElement('span');
+  badge.className = 'ytp-ad-simple-ad-badge';
+  badge.textContent = 'Ad';
+
+  function startAd() {
+    p.classList.add('ad-showing');
+    p.appendChild(overlay);
+    p.appendChild(badge);
+  }
+
+  function endAd() {
+    p.classList.remove('ad-showing');
+    overlay.remove();
+    badge.remove();
+  }
+
+  // Kịch bản 1: YouTube hiện cảnh báo adblock
+  if (scenario === 'enforcement') {
+    setTimeout(() => {
+      const w = document.createElement('div');
+      w.id = 'adblock-warning';
+      w.textContent = 'warning';
+      document.body.appendChild(w);
+    }, 500);
+  }
+
+  setTimeout(startAd, 1000);
+
+  // Kịch bản 2: Hiện nút Skip sau 2.5s
+  if (scenario === 'skippable') {
+    setTimeout(() => {
+      const b = document.createElement('button');
+      b.className = 'ytp-skip-ad-button';
+      b.textContent = 'Skip';
+      b.style.cssText = 'width:80px;height:30px';
+      b.onclick = () => {
+        window.__skipClicked = true;
+        b.remove();
+        endAd();
+      };
+      p.appendChild(b);
+    }, 2500);
+  } else {
+    // Kịch bản 3: Không có nút Skip, tự kết thúc sau 5s
+    setTimeout(endAd, 5000);
+  }
+</script>
