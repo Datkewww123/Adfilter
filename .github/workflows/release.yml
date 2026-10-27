@@ -39,7 +39,7 @@ jobs:
 
       - name: Nén zip và tính checksum SHA-256
         run: |
-          (cd dist/chromium && zip -qr ../adfilter-chromium-$GITHUB_REF_NAME.zip .)
+          (cd dist/chromium && zip -qr ../../adfilter-chromium-$GITHUB_REF_NAME.zip .)
           sha256sum adfilter-*.zip > SHA256SUMS.txt
 
       - name: Tạo GitHub Release
