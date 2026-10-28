@@ -11,6 +11,20 @@
   pointer-events: none !important;
 }
 
+/* Ẩn toàn bộ overlay quảng cáo video, nhà tài trợ, nút xem thêm (VietnamWorks, interstitial, v.v.) */
+#movie_player.ad-showing .ytp-ad-player-overlay,
+#movie_player.ad-showing .ytp-ad-player-overlay-layout,
+#movie_player.ad-showing .ytp-ad-action-interstitial,
+#movie_player.ad-showing .ytp-ad-module,
+#movie_player.ad-showing .ytp-ad-image-overlay,
+.ytp-ad-player-overlay,
+.ytp-ad-player-overlay-layout,
+.ytp-ad-action-interstitial {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* Ẩn khung thanh tiến trình quảng cáo và chú thích */
 #movie_player.ad-showing .ytp-chrome-bottom,
 #movie_player.ad-interrupting .ytp-chrome-bottom {
