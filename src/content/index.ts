@@ -122,6 +122,17 @@ function send(msg: Msg): void {
   }
 }
 
+function resumePlay(): void {
+  const v = getActiveVideo(document);
+  if (v && v.paused) {
+    void v.play().catch(() => undefined);
+  }
+  const bigPlay = document.querySelector<HTMLElement>('.ytp-large-play-button');
+  if (bigPlay) {
+    bigPlay.click();
+  }
+}
+
 /**
  * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
  * không cần chờ debounce hay planStep. Tắt tiếng + tua về cuối ngay lập tức.
@@ -145,7 +156,7 @@ function instantIntervene(): void {
   // Tua về cuối ngay nếu duration đã có và kích hoạt sự kiện kết thúc
   if (Number.isFinite(v.duration) && v.duration > 0) {
     v.currentTime = Math.max(0, v.duration - 0.1);
-    if (v.paused) void v.play().catch(() => undefined);
+    resumePlay();
     try {
       v.dispatchEvent(new Event('ended'));
     } catch {}
@@ -239,9 +250,7 @@ function execute(a: Action, s: Signals): void {
       lastSoughtDuration = v.duration;
       v.currentTime = Math.max(0, v.duration - 0.1);
       v.playbackRate = 16.0;
-      if (v.paused) {
-        void v.play().catch(() => undefined);
-      }
+      resumePlay();
       try {
         v.dispatchEvent(new Event('ended'));
       } catch {}
@@ -281,6 +290,9 @@ function planStep(s: Signals): void {
     if (v.currentTime < v.duration - 0.2) {
       done = done.filter((t) => t !== 'SEEK_TO_END');
       lastSoughtDuration = null;
+    } else {
+      // Khi đã ở cuối quảng cáo mà bị dừng hình, kích hoạt play ngay
+      resumePlay();
     }
     if (Number.isFinite(v.currentTime)) {
       lastCurrentTime = v.currentTime;
