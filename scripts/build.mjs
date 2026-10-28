@@ -41,6 +41,7 @@ async function build() {
   await fs.writeFile(`${out}/manifest.json`, JSON.stringify(manifest, null, 2));
 
   // 3. Copy các file tĩnh
+  await fs.copyFile('src/stealth/cosmetic.css', `${out}/cosmetic.css`);
   await fs.copyFile('src/popup/popup.html', `${out}/popup.html`);
   await fs.copyFile('src/options/options.html', `${out}/options.html`);
 

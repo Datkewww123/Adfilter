@@ -19,6 +19,12 @@
     {
       "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
       "js": ["content.js"],
+      "css": ["cosmetic.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
