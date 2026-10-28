@@ -176,8 +176,8 @@ const POPUP_SELECTORS = [
 ] as const;
 
 function removeInterruptionPopups(): void {
-  // Xóa vô điều kiện ytd-third-party-manager (quản lý ad-blocker detection)
-  for (const el of document.querySelectorAll('ytd-third-party-manager')) {
+  // Xóa vô điều kiện ytd-third-party-manager và snackbar-container (quản lý ad-blocker detection + toast popup)
+  for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container')) {
     el.remove();
   }
 
