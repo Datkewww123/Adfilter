@@ -144,10 +144,13 @@ function instantIntervene(): void {
   // Tăng tốc tối đa ngay lập tức
   v.playbackRate = 16.0;
 
-  // Tua về cuối ngay nếu duration đã có
+  // Tua về cuối ngay nếu duration đã có và kích hoạt sự kiện kết thúc
   if (Number.isFinite(v.duration) && v.duration > 0) {
     v.currentTime = Math.max(0, v.duration - 0.1);
     if (v.paused) void v.play().catch(() => undefined);
+    try {
+      v.dispatchEvent(new Event('ended'));
+    } catch {}
   }
 
   // Click skip nếu nút đã xuất hiện
@@ -246,6 +249,9 @@ function execute(a: Action, s: Signals): void {
       if (v.paused) {
         void v.play().catch(() => undefined);
       }
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
     }
     const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
     for (const vid of videos) {
