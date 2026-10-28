@@ -40,6 +40,8 @@ let breaker: Breaker = emptyBreaker();
 let lastSignals: Signals | null = null;
 let lastSoughtDuration: number | null = null;
 let lastCurrentTime = 0;
+let skipAttempts = 0;
+const MAX_SKIP_ATTEMPTS = 3;
 
 const recorder = new Recorder();
 const actuator = new Actuator({
@@ -178,7 +180,19 @@ function verifyLater(a: Action, startedAt: number): void {
     send({ kind: 'STATUS_UPDATE', status: currentStatus });
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
-      done = done.filter((t) => t !== a.type);
+      if (a.type === 'CLICK_SKIP') {
+        skipAttempts++;
+        if (skipAttempts < MAX_SKIP_ATTEMPTS) {
+          done = done.filter((t) => t !== a.type);
+        } else {
+          log.warn('CLICK_SKIP đạt giới hạn tối đa, chuyển hướng dùng SEEK_TO_END');
+          // Không xóa CLICK_SKIP nữa, giải phóng SEEK_TO_END để tua dứt điểm
+          done = done.filter((t) => t !== 'SEEK_TO_END');
+          lastSoughtDuration = null;
+        }
+      } else {
+        done = done.filter((t) => t !== a.type);
+      }
       // BUG FIX: Không gọi actuator.restore() khi quảng cáo vẫn đang chiếu!
       // Chỉ restore khi AD_END — tránh tự bật tiếng lại giữa chừng quảng cáo.
     }
@@ -283,8 +297,8 @@ function planStep(s: Signals): void {
     }
   }
 
-  // Nếu nút Skip đang hiển thị, giải phóng CLICK_SKIP để tự động click thử liên tục
-  if (s.skipVisible) {
+  // Nếu nút Skip đang hiển thị, cho phép thử lại CLICK_SKIP nhưng có giới hạn tối đa
+  if (s.skipVisible && skipAttempts < MAX_SKIP_ATTEMPTS) {
     done = done.filter((t) => t !== 'CLICK_SKIP');
   }
 
@@ -335,6 +349,7 @@ function handle(s: Signals): void {
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
+      skipAttempts = 0;
       lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
@@ -356,6 +371,7 @@ function handle(s: Signals): void {
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
+      skipAttempts = 0;
       actuator.restore();
       if (intervenedThisAd) watchPlayback();
       intervenedThisAd = false;
