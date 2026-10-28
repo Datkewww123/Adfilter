@@ -3,10 +3,11 @@
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
  *
- * Nâng cấp: Khóa adPlacements/playerAds/adSlots tại Object.prototype và bẫy ytcfg.set
- * để bắn hạ mọi con đường YouTube dùng để truyền thông tin quảng cáo xuống client.
+ * Nâng cấp: Khóa adPlacements/playerAds/adSlots tại Object.prototype, bẫy ytcfg.set,
+ * ngụy trang native code và tự động triệt tiêu hộp thoại cảnh báo Enforcement.
  */
 import './interceptor';
+import { disguise } from './anti-detect';
 
 const AD_KEYS = [
   'adPlacements',
@@ -16,7 +17,7 @@ const AD_KEYS = [
   'adBreakHeartbeatParams',
 ];
 
-function purge(obj: unknown): void {
+export function purge(obj: unknown): void {
   if (obj == null || typeof obj !== 'object') return;
   const record = obj as Record<string, unknown>;
   for (const key of AD_KEYS) {
@@ -24,10 +25,9 @@ function purge(obj: unknown): void {
   }
 }
 
-// ─── Bẫy 1: JSON.parse ────────────────────────────────────────────────────────
-// Chặn sạch mọi chuỗi JSON chứa quảng cáo ngay khi được parse
+// ─── Bẫy 1: JSON.parse có ngụy trang ──────────────────────────────────────────
 const origJSONParse = JSON.parse;
-JSON.parse = function (text: string, reviver?: (this: any, key: string, value: any) => any) {
+function patchedJSONParse(text: string, reviver?: (this: any, key: string, value: any) => any) {
   const result = origJSONParse(text, reviver);
   if (result && typeof result === 'object') {
     purge(result);
@@ -36,7 +36,8 @@ JSON.parse = function (text: string, reviver?: (this: any, key: string, value: a
     }
   }
   return result;
-};
+}
+JSON.parse = disguise(patchedJSONParse as typeof JSON.parse, origJSONParse);
 
 // ─── Bẫy 2: ytInitialPlayerResponse ──────────────────────────────────────────
 let _playerResponse: unknown = undefined;
@@ -90,10 +91,8 @@ Object.defineProperty(window, 'ytplayer', {
 });
 
 // ─── Bẫy 5: ytcfg.set ────────────────────────────────────────────────────────
-// YouTube dùng ytcfg.set({ PLAYER_VARS: {...} }) để truyền cấu hình player.
-// Bẫy setter để loại bỏ adPlacements ngay khi ytcfg được ghi.
 (function hookYtcfg(): void {
-  const MAX_ATTEMPTS = 50; // thử tối đa 5 giây
+  const MAX_ATTEMPTS = 50;
   let attempts = 0;
 
   function tryHook(): void {
@@ -103,7 +102,6 @@ Object.defineProperty(window, 'ytplayer', {
       ytcfg.set = function (...args: unknown[]): unknown {
         if (args.length > 0 && args[0] && typeof args[0] === 'object') {
           const data = args[0] as Record<string, unknown>;
-          // Xóa PLAYER_VARS.embedded_player_response nếu chứa adPlacements
           if (data['PLAYER_VARS'] && typeof data['PLAYER_VARS'] === 'object') {
             const pv = data['PLAYER_VARS'] as Record<string, unknown>;
             purge(pv);
@@ -115,7 +113,6 @@ Object.defineProperty(window, 'ytplayer', {
               } catch {}
             }
           }
-          // Xóa trực tiếp nếu có ở tầng cao
           purge(data);
         }
         return origSet(...args);
@@ -133,23 +130,17 @@ Object.defineProperty(window, 'ytplayer', {
 })();
 
 // ─── Bẫy 6: Object.prototype getters (Nuclear Option) ───────────────────────
-// Kỹ thuật của uBlock Origin: đặt getter trên Object.prototype để mọi object
-// trong YouTube đều trả về array rỗng/undefined khi truy cập adPlacements.
-// Dùng configurable+writable để không phá vỡ code hợp pháp khác.
 const PROTO_KEYS_TO_BLOCK = ['adPlacements', 'playerAds'] as const;
 
 for (const key of PROTO_KEYS_TO_BLOCK) {
   try {
-    // Chỉ đặt nếu chưa có trên prototype (tránh conflict)
     if (!(key in Object.prototype)) {
       Object.defineProperty(Object.prototype, key, {
         configurable: true,
         get() {
-          // Trả về undefined cho mọi object, bao gồm cả YouTube player config
           return undefined;
         },
         set(val: unknown) {
-          // Cho phép ghi vào chính đối tượng đó (không phải prototype)
           Object.defineProperty(this as object, key, {
             configurable: true,
             writable: true,
@@ -159,33 +150,30 @@ for (const key of PROTO_KEYS_TO_BLOCK) {
         },
       });
     }
-  } catch {
-    // Bỏ qua nếu không thể đặt (môi trường bảo mật nghiêm ngặt)
-  }
+  } catch {}
 }
 
 console.log('[AdFilter Stealth] Defuser đã kích hoạt ở MAIN world (bẫy JSON.parse + ytcfg + prototype)');
 
-// ─── Bẫy 7: Xóa triệt tiêu popup "Experiencing interruptions" ───────────────
-// MutationObserver trên document sẽ phát hiện & xóa ngay khi YouTube chèn popup.
+// ─── Bẫy 7: Xóa triệt tiêu popup Enforcement và Interruption ───────────────
 const POPUP_SELECTORS = [
   'yt-notification-action-renderer',
   'tp-yt-paper-toast',
   'ytd-enforcement-message-view-model',
   'ytd-third-party-manager',
+  'snackbar-container',
+  'tp-yt-paper-dialog.ytd-enforcement-message-view-model',
 ] as const;
 
 function removeInterruptionPopups(): void {
-  // Xóa vô điều kiện ytd-third-party-manager và snackbar-container (quản lý ad-blocker detection + toast popup)
-  for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container')) {
+  for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container, tp-yt-paper-dialog.ytd-enforcement-message-view-model')) {
     el.remove();
   }
 
   for (const sel of POPUP_SELECTORS) {
-    if (sel === 'ytd-third-party-manager') continue; // Đã xử lý ở trên
+    if (sel === 'ytd-third-party-manager' || sel === 'snackbar-container') continue;
     const els = document.querySelectorAll(sel);
     for (const el of els) {
-      // Chỉ xóa khi chứa nội dung liên quan đến quảng cáo / interruption
       const text = el.textContent?.toLowerCase() ?? '';
       if (
         text.includes('interruption') ||
@@ -195,12 +183,15 @@ function removeInterruptionPopups(): void {
         text.includes('trình chặn')
       ) {
         el.remove();
+        const v = document.querySelector<HTMLVideoElement>('video');
+        if (v && v.paused) {
+          void v.play().catch(() => undefined);
+        }
       }
     }
   }
 }
 
-// Chạy ngay lần đầu khi DOM sẵn sàng, sau đó theo dõi thêm bằng MutationObserver
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     removeInterruptionPopups();
