@@ -390,6 +390,12 @@ function handle(s: Signals): void {
   }
 }
 
-const observer = new PlayerObserver(handle);
+const observer = new PlayerObserver(handle, {
+  // Callback tức thời 0ms ngay khi MutationObserver thấy .ad-showing trên DOM,
+  // không qua throttle MIN_GAP_MS hay State Machine debounce.
+  onInstant: () => {
+    if (cfg.enabled && !cfg.dryRun) instantIntervene();
+  },
+});
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });

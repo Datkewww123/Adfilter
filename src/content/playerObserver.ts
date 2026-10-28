@@ -11,7 +11,15 @@ export class PlayerObserver {
   private tick?: number;
   private last = 0;
 
-  constructor(private readonly onSignals: (s: Signals) => void) {}
+  // Callback riêng được gọi tức thời (0ms) khi DOM phát hiện .ad-showing
+  private onInstant?: () => void;
+
+  constructor(
+    private readonly onSignals: (s: Signals) => void,
+    opts?: { onInstant?: () => void },
+  ) {
+    this.onInstant = opts?.onInstant;
+  }
 
   start(): void {
     document.addEventListener('yt-navigate-finish', this.attach);
@@ -31,13 +39,37 @@ export class PlayerObserver {
 
     this.mo?.disconnect();
     this.observed = player;
-    this.mo = new MutationObserver(this.emit);
+    this.mo = new MutationObserver(this.onMutation);
     this.mo.observe(player, {
       attributes: true,
       attributeFilter: ['class'],
       childList: true,
       subtree: true,
     });
+    this.emit();
+  };
+
+  /**
+   * Callback MutationObserver: phát hiện class .ad-showing ngay lập tức (0ms)
+   * và gọi onInstant trước khi qua throttle + debounce bình thường.
+   */
+  private onMutation = (mutations: MutationRecord[]): void => {
+    // Kiểm tra nhanh nếu có mutation nào thay đổi class của #movie_player
+    for (const m of mutations) {
+      if (
+        m.type === 'attributes' &&
+        m.attributeName === 'class' &&
+        m.target === this.observed
+      ) {
+        const el = m.target as Element;
+        if (el.classList.contains('ad-showing') || el.classList.contains('ad-interrupting')) {
+          // Gọi ngay lập tức — KHÔNG qua throttle hay debounce
+          if (this.onInstant) this.onInstant();
+        }
+        break;
+      }
+    }
+    // Sau đó mới emit theo cơ chế throttle bình thường
     this.emit();
   };
 
