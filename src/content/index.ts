@@ -52,7 +52,7 @@ const actuator = new Actuator({
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       v.currentTime = Math.max(0, v.duration - 0.1);
-      v.playbackRate = 16.0;
+      v.playbackRate = cfg.maxSpeed;
       if (v.paused) void v.play().catch(() => undefined);
     }
 
@@ -142,7 +142,9 @@ function instantIntervene(): void {
   const isAd =
     player &&
     (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-  if (!isAd || !canAct(breaker, Date.now())) return;
+  if (!isAd || !canAct(breaker, Date.now()) || !cfg.enabled || cfg.dryRun) return;
+  actuator.noteBaseline();
+  actuator.touch();
 
   const v = getActiveVideo(document);
   if (!v) return;
@@ -150,8 +152,8 @@ function instantIntervene(): void {
   // Tắt tiếng ngay lập tức
   v.muted = true;
 
-  // Tăng tốc tối đa ngay lập tức
-  v.playbackRate = 16.0;
+  // Tăng tốc theo cấu hình ngay lập tức
+  v.playbackRate = cfg.maxSpeed;
 
   // Tua về cuối ngay nếu duration đã có và kích hoạt sự kiện kết thúc
   if (Number.isFinite(v.duration) && v.duration > 0) {
@@ -249,7 +251,7 @@ function execute(a: Action, s: Signals): void {
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       lastSoughtDuration = v.duration;
       v.currentTime = Math.max(0, v.duration - 0.1);
-      v.playbackRate = 16.0;
+      v.playbackRate = cfg.maxSpeed;
       resumePlay();
       try {
         v.dispatchEvent(new Event('ended'));
