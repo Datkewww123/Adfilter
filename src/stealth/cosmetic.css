@@ -100,6 +100,7 @@ ytd-popup-container > yt-notification-action-renderer,
 #notification-action,
 .yt-spec-toast-renderer,
 ytd-enforcement-message-view-model,
+ytd-third-party-manager,
 yt-playability-error-supported-renderers .yt-playability-error-supported-renderer {
   display: none !important;
   visibility: hidden !important;
