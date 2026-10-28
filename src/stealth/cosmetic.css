@@ -89,10 +89,22 @@ ytd-merch-shelf-renderer {
 /* ============================================================
  * POPUP CẢNH BÁO / THÔNG BÁO GIÁN ĐOẠN (Experiencing interruptions)
  * ============================================================ */
+yt-notification-action-renderer,
 yt-notification-action-renderer.ytd-popup-container,
+.ytp-suggested-action,
 .ytp-suggested-action-badge,
-ytd-popup-container:has(yt-notification-action-renderer) {
+.ytp-suggested-action-badge-expanded,
+tp-yt-paper-toast,
+tp-yt-paper-toast.paper-toast-open,
+ytd-popup-container > yt-notification-action-renderer,
+#notification-action,
+.yt-spec-toast-renderer,
+ytd-enforcement-message-view-model,
+yt-playability-error-supported-renderers .yt-playability-error-supported-renderer {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
