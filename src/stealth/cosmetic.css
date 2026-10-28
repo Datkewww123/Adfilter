@@ -4,10 +4,24 @@
  * tầm nhìn của người dùng (< 1ms) — lớp bảo vệ đầu tiên.
  * ============================================================ */
 
-/* Ẩn hoàn toàn video stream quảng cáo khỏi tầm nhìn */
+/* Ẩn hoàn toàn video stream quảng cáo khỏi tầm nhìn ở mọi chế độ hiển thị */
+.ad-showing video,
+.ad-interrupting video,
 #movie_player.ad-showing video,
-#movie_player.ad-interrupting video {
+#movie_player.ad-interrupting video,
+.html5-video-player.ad-showing video,
+.ad-showing .html5-main-video {
+  opacity: 0 !important;
   visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Ẩn nút Play lớn và thanh điều khiển lúc đang chiếu quảng cáo */
+.ad-showing .ytp-large-play-button,
+.ad-showing .ytp-play-button,
+#movie_player.ad-showing .ytp-chrome-bottom,
+#movie_player.ad-interrupting .ytp-chrome-bottom {
+  opacity: 0 !important;
   pointer-events: none !important;
 }
 
@@ -19,16 +33,10 @@
 #movie_player.ad-showing .ytp-ad-image-overlay,
 .ytp-ad-player-overlay,
 .ytp-ad-player-overlay-layout,
-.ytp-ad-action-interstitial {
+.ytp-ad-action-interstitial,
+.ytp-ad-module {
   display: none !important;
   visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-/* Ẩn khung thanh tiến trình quảng cáo và chú thích */
-#movie_player.ad-showing .ytp-chrome-bottom,
-#movie_player.ad-interrupting .ytp-chrome-bottom {
-  opacity: 0 !important;
   pointer-events: none !important;
 }
 
