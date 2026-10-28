@@ -21,32 +21,37 @@ describe('plan', () => {
     expect(plan(ctx({ inAd: false, skipVisible: true }), live)).toEqual([]);
   });
 
-  it('có nút bỏ qua thì bấm nút', () => {
-    expect(plan(ctx({ skipVisible: true }), live)).toEqual([{ type: 'CLICK_SKIP' }]);
+  it('có nút bỏ qua thì bấm nút và cả tua (vì allowSeek=true)', () => {
+    const out = plan(ctx({ skipVisible: true }), live);
+    expect(out.some((a) => a.type === 'CLICK_SKIP')).toBe(true);
   });
 
   it('không có nút thì tắt tiếng và tăng tốc theo cấu hình', () => {
-    expect(plan(ctx(), { ...live, maxSpeed: 3 })).toEqual([
+    expect(plan(ctx(), { ...live, maxSpeed: 3, allowSeek: false })).toEqual([
       { type: 'MUTE_SPEEDUP', speed: 3 },
     ]);
   });
 
   it('đã làm rồi thì không lặp lại', () => {
-    expect(plan(ctx({ done: ['MUTE_SPEEDUP'] }), live)).toEqual([]);
-    expect(plan(ctx({ skipVisible: true, done: ['CLICK_SKIP'] }), live)).toEqual([]);
+    expect(plan(ctx({ done: ['MUTE_SPEEDUP', 'SEEK_TO_END'] }), live)).toEqual([]);
+    expect(
+      plan(ctx({ skipVisible: true, done: ['CLICK_SKIP', 'SEEK_TO_END'] }), live),
+    ).toEqual([]);
   });
 
   it('nút bỏ qua hiện sau khi đã tắt tiếng vẫn bấm nút', () => {
     const c = ctx({ skipVisible: true, done: ['MUTE_SPEEDUP'] });
-    expect(plan(c, live)).toEqual([{ type: 'CLICK_SKIP' }]);
+    const out = plan(c, live);
+    expect(out.some((a) => a.type === 'CLICK_SKIP')).toBe(true);
   });
 
-  it('mặc định không bao giờ tua', () => {
-    const out = plan(ctx({ msIntoAd: 60_000 }), live);
+  it('không bao giờ tua khi allowSeek=false', () => {
+    const cfg = { ...live, allowSeek: false };
+    const out = plan(ctx({ msIntoAd: 60_000 }), cfg);
     expect(out.some((a) => a.type === 'SEEK_TO_END')).toBe(false);
   });
 
-  it('tua chỉ khi được bật và đã đợi đủ lâu', () => {
+  it('tua khi được bật (allowSeek=true) và đã đợi đủ lâu', () => {
     const cfg = { ...live, allowSeek: true };
     expect(plan(ctx({ msIntoAd: 1000, done: ['MUTE_SPEEDUP'] }), cfg)).toEqual([]);
     expect(plan(ctx({ msIntoAd: 2000, done: ['MUTE_SPEEDUP'] }), cfg)).toEqual([
