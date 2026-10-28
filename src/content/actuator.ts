@@ -31,6 +31,8 @@ export class Actuator {
     if (v) this.baseline = { muted: v.muted, rate: v.playbackRate };
   }
 
+  touch(): void { this.touched = true; }
+
   apply(a: Action): ActResult {
     try {
       switch (a.type) {
@@ -66,7 +68,7 @@ export class Actuator {
 
   /** Luôn gọi khi quảng cáo kết thúc, khi lỗi, hoặc khi tắt extension. */
   restore(): void {
-    if (!this.touched) return;
+    if (!this.baseline) return;
     try {
       const v = this.deps.getVideo();
       if (v && this.baseline) {
