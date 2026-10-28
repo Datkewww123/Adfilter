@@ -2,37 +2,82 @@
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
-    <title>AdFilter - Cài đặt</title>
+    <title>Cài đặt AdFilter</title>
     <style>
       body {
-        font: 14px system-ui, sans-serif;
-        max-width: 480px;
-        margin: 24px;
+        font-family: system-ui, -apple-system, sans-serif;
+        padding: 24px;
+        max-width: 520px;
+        margin: auto;
+        color: #1f2937;
+        background-color: #f9fafb;
       }
-      label {
-        display: block;
-        margin: 12px 0;
+      h1 { font-size: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+      .card {
+        background: #fff;
+        padding: 16px 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 16px;
       }
-      small {
-        color: #666;
-        display: block;
+      .card-title { font-weight: 600; margin-bottom: 12px; font-size: 15px; }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
       }
+      .row:last-child { margin-bottom: 0; }
+      label { font-size: 14px; }
+      input[type="number"] {
+        width: 70px;
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+      }
+      .note { font-size: 12px; color: #6b7280; margin-top: 4px; }
     </style>
   </head>
   <body>
-    <h1>Cài đặt AdFilter</h1>
-    <label>
-      Tốc độ khi quảng cáo (1 đến 16)
-      <input type="number" id="maxSpeed" min="1" max="16" step="0.25" />
-    </label>
-    <label>
-      <input type="checkbox" id="allowSeek" /> Cho phép tua tới cuối quảng cáo
-      <small>Tối ưu triệt để 0s, mặc định bật.</small>
-    </label>
-    <label>
-      <input type="checkbox" id="telemetry" /> Gửi số liệu kỹ thuật ẩn danh
-      <small>Chỉ có tác dụng từ tuần 16; mặc định tắt.</small>
-    </label>
-    <script src="options.js"></script>
+    <h1>🛡️ Cài đặt AdFilter Stealth</h1>
+
+    <div class="card">
+      <div class="card-title">Cấu hình Tàng hình (Stealth Engine)</div>
+      <div class="row">
+        <label for="defuserEnabled">Lớp 1: Defuser (Triệt gốc dữ liệu QC)</label>
+        <input type="checkbox" id="defuserEnabled" />
+      </div>
+      <div class="row">
+        <label for="cosmeticEnabled">Lớp 2: Cosmetic (Ẩn banner/overlay)</label>
+        <input type="checkbox" id="cosmeticEnabled" />
+      </div>
+      <div class="row">
+        <label for="visualMaskEnabled">Lớp 3: Visual Mask (Che mắt 0ms)</label>
+        <input type="checkbox" id="visualMaskEnabled" />
+      </div>
+      <div class="row">
+        <label for="fastSeekFallback">Lớp 4: Fast-Seek (Tua 16x dự phòng)</label>
+        <input type="checkbox" id="fastSeekFallback" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cấu hình Chung</div>
+      <div class="row">
+        <label for="maxSpeed">Tốc độ tua tối đa (1x - 16x)</label>
+        <input type="number" id="maxSpeed" min="1" max="16" step="1" />
+      </div>
+      <div class="row">
+        <label for="allowSeek">Cho phép tua về cuối video QC</label>
+        <input type="checkbox" id="allowSeek" />
+      </div>
+      <div class="row">
+        <label for="telemetry">Gửi telemetry ẩn danh</label>
+        <input type="checkbox" id="telemetry" />
+      </div>
+      <div class="note">Thay đổi sẽ có hiệu lực ngay lập tức trên các tab YouTube đang mở.</div>
+    </div>
+
+    <script type="module" src="options.js"></script>
   </body>
 </html>
