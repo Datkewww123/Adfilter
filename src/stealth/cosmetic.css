@@ -101,6 +101,8 @@ ytd-popup-container > yt-notification-action-renderer,
 .yt-spec-toast-renderer,
 ytd-enforcement-message-view-model,
 ytd-third-party-manager,
+snackbar-container,
+snackbar-container.ytSnackbarContainerHost,
 yt-playability-error-supported-renderers .yt-playability-error-supported-renderer {
   display: none !important;
   visibility: hidden !important;
