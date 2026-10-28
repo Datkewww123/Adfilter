@@ -1,7 +1,7 @@
 import { ext } from '../platform/api';
 import { defaultConfig, normalizeConfig, type Config } from './config';
 
-export const CONFIG_KEY = 'adfilter_config_v4';
+export const CONFIG_KEY = 'config';
 
 /**
  * Tăng CONFIG_VERSION mỗi khi thay đổi cấu trúc hoặc giá trị mặc định của Config.
@@ -15,7 +15,7 @@ export async function loadConfig(): Promise<Config> {
   const storedVersion = r[CONFIG_VERSION_KEY] as number | undefined;
 
   // Nếu version cũ hơn → xóa config cũ, dùng default mới
-  if (storedVersion !== CONFIG_VERSION) {
+  if (storedVersion !== CONFIG_VERSION && r[CONFIG_KEY] === undefined) {
     await ext.storage.local.set({
       [CONFIG_KEY]: defaultConfig,
       [CONFIG_VERSION_KEY]: CONFIG_VERSION,
