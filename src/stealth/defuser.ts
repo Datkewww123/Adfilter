@@ -3,8 +3,8 @@
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
  *
- * Nâng cấp: Khóa adPlacements/playerAds/adSlots tại Object.prototype, bẫy ytcfg.set,
- * ngụy trang native code và tự động triệt tiêu hộp thoại cảnh báo Enforcement.
+ * Nâng cấp Tuần Stealth-3: Khóa bẫy Defuser (Hardening) qua Object.defineProperty,
+ * hỗ trợ triệt tiêu cả quảng cáo Shorts và Mid-roll.
  */
 import './interceptor';
 import { disguise } from './anti-detect';
@@ -15,6 +15,8 @@ const AD_KEYS = [
   'adSlots',
   'adBreakParams',
   'adBreakHeartbeatParams',
+  'adBreaks',
+  'playbackTracking',
 ];
 
 export function purge(obj: unknown): void {
@@ -23,7 +25,29 @@ export function purge(obj: unknown): void {
   for (const key of AD_KEYS) {
     if (key in record) delete record[key];
   }
+
+  // Triệt tiêu quảng cáo trên YouTube Shorts
+  if (Array.isArray(record.entries)) {
+    record.entries = record.entries.filter(
+      (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
+    );
+  }
 }
+
+// ─── Hardening: Khóa bảo vệ bẫy chống bị YouTube ghi đè/gỡ bỏ ───────────────
+const origDefine = Object.defineProperty;
+Object.defineProperty = function <T>(obj: T, prop: PropertyKey, desc: PropertyDescriptor & ThisType<any>): T {
+  if (obj === (window as unknown) && (prop === 'ytInitialPlayerResponse' || prop === 'ytInitialData')) {
+    if (desc.set) {
+      const origSetter = desc.set;
+      desc.set = function (val: any) {
+        purge(val);
+        return origSetter.call(this, val);
+      };
+    }
+  }
+  return origDefine(obj, prop, desc);
+};
 
 // ─── Bẫy 1: JSON.parse có ngụy trang ──────────────────────────────────────────
 const origJSONParse = JSON.parse;
@@ -163,15 +187,16 @@ const POPUP_SELECTORS = [
   'ytd-third-party-manager',
   'snackbar-container',
   'tp-yt-paper-dialog.ytd-enforcement-message-view-model',
+  '#enforce-dialog',
 ] as const;
 
 function removeInterruptionPopups(): void {
-  for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container, tp-yt-paper-dialog.ytd-enforcement-message-view-model')) {
+  for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog')) {
     el.remove();
   }
 
   for (const sel of POPUP_SELECTORS) {
-    if (sel === 'ytd-third-party-manager' || sel === 'snackbar-container') continue;
+    if (sel === 'ytd-third-party-manager' || sel === 'snackbar-container' || sel === '#enforce-dialog') continue;
     const els = document.querySelectorAll(sel);
     for (const el of els) {
       const text = el.textContent?.toLowerCase() ?? '';
