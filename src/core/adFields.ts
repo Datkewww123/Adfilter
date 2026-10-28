@@ -2,6 +2,8 @@
  * Danh sách các trường dữ liệu trong playerResponse mà YouTube dùng
  * để quyết định phát quảng cáo. Xóa các trường này trước khi trình
  * phát video đọc → trình phát nghĩ video không có quảng cáo.
+ *
+ * Mở rộng Tuần Stealth-3: Thêm adBreaks và playbackTracking để triệt tiêu mid-roll.
  */
 export const AD_PLAYER_FIELDS: readonly string[] = [
   'adPlacements',
@@ -9,6 +11,8 @@ export const AD_PLAYER_FIELDS: readonly string[] = [
   'adSlots',
   'adBreakParams',
   'adBreakHeartbeatParams',
+  'adBreaks',
+  'playbackTracking',
 ] as const;
 
 /**

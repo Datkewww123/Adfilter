@@ -87,6 +87,21 @@ ytd-merch-shelf-renderer {
 }
 
 /* ============================================================
+ * QUẢNG CÁO YOUTUBE SHORTS (Sponsored Shorts / Ads)
+ * ============================================================ */
+ytd-reel-video-renderer[is-sponsored],
+ytd-reel-video-renderer:has(.ytd-ad-badge-renderer),
+ytd-reel-video-renderer:has([aria-label*="Sponsored"]),
+ytd-reel-video-renderer:has([aria-label*="Được tài trợ"]),
+ytd-reel-video-renderer:has(.badge-shape-wiz--ad),
+.ytd-reel-video-renderer .badge-shape-wiz--ad,
+ytd-reel-shelf-renderer:has(ytd-ad-slot-renderer) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================
  * POPUP CẢNH BÁO / THÔNG BÁO GIÁN ĐOẠN (Experiencing interruptions)
  * ============================================================ */
 yt-notification-action-renderer,

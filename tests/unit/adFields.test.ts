@@ -6,6 +6,8 @@ describe('adFields: danh sách trường quảng cáo', () => {
     expect(AD_PLAYER_FIELDS).toContain('adPlacements');
     expect(AD_PLAYER_FIELDS).toContain('playerAds');
     expect(AD_PLAYER_FIELDS).toContain('adSlots');
+    expect(AD_PLAYER_FIELDS).toContain('adBreaks');
+    expect(AD_PLAYER_FIELDS).toContain('playbackTracking');
   });
 
   it('stripAdFields xóa đúng các trường QC mà giữ nguyên dữ liệu video chính', () => {
@@ -14,6 +16,8 @@ describe('adFields: danh sách trường quảng cáo', () => {
       adPlacements: [{ renderer: {} }],
       playerAds: [{ ad: {} }],
       adSlots: [{ slot: {} }],
+      adBreaks: [{ break: {} }],
+      playbackTracking: { ping: 'url' },
       streamingData: { formats: [] },
     };
     const result = stripAdFields(fake);
@@ -22,6 +26,8 @@ describe('adFields: danh sách trường quảng cáo', () => {
     expect('adPlacements' in result).toBe(false);
     expect('playerAds' in result).toBe(false);
     expect('adSlots' in result).toBe(false);
+    expect('adBreaks' in result).toBe(false);
+    expect('playbackTracking' in result).toBe(false);
   });
 
   it('stripAdFields không lỗi khi đối tượng không có trường QC', () => {
