@@ -19,8 +19,8 @@ export function inspectHealth(doc: Document): WatchdogReport {
   }
 
   const leakedFields: string[] = [];
-  const w = window as any;
-  const resp = w.ytInitialPlayerResponse;
+  const w = (doc.defaultView ?? (typeof window !== 'undefined' ? window : globalThis)) as any;
+  const resp = w?.ytInitialPlayerResponse;
   if (resp && typeof resp === 'object') {
     if ('adPlacements' in resp) leakedFields.push('adPlacements');
     if ('playerAds' in resp) leakedFields.push('playerAds');
