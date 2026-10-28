@@ -40,8 +40,6 @@ let breaker: Breaker = emptyBreaker();
 let lastSignals: Signals | null = null;
 let lastSoughtDuration: number | null = null;
 let lastCurrentTime = 0;
-let skipAttempts = 0;
-const MAX_SKIP_ATTEMPTS = 3;
 
 const recorder = new Recorder();
 const actuator = new Actuator({
@@ -184,15 +182,10 @@ function verifyLater(a: Action, startedAt: number): void {
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
       if (a.type === 'CLICK_SKIP') {
-        skipAttempts++;
-        if (skipAttempts < MAX_SKIP_ATTEMPTS) {
-          done = done.filter((t) => t !== a.type);
-        } else {
-          log.warn('CLICK_SKIP đạt giới hạn tối đa, chuyển hướng dùng SEEK_TO_END');
-          // Không xóa CLICK_SKIP nữa, giải phóng SEEK_TO_END để tua dứt điểm
-          done = done.filter((t) => t !== 'SEEK_TO_END');
-          lastSoughtDuration = null;
-        }
+        // Synthetic click bị YouTube chặn isTrusted, không spam click để tránh nghẽn event loop.
+        // Chuyển hướng kích hoạt SEEK_TO_END để tua dứt điểm ngay lập tức.
+        done = done.filter((t) => t !== 'SEEK_TO_END');
+        lastSoughtDuration = null;
       } else {
         done = done.filter((t) => t !== a.type);
       }
@@ -284,28 +277,14 @@ function planStep(s: Signals): void {
 
   const v = getActiveVideo(document);
   if (v && Number.isFinite(v.duration) && v.duration > 0) {
-    // 1. Quảng cáo mới có thời lượng khác (Ad 2 trong chuỗi Ad Pod)
-    const isNewDuration = lastSoughtDuration !== v.duration && v.currentTime < v.duration - 0.5;
-    // 2. Quảng cáo mới khởi động lại từ 0s (dù cùng duration)
-    const isRestart = v.currentTime < 1.0 && lastCurrentTime > 2.0 && !v.seeking;
-    // 3. Quảng cáo đơn: khi nút Skip xuất hiện hoặc sẵn sàng mà video chưa về cuối -> giải phóng tua ngay!
-    const isSkipReady = s.skipVisible && v.currentTime < v.duration - 0.5;
-    // 4. Lệnh tua ban đầu ở giây 0 bị YouTube từ chối (sau 1s mà currentTime vẫn < 2s)
-    const isSeekRejected =
-      !v.seeking && v.currentTime < 2.0 && s.t - adStartedAt > 1000 && lastSoughtDuration === v.duration;
-
-    if (isNewDuration || isRestart || isSkipReady || isSeekRejected) {
+    // Nếu video chưa tua xong về cuối, tiếp tục giải phóng SEEK_TO_END để ép tua dứt điểm
+    if (v.currentTime < v.duration - 0.2) {
       done = done.filter((t) => t !== 'SEEK_TO_END');
       lastSoughtDuration = null;
     }
     if (Number.isFinite(v.currentTime)) {
       lastCurrentTime = v.currentTime;
     }
-  }
-
-  // Nếu nút Skip đang hiển thị, cho phép thử lại CLICK_SKIP nhưng có giới hạn tối đa
-  if (s.skipVisible && skipAttempts < MAX_SKIP_ATTEMPTS) {
-    done = done.filter((t) => t !== 'CLICK_SKIP');
   }
 
   // Khi bật allowSeek, cho phép tua ngay (msIntoAd >= SEEK_AFTER_MS)
@@ -355,7 +334,7 @@ function handle(s: Signals): void {
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
-      skipAttempts = 0;
+      lastCurrentTime = 0;
       lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
@@ -377,7 +356,6 @@ function handle(s: Signals): void {
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
-      skipAttempts = 0;
       actuator.restore();
       if (intervenedThisAd) watchPlayback();
       intervenedThisAd = false;
