@@ -7,7 +7,7 @@ export const CONFIG_KEY = 'config';
  * Tăng CONFIG_VERSION mỗi khi thay đổi cấu trúc hoặc giá trị mặc định của Config.
  * Khi version không khớp, storage cũ sẽ bị bỏ qua và dùng defaultConfig mới.
  */
-const CONFIG_VERSION = 2; // v2: maxSpeed=16, dryRun=false, allowSeek=true
+const CONFIG_VERSION = 3; // v3: purge stale maxSpeed 4x cache, enforce 16x
 const CONFIG_VERSION_KEY = 'config_version';
 
 export async function loadConfig(): Promise<Config> {
