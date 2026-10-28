@@ -165,3 +165,49 @@ for (const key of PROTO_KEYS_TO_BLOCK) {
 }
 
 console.log('[AdFilter Stealth] Defuser đã kích hoạt ở MAIN world (bẫy JSON.parse + ytcfg + prototype)');
+
+// ─── Bẫy 7: Xóa triệt tiêu popup "Experiencing interruptions" ───────────────
+// MutationObserver trên document sẽ phát hiện & xóa ngay khi YouTube chèn popup.
+const POPUP_SELECTORS = [
+  'yt-notification-action-renderer',
+  'tp-yt-paper-toast',
+  'ytd-enforcement-message-view-model',
+] as const;
+
+function removeInterruptionPopups(): void {
+  for (const sel of POPUP_SELECTORS) {
+    const els = document.querySelectorAll(sel);
+    for (const el of els) {
+      // Chỉ xóa khi chứa nội dung liên quan đến quảng cáo / interruption
+      const text = el.textContent?.toLowerCase() ?? '';
+      if (
+        text.includes('interruption') ||
+        text.includes('ad blocker') ||
+        text.includes('ads') ||
+        text.includes('allow youtube ads') ||
+        text.includes('trình chặn')
+      ) {
+        el.remove();
+      }
+    }
+  }
+}
+
+// Chạy ngay lần đầu khi DOM sẵn sàng, sau đó theo dõi thêm bằng MutationObserver
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    removeInterruptionPopups();
+    new MutationObserver(removeInterruptionPopups).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  });
+} else {
+  removeInterruptionPopups();
+  if (document.body) {
+    new MutationObserver(removeInterruptionPopups).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+}
