@@ -5,32 +5,83 @@
     <title>AdFilter</title>
     <style>
       body {
-        font: 14px system-ui, sans-serif;
-        width: 260px;
-        margin: 12px;
+        font-family: system-ui, -apple-system, sans-serif;
+        width: 300px;
+        padding: 16px;
+        margin: 0;
+        background-color: #ffffff;
+        color: #111827;
       }
-      h1 {
-        font-size: 16px;
-        margin: 0 0 8px;
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
       }
-      #out div {
-        margin: 2px 0;
+      .title { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+      .badge-stealth {
+        background-color: #ecfdf5;
+        color: #059669;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        border: 1px solid #a7f3d0;
       }
-      label {
-        display: block;
-        margin: 6px 0;
+      .stats-box {
+        background-color: #f3f4f6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
       }
-      button {
-        margin-top: 8px;
+      .stat-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 6px;
       }
+      .stat-item:last-child { margin-bottom: 0; }
+      .stat-val { font-weight: 700; color: #2563eb; }
+      .status-box {
+        font-size: 13px;
+        color: #4b5563;
+        margin-bottom: 12px;
+        line-height: 1.4;
+      }
+      .btn {
+        width: 100%;
+        padding: 8px;
+        background-color: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .btn:hover { background-color: #e5e7eb; }
     </style>
   </head>
   <body>
-    <h1>AdFilter</h1>
-    <div id="out">Đang tải...</div>
-    <label><input type="checkbox" id="enabled" /> Bật extension</label>
-    <label><input type="checkbox" id="dryRun" /> Chế độ dry-run (chỉ ghi log)</label>
-    <button id="export">Xuất log</button>
-    <script src="popup.js"></script>
+    <div class="header">
+      <div class="title">🛡️ AdFilter</div>
+      <div class="badge-stealth">Stealth Bật</div>
+    </div>
+
+    <div class="stats-box">
+      <div class="stat-item">
+        <span>Đã chặn hôm nay:</span>
+        <span class="stat-val" id="stat-count">0 quảng cáo</span>
+      </div>
+      <div class="stat-item">
+        <span>Thời gian tiết kiệm:</span>
+        <span class="stat-val" id="stat-time">0 giây</span>
+      </div>
+    </div>
+
+    <div class="status-box" id="status">Đang theo dõi luồng phát...</div>
+    <button class="btn" id="exportLogs">Xuất nhật ký (JSON)</button>
+
+    <script type="module" src="popup.js"></script>
   </body>
 </html>
