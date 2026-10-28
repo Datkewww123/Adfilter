@@ -3,7 +3,7 @@
  * Đặt getter/setter hook lên ytInitialPlayerResponse để xóa sạch trường QC
  * trước khi trình phát video YouTube kịp đọc.
  */
-
+import './interceptor';
 const AD_KEYS = [
   'adPlacements',
   'playerAds',
