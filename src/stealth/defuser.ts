@@ -172,10 +172,17 @@ const POPUP_SELECTORS = [
   'yt-notification-action-renderer',
   'tp-yt-paper-toast',
   'ytd-enforcement-message-view-model',
+  'ytd-third-party-manager',
 ] as const;
 
 function removeInterruptionPopups(): void {
+  // Xóa vô điều kiện ytd-third-party-manager (quản lý ad-blocker detection)
+  for (const el of document.querySelectorAll('ytd-third-party-manager')) {
+    el.remove();
+  }
+
   for (const sel of POPUP_SELECTORS) {
+    if (sel === 'ytd-third-party-manager') continue; // Đã xử lý ở trên
     const els = document.querySelectorAll(sel);
     for (const el of els) {
       // Chỉ xóa khi chứa nội dung liên quan đến quảng cáo / interruption
