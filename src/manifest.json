@@ -9,7 +9,13 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
+    "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
+      "js": ["defuser.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
       "js": ["content.js"],

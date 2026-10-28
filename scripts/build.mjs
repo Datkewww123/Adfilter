@@ -8,11 +8,12 @@ async function build() {
 
   // 1. Build TypeScript
   await esbuild.build({
-    entryPoints: {
+      entryPoints: {
       background: 'src/background/index.ts',
       content: 'src/content/index.ts',
       popup: 'src/popup/popup.ts',
       options: 'src/options/options.ts',
+      defuser: 'src/stealth/defuser.ts',
     },
     bundle: true,
     outdir: out,
