@@ -52,7 +52,7 @@ const actuator = new Actuator({
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       v.currentTime = Math.max(0, v.duration - 0.1);
-      v.playbackRate = 16.0;
+      v.playbackRate = cfg.maxSpeed;
       if (v.paused) void v.play().catch(() => undefined);
     }
 
@@ -122,6 +122,59 @@ function send(msg: Msg): void {
   }
 }
 
+function resumePlay(): void {
+  const v = getActiveVideo(document);
+  if (v && v.paused) {
+    void v.play().catch(() => undefined);
+  }
+  const bigPlay = document.querySelector<HTMLElement>('.ytp-large-play-button');
+  if (bigPlay) {
+    bigPlay.click();
+  }
+}
+
+/**
+ * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
+ * không cần chờ debounce hay planStep. Tắt tiếng + tua về cuối ngay lập tức.
+ */
+function instantIntervene(): void {
+  const player = document.querySelector(SEL.player);
+  const isAd =
+    player &&
+    (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+  if (!isAd || !canAct(breaker, Date.now()) || !cfg.enabled || cfg.dryRun) return;
+  actuator.noteBaseline();
+  actuator.touch();
+
+  const v = getActiveVideo(document);
+  if (!v) return;
+
+  // Tắt tiếng ngay lập tức
+  v.muted = true;
+
+  // Tăng tốc theo cấu hình ngay lập tức
+  v.playbackRate = cfg.maxSpeed;
+
+  // Tua về cuối ngay nếu duration đã có và kích hoạt sự kiện kết thúc
+  if (Number.isFinite(v.duration) && v.duration > 0) {
+    v.currentTime = Math.max(0, v.duration - 0.1);
+    resumePlay();
+    try {
+      v.dispatchEvent(new Event('ended'));
+    } catch {}
+  }
+
+  // Click skip nếu nút đã xuất hiện
+  const btn = getSkipButton(document);
+  if (btn) {
+    btn.click();
+    const inner = btn.querySelector<HTMLElement>('.ytp-skip-ad-button__text, span');
+    if (inner) inner.click();
+  }
+
+  log.info('[instantIntervene] can thiệp tức thời 0ms');
+}
+
 function verifyLater(a: Action, startedAt: number): void {
   window.setTimeout(() => {
     // Trích xuất tín hiệu MỚI NHẤT từ DOM và thẻ video để kiểm tra chính xác
@@ -141,10 +194,16 @@ function verifyLater(a: Action, startedAt: number): void {
     send({ kind: 'STATUS_UPDATE', status: currentStatus });
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
-      done = done.filter((t) => t !== a.type);
-      if (a.type === 'MUTE_SPEEDUP') {
-        actuator.restore();
+      if (a.type === 'CLICK_SKIP') {
+        // Synthetic click bị YouTube chặn isTrusted, không spam click để tránh nghẽn event loop.
+        // Chuyển hướng kích hoạt SEEK_TO_END để tua dứt điểm ngay lập tức.
+        done = done.filter((t) => t !== 'SEEK_TO_END');
+        lastSoughtDuration = null;
+      } else {
+        done = done.filter((t) => t !== a.type);
       }
+      // BUG FIX: Không gọi actuator.restore() khi quảng cáo vẫn đang chiếu!
+      // Chỉ restore khi AD_END — tránh tự bật tiếng lại giữa chừng quảng cáo.
     }
   }, VERIFY_AFTER_MS);
 }
@@ -192,10 +251,11 @@ function execute(a: Action, s: Signals): void {
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       lastSoughtDuration = v.duration;
       v.currentTime = Math.max(0, v.duration - 0.1);
-      v.playbackRate = 16.0;
-      if (v.paused) {
-        void v.play().catch(() => undefined);
-      }
+      v.playbackRate = cfg.maxSpeed;
+      resumePlay();
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
     }
     const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
     for (const vid of videos) {
@@ -228,28 +288,17 @@ function planStep(s: Signals): void {
 
   const v = getActiveVideo(document);
   if (v && Number.isFinite(v.duration) && v.duration > 0) {
-    // 1. Quảng cáo mới có thời lượng khác (Ad 2 trong chuỗi Ad Pod)
-    const isNewDuration = lastSoughtDuration !== v.duration && v.currentTime < v.duration - 0.5;
-    // 2. Quảng cáo mới khởi động lại từ 0s (dù cùng duration)
-    const isRestart = v.currentTime < 1.0 && lastCurrentTime > 2.0 && !v.seeking;
-    // 3. Quảng cáo đơn: khi nút Skip xuất hiện hoặc sẵn sàng mà video chưa về cuối -> giải phóng tua ngay!
-    const isSkipReady = s.skipVisible && v.currentTime < v.duration - 0.5;
-    // 4. Lệnh tua ban đầu ở giây 0 bị YouTube từ chối (sau 1s mà currentTime vẫn < 2s)
-    const isSeekRejected =
-      !v.seeking && v.currentTime < 2.0 && s.t - adStartedAt > 1000 && lastSoughtDuration === v.duration;
-
-    if (isNewDuration || isRestart || isSkipReady || isSeekRejected) {
+    // Nếu video chưa tua xong về cuối, tiếp tục giải phóng SEEK_TO_END để ép tua dứt điểm
+    if (v.currentTime < v.duration - 0.2) {
       done = done.filter((t) => t !== 'SEEK_TO_END');
       lastSoughtDuration = null;
+    } else {
+      // Khi đã ở cuối quảng cáo mà bị dừng hình, kích hoạt play ngay
+      resumePlay();
     }
     if (Number.isFinite(v.currentTime)) {
       lastCurrentTime = v.currentTime;
     }
-  }
-
-  // Nếu nút Skip đang hiển thị, giải phóng CLICK_SKIP để tự động click thử liên tục
-  if (s.skipVisible) {
-    done = done.filter((t) => t !== 'CLICK_SKIP');
   }
 
   // Khi bật allowSeek, cho phép tua ngay (msIntoAd >= SEEK_AFTER_MS)
@@ -295,15 +344,18 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
-      applyMask()
+      applyMask();
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
+      lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
+      // Can thiệp tức thời 0ms ngay tại thời điểm AD_START — không chờ planStep
+      if (cfg.enabled && !cfg.dryRun) instantIntervene();
     } else {
-      removeMask()
+      removeMask();
       if (obs) {
         const c = classify(endObservation(obs, e.at));
         currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };
@@ -352,6 +404,12 @@ function handle(s: Signals): void {
   }
 }
 
-const observer = new PlayerObserver(handle);
+const observer = new PlayerObserver(handle, {
+  // Callback tức thời 0ms ngay khi MutationObserver thấy .ad-showing trên DOM,
+  // không qua throttle MIN_GAP_MS hay State Machine debounce.
+  onInstant: () => {
+    if (cfg.enabled && !cfg.dryRun) instantIntervene();
+  },
+});
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });

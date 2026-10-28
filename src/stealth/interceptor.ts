@@ -1,5 +1,5 @@
 /**
- * Interceptor — Bọc window.fetch để lọc quảng cáo trong các request SPA.
+ * Interceptor — Bọc window.fetch và XMLHttpRequest để lọc quảng cáo trong các request SPA.
  */
 
 const AD_KEYS = [
@@ -10,7 +10,7 @@ const AD_KEYS = [
   'adBreakHeartbeatParams',
 ];
 
-function purgeObject(obj: Record<string, unknown>): void {
+export function purgeObject(obj: Record<string, unknown>): void {
   for (const key of AD_KEYS) {
     if (key in obj) delete obj[key];
   }
@@ -26,12 +26,13 @@ window.fetch = async function patchedFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const response = await originalFetch(input, init);
   const url = typeof input === 'string'
     ? input
     : input instanceof URL
       ? input.href
-      : input.url;
+      : (input as Request).url || '';
+
+  const response = await originalFetch(input, init);
 
   if (isPlayerUrl(url)) {
     try {
@@ -56,4 +57,41 @@ window.fetch = async function patchedFetch(
   return response;
 };
 
-console.log('[AdFilter Stealth] Interceptor đã bọc fetch()');
+// Bọc XMLHttpRequest
+const XHROpen = XMLHttpRequest.prototype.open;
+const XHRSend = XMLHttpRequest.prototype.send;
+
+XMLHttpRequest.prototype.open = function (
+  this: XMLHttpRequest & { _url?: string },
+  method: string,
+  url: string | URL,
+  ...rest: unknown[]
+) {
+  this._url = typeof url === 'string' ? url : (url as URL).href || '';
+  return XHROpen.apply(this, [method, url, ...rest] as Parameters<typeof XHROpen>);
+};
+
+XMLHttpRequest.prototype.send = function (
+  this: XMLHttpRequest & { _url?: string },
+  ...args: Parameters<typeof XHRSend>
+) {
+  if (this._url && isPlayerUrl(this._url)) {
+    this.addEventListener('readystatechange', () => {
+      if (this.readyState === 4) {
+        try {
+          const body = JSON.parse(this.responseText) as Record<string, unknown>;
+          purgeObject(body);
+          if (body.playerResponse && typeof body.playerResponse === 'object') {
+            purgeObject(body.playerResponse as Record<string, unknown>);
+          }
+          const text = JSON.stringify(body);
+          Object.defineProperty(this, 'responseText', { value: text, configurable: true });
+          Object.defineProperty(this, 'response', { value: text, configurable: true });
+        } catch {}
+      }
+    });
+  }
+  return XHRSend.apply(this, args);
+};
+
+console.log('[AdFilter Stealth] Interceptor đã bọc fetch() & XHR');

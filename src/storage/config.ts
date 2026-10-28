@@ -6,12 +6,12 @@ export interface Config {
   telemetry: boolean;
 }
 
-/** Mặc định an toàn: dry-run bật, không tua, không gửi telemetry. */
+/** Mặc định tối ưu: can thiệp ngay (dry-run tắt), tua nhanh 16x, cho phép seek. */
 export const defaultConfig: Config = {
   enabled: true,
-  dryRun: true,
-  maxSpeed: 2,
-  allowSeek: false,
+  dryRun: false,
+  maxSpeed: 16,
+  allowSeek: true,
   telemetry: false,
 };
 
@@ -29,7 +29,7 @@ export function normalizeConfig(raw: unknown): Config {
     dryRun: bool('dryRun', defaultConfig.dryRun),
     maxSpeed:
       typeof speed === 'number' && Number.isFinite(speed)
-        ? clamp(speed, 1, 4)
+        ? clamp(speed, 1, 16)
         : defaultConfig.maxSpeed,
     allowSeek: bool('allowSeek', defaultConfig.allowSeek),
     telemetry: bool('telemetry', defaultConfig.telemetry),

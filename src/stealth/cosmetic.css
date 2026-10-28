@@ -1,11 +1,57 @@
-/* Quảng cáo trang chủ (masthead banner lớn) */
+/* ============================================================
+ * TÀNG HÌNH VIDEO QUẢNG CÁO TỨC THỜI (CSS Layer 0)
+ * Ngay khi YouTube gán class .ad-showing, video biến mất khỏi
+ * tầm nhìn của người dùng (< 1ms) — lớp bảo vệ đầu tiên.
+ * ============================================================ */
+
+/* Ẩn hoàn toàn video stream quảng cáo khỏi tầm nhìn ở mọi chế độ hiển thị */
+.ad-showing video,
+.ad-interrupting video,
+#movie_player.ad-showing video,
+#movie_player.ad-interrupting video,
+.html5-video-player.ad-showing video,
+.ad-showing .html5-main-video {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Ẩn nút Play lớn và thanh điều khiển lúc đang chiếu quảng cáo */
+.ad-showing .ytp-large-play-button,
+.ad-showing .ytp-play-button,
+#movie_player.ad-showing .ytp-chrome-bottom,
+#movie_player.ad-interrupting .ytp-chrome-bottom {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Ẩn toàn bộ overlay quảng cáo video, nhà tài trợ, nút xem thêm (VietnamWorks, interstitial, v.v.) */
+#movie_player.ad-showing .ytp-ad-player-overlay,
+#movie_player.ad-showing .ytp-ad-player-overlay-layout,
+#movie_player.ad-showing .ytp-ad-action-interstitial,
+#movie_player.ad-showing .ytp-ad-module,
+#movie_player.ad-showing .ytp-ad-image-overlay,
+.ytp-ad-player-overlay,
+.ytp-ad-player-overlay-layout,
+.ytp-ad-action-interstitial,
+.ytp-ad-module {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================
+ * QUẢNG CÁO TRANG CHỦ (Masthead banner lớn)
+ * ============================================================ */
 #masthead-ad,
 ytd-banner-promo-renderer,
 ytd-statement-banner-renderer {
   display: none !important;
 }
 
-/* Quảng cáo trong danh sách gợi ý bên phải và trang chủ */
+/* ============================================================
+ * QUẢNG CÁO TRONG DANH SÁCH GỢI Ý BÊN PHẢI VÀ TRANG CHỦ
+ * ============================================================ */
 ytd-ad-slot-renderer,
 ytd-in-feed-ad-layout-renderer,
 ytd-promoted-sparkles-web-renderer,
@@ -15,21 +61,53 @@ ytd-companion-slot-renderer {
   display: none !important;
 }
 
-/* Quảng cáo chữ / popup chồng lên video (overlay) */
+/* ============================================================
+ * QUẢNG CÁO CHỮ / POPUP CHỒNG LÊN VIDEO (Overlay)
+ * ============================================================ */
 .ytp-ad-overlay-container,
 .ytp-ad-overlay-slot {
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
-/* Khung quảng cáo bên dưới tiêu đề video */
+/* ============================================================
+ * KHUNG QUẢNG CÁO BÊN DƯỚI TIÊU ĐỀ VIDEO
+ * ============================================================ */
 #player-ads,
 #below ytd-ad-slot-renderer,
 ytd-merch-shelf-renderer {
   display: none !important;
 }
 
-/* Badge quảng cáo trên thumbnail */
+/* ============================================================
+ * BADGE QUẢNG CÁO TRÊN THUMBNAIL
+ * ============================================================ */
 .ytd-ad-badge-renderer {
   display: none !important;
+}
+
+/* ============================================================
+ * POPUP CẢNH BÁO / THÔNG BÁO GIÁN ĐOẠN (Experiencing interruptions)
+ * ============================================================ */
+yt-notification-action-renderer,
+yt-notification-action-renderer.ytd-popup-container,
+.ytp-suggested-action,
+.ytp-suggested-action-badge,
+.ytp-suggested-action-badge-expanded,
+tp-yt-paper-toast,
+tp-yt-paper-toast.paper-toast-open,
+ytd-popup-container > yt-notification-action-renderer,
+#notification-action,
+.yt-spec-toast-renderer,
+ytd-enforcement-message-view-model,
+ytd-third-party-manager,
+snackbar-container,
+snackbar-container.ytSnackbarContainerHost,
+yt-playability-error-supported-renderers .yt-playability-error-supported-renderer {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }

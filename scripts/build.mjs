@@ -48,6 +48,10 @@ async function build() {
   await fs.copyFile('src/popup/popup.html', `${out}/popup.html`);
   await fs.copyFile('src/options/options.html', `${out}/options.html`);
 
+  if (!dev) {
+    await fs.cp(out, 'dist', { recursive: true });
+    console.log('✅ Mirrored build to dist/');
+  }
   console.log(`✅ Build completed -> ${out}/`);
 }
 
