@@ -23,6 +23,7 @@ import {
   observeAd,
   type AdObservation,
 } from '../core/classifier';
+import { applyMask, removeMask } from '../stealth/visual-mask';
 let obs: AdObservation | null = null;
 
 const VERIFY_AFTER_MS = 250;
@@ -294,6 +295,7 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
+      applyMask()
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
@@ -301,6 +303,7 @@ function handle(s: Signals): void {
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
     } else {
+      removeMask()
       if (obs) {
         const c = classify(endObservation(obs, e.at));
         currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };

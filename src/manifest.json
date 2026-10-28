@@ -12,11 +12,18 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
+      "js": ["defuser.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
       "js": ["content.js"],
+      "css": ["cosmetic.css"],
       "run_at": "document_idle"
     }
   ],
-   "action": {
+  "action": {
     "default_popup": "popup.html"
   },
   "options_ui": {

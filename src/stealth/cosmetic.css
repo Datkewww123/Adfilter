@@ -1,0 +1,35 @@
+/* Quảng cáo trang chủ (masthead banner lớn) */
+#masthead-ad,
+ytd-banner-promo-renderer,
+ytd-statement-banner-renderer {
+  display: none !important;
+}
+
+/* Quảng cáo trong danh sách gợi ý bên phải và trang chủ */
+ytd-ad-slot-renderer,
+ytd-in-feed-ad-layout-renderer,
+ytd-promoted-sparkles-web-renderer,
+ytd-promoted-video-renderer,
+ytd-display-ad-renderer,
+ytd-companion-slot-renderer {
+  display: none !important;
+}
+
+/* Quảng cáo chữ / popup chồng lên video (overlay) */
+.ytp-ad-overlay-container,
+.ytp-ad-overlay-slot {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Khung quảng cáo bên dưới tiêu đề video */
+#player-ads,
+#below ytd-ad-slot-renderer,
+ytd-merch-shelf-renderer {
+  display: none !important;
+}
+
+/* Badge quảng cáo trên thumbnail */
+.ytd-ad-badge-renderer {
+  display: none !important;
+}

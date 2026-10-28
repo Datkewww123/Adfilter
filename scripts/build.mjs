@@ -13,6 +13,7 @@ async function build() {
       content: 'src/content/index.ts',
       popup: 'src/popup/popup.ts',
       options: 'src/options/options.ts',
+      defuser: 'src/stealth/defuser.ts',
     },
     bundle: true,
     outdir: out,
@@ -33,13 +34,17 @@ async function build() {
   if (dev) {
     manifest.host_permissions = manifest.host_permissions || [];
     manifest.host_permissions.push('*://localhost/*', 'http://localhost/*');
-    if (manifest.content_scripts && manifest.content_scripts[0]) {
-      manifest.content_scripts[0].matches.push('*://localhost/*', 'http://localhost/*');
+    if (manifest.content_scripts) {
+      for (const cs of manifest.content_scripts) {
+        cs.matches = cs.matches || [];
+        cs.matches.push('*://localhost/*', 'http://localhost/*');
+      }
     }
   }
   await fs.writeFile(`${out}/manifest.json`, JSON.stringify(manifest, null, 2));
 
   // 3. Copy các file tĩnh
+  await fs.copyFile('src/stealth/cosmetic.css', `${out}/cosmetic.css`);
   await fs.copyFile('src/popup/popup.html', `${out}/popup.html`);
   await fs.copyFile('src/options/options.html', `${out}/options.html`);
 
