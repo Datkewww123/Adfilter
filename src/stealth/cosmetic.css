@@ -85,3 +85,14 @@ ytd-merch-shelf-renderer {
 .ytd-ad-badge-renderer {
   display: none !important;
 }
+
+/* ============================================================
+ * POPUP CẢNH BÁO / THÔNG BÁO GIÁN ĐOẠN (Experiencing interruptions)
+ * ============================================================ */
+yt-notification-action-renderer.ytd-popup-container,
+.ytp-suggested-action-badge,
+ytd-popup-container:has(yt-notification-action-renderer) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
