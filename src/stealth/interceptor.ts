@@ -6,6 +6,8 @@ const AD_KEYS = [
   'adSlots',
   'adBreakParams',
   'adBreakHeartbeatParams',
+  'adBreaks',
+  'playbackTracking',
 ];
 
 function purge(obj: unknown): void {
@@ -13,6 +15,12 @@ function purge(obj: unknown): void {
   const record = obj as Record<string, unknown>;
   for (const key of AD_KEYS) {
     if (key in record) delete record[key];
+  }
+  // Triệt tiêu cả entries trong response của Shorts
+  if (Array.isArray(record.entries)) {
+    record.entries = record.entries.filter(
+      (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
+    );
   }
 }
 
@@ -23,7 +31,7 @@ async function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promi
   const res = await originalFetch(input, init);
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
-  if (url.includes('/youtubei/v1/player')) {
+  if (url.includes('/youtubei/v1/player') || url.includes('/youtubei/v1/next')) {
     try {
       const text = await res.text();
       const data = JSON.parse(text);
@@ -59,7 +67,7 @@ class PatchedXHR extends OrigXHR {
 
   get responseText(): string {
     const text = super.responseText;
-    if (this._url.includes('/youtubei/v1/player')) {
+    if (this._url.includes('/youtubei/v1/player') || this._url.includes('/youtubei/v1/next')) {
       try {
         const data = JSON.parse(text);
         purge(data);
