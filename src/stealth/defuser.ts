@@ -297,14 +297,19 @@ if (!isLocalTest) {
 
   // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
   // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
+  let _autoplayDone = false;
   function ensureAutoplay(): void {
+    if (_autoplayDone) return;
     const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
     if (!player) return;
     const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
     if (isAd) return;
     const v = document.querySelector<HTMLVideoElement>('video');
-    if (v && v.paused && v.currentTime < 1) {
-      void v.play().catch(() => undefined);
+    if (v && v.currentTime < 1) {
+      if (v.paused) {
+        void v.play().catch(() => undefined);
+      }
+      _autoplayDone = true;
     }
   }
 
@@ -330,15 +335,11 @@ if (!isLocalTest) {
       removeInterruptionPopups();
       ensureAutoplay();
     }, 400);
-
-    // Kích hoạt lại khi chuyển video SPA trên YouTube
     document.addEventListener('yt-navigate-finish', () => {
-      window.setTimeout(ensureAutoplay, 200);
-      window.setTimeout(ensureAutoplay, 600);
-      window.setTimeout(ensureAutoplay, 1200);
+      _autoplayDone = false;
+      window.setTimeout(ensureAutoplay, 300);
     });
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initStealthMonitors);
   } else {
