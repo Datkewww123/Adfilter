@@ -26,7 +26,6 @@ if (!isLocalTest) {
     'adBreakParams',
     'adBreakHeartbeatParams',
     'adBreaks',
-    'playbackTracking',
   ];
 
   // Throttle chống spam: chỉ gửi 1 tín hiệu AD_DEFUSED tối đa mỗi 2 giây
