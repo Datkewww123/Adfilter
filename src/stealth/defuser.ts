@@ -3,8 +3,11 @@
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
  *
- * Nâng cấp Tuần Stealth-3: Khóa bẫy Defuser (Hardening) qua Object.defineProperty,
- * hỗ trợ triệt tiêu cả quảng cáo Shorts và Mid-roll.
+ * Nâng cấp Tuần Stealth-3 & Bản vá Active Ad-Killer:
+ * - Khóa bẫy Defuser (Hardening) qua Object.defineProperty.
+ * - Hỗ trợ triệt tiêu cả quảng cáo Shorts và Mid-roll.
+ * - Active Ad-Killer trong MAIN world: Dập tắt 100% âm thanh quảng cáo ngay lập tức (0ms),
+ *   gọi trực tiếp player.skipAd() từ engine gốc và tua dứt điểm không chờ đợi.
  */
 import './interceptor';
 import { disguise } from './anti-detect';
@@ -31,6 +34,18 @@ export function purge(obj: unknown): void {
     record.entries = record.entries.filter(
       (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
     );
+  }
+
+  // Quét sạch các trường QC lồng nhau 1 cấp (playerResponse, data, v.v.)
+  for (const k of Object.keys(record)) {
+    const val = record[k];
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      for (const key of AD_KEYS) {
+        if (key in (val as Record<string, unknown>)) {
+          delete (val as Record<string, unknown>)[key];
+        }
+      }
+    }
   }
 }
 
@@ -217,20 +232,117 @@ function removeInterruptionPopups(): void {
   }
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    removeInterruptionPopups();
-    new MutationObserver(removeInterruptionPopups).observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-  });
-} else {
+// ─── Bẫy 8: Active Ad-Killer trong MAIN World (Triệt tiêu 0ms âm thanh & video quảng cáo) ───
+let wasAdPlaying = false;
+
+function isCurrentAd(): boolean {
+  const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+  if (player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))) {
+    return true;
+  }
+  if (document.querySelector('.ytp-ad-player-overlay, .ytp-ad-player-overlay-layout, .ytp-ad-action-interstitial, .ytp-ad-module:not(:empty)')) {
+    return true;
+  }
+  return false;
+}
+
+function killAd(): void {
+  if (!isCurrentAd()) {
+    if (wasAdPlaying) {
+      wasAdPlaying = false;
+      const v = document.querySelector<HTMLVideoElement>('video');
+      if (v) {
+        const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
+        v.muted = player && typeof player.isMuted === 'function' ? player.isMuted() : false;
+        v.playbackRate = 1.0;
+        if (v.paused) {
+          void v.play().catch(() => undefined);
+        }
+      }
+    }
+    return;
+  }
+
+  wasAdPlaying = true;
+  const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
+
+  // 1. Cưỡng chế TẮT TIẾNG ngay lập tức và tăng tốc 16x toàn bộ thẻ video
+  const videos = document.querySelectorAll<HTMLVideoElement>('video');
+  for (const v of videos) {
+    v.muted = true;
+    v.volume = 0;
+    v.playbackRate = 16.0;
+    if (Number.isFinite(v.duration) && v.duration > 0) {
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
+    } else {
+      try {
+        v.currentTime = 999999;
+      } catch {}
+    }
+  }
+
+  // 2. Gọi trực tiếp API nội bộ của YouTube player (chỉ có trong MAIN world!)
+  try {
+    if (player && typeof player.skipAd === 'function') {
+      player.skipAd();
+    }
+  } catch {}
+
+  // 3. Click tất cả các nút Skip của YouTube
+  const skipButtons = document.querySelectorAll<HTMLElement>(
+    '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot, [id^="skip-button"]'
+  );
+  for (const btn of skipButtons) {
+    btn.click();
+  }
+}
+
+// Lắng nghe sự kiện để dập tắt âm thanh quảng cáo tức thì
+document.addEventListener('timeupdate', killAd, true);
+document.addEventListener('play', killAd, true);
+document.addEventListener(
+  'volumechange',
+  (e) => {
+    if (isCurrentAd()) {
+      const target = e.target as HTMLMediaElement;
+      if (target && !target.muted) {
+        target.muted = true;
+        target.volume = 0;
+      }
+    }
+  },
+  true,
+);
+
+// Khởi tạo MutationObserver và bộ kiểm tra định kỳ 50ms
+function initStealthMonitors(): void {
   removeInterruptionPopups();
-  if (document.body) {
-    new MutationObserver(removeInterruptionPopups).observe(document.body, {
+  killAd();
+
+  const target = document.body || document.documentElement;
+  if (target) {
+    new MutationObserver(() => {
+      removeInterruptionPopups();
+      killAd();
+    }).observe(target, {
+      attributes: true,
+      attributeFilter: ['class'],
       childList: true,
       subtree: true,
     });
   }
+
+  window.setInterval(() => {
+    removeInterruptionPopups();
+    killAd();
+  }, 50);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initStealthMonitors);
+} else {
+  initStealthMonitors();
 }
