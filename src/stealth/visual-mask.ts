@@ -10,7 +10,7 @@ const MASK_ID = '__adfilter_visual_mask';
 const MAX_MASK_MS = 3000; // Tối đa 3 giây — sau đó tự kiểm tra và tháo nếu không còn QC
 
 let maskActive = false;
-let _autoRemoveTimer: ReturnType<typeof window.setTimeout> | null = null;
+let _autoRemoveTimer: any = null;
 
 function _clearAutoRemove(): void {
   if (_autoRemoveTimer !== null) {
