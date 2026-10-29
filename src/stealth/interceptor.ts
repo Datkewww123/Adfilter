@@ -9,6 +9,34 @@ const AD_KEYS = [
   'adBreaks',
 ];
 
+// ─── Danh sách URL patterns của Google Ad Network cần block ngay (trả về rỗng tức thì) ───
+// Các request này là nguyên nhân gây delay 5-6s vì YouTube chờ auction/impression từ ad server.
+const AD_NETWORK_BLOCK_PATTERNS = [
+  // Google Ad Server - impression / auction
+  'doubleclick.net',
+  'googlesyndication.com',
+  'googleads.g.doubleclick.net',
+  'adservice.google',
+  // YouTube ad beacon và impression tracking
+  '/youtubei/v1/ad/',
+  '/pagead/',
+  '/pcs/view',
+  '/pcs/activeview',
+  // YouTube internal ad telemetry
+  '/api/stats/ads',
+  '/api/stats/delayplay',
+  // YouTube ad system ping
+  'youtube.com/pagead',
+];
+
+/**
+ * Kiểm tra URL có thuộc ad network cần block ngay không.
+ * Trả về true nếu cần block (không gửi request thật).
+ */
+function isAdNetworkUrl(url: string): boolean {
+  return AD_NETWORK_BLOCK_PATTERNS.some((pattern) => url.includes(pattern));
+}
+
 function purge(obj: unknown): void {
   if (obj == null || typeof obj !== 'object') return;
   const record = obj as Record<string, unknown>;
@@ -29,12 +57,31 @@ function purge(obj: unknown): void {
   }
 }
 
+/**
+ * Tạo response rỗng thành công (200 OK, body "{}") để trả lại ngay lập tức.
+ * Giúp YouTube "thỏa mãn" request mà không cần chờ network thật của Google Ad Server.
+ */
+function emptySuccessResponse(): Response {
+  return new Response('{}', {
+    status: 200,
+    statusText: 'OK',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 // ─── 1. Bẫy fetch() có ngụy trang ──────────────────────────────────────────
 const originalFetch = window.fetch.bind(window);
 
 async function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+
+  // Chặn ngay ad network request — KHÔNG gửi tới server, trả về rỗng tức thì
+  // Đây là fix chính cho vấn đề delay 5-6 giây khi vào video có quảng cáo.
+  if (isAdNetworkUrl(url)) {
+    return emptySuccessResponse();
+  }
+
   const res = await originalFetch(input, init);
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
   if (url.includes('/youtubei/v1/player') || url.includes('/youtubei/v1/next')) {
     try {
@@ -64,13 +111,21 @@ const OrigXHR = window.XMLHttpRequest;
 
 class PatchedXHR extends OrigXHR {
   private _url = '';
+  private _blocked = false;
 
   open(method: string, url: string | URL, ...rest: any[]): void {
     this._url = typeof url === 'string' ? url : url.href;
+    // Đánh dấu XHR nào cần block (ad network)
+    this._blocked = isAdNetworkUrl(this._url);
+    if (this._blocked) {
+      // Vẫn gọi open để XHR ở trạng thái hợp lệ, redirect sang about:blank
+      return (super.open as any)(method, 'about:blank', ...rest);
+    }
     return (super.open as any)(method, url, ...rest);
   }
 
   get responseText(): string {
+    if (this._blocked) return '{}';
     const text = super.responseText;
     if (this._url.includes('/youtubei/v1/player') || this._url.includes('/youtubei/v1/next')) {
       try {
@@ -88,6 +143,7 @@ class PatchedXHR extends OrigXHR {
   }
 
   get response(): any {
+    if (this._blocked) return '{}';
     if (this.responseType === '' || this.responseType === 'text') {
       return this.responseText;
     }
@@ -97,4 +153,4 @@ class PatchedXHR extends OrigXHR {
 
 window.XMLHttpRequest = PatchedXHR as unknown as typeof XMLHttpRequest;
 
-console.log('[AdFilter Stealth] Interceptor đã bọc fetch() & XHR với Anti-Detection');
+console.log('[AdFilter Stealth] Interceptor đã bọc fetch() & XHR với Anti-Detection + Ad Network Block');
