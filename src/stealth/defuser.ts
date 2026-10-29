@@ -12,6 +12,7 @@
  * - Loại bỏ hoàn toàn từ khóa 'export' để tương thích 100% với Classic Script của Chrome MV3.
  * - Bỏ qua trên localhost / 127.0.0.1 để môi trường Playwright E2E test độc lập.
  * - Throttle AD_DEFUSED tối đa 1 lần / 2 giây để tránh đếm trùng quảng cáo.
+ * - Trả về mảng rỗng [] cho adPlacements/playerAds/adSlots thay vì undefined để triệt tiêu độ trễ 5s của YouTube.
  */
 import './interceptor';
 import { disguise } from './anti-detect';
@@ -40,7 +41,11 @@ if (!isLocalTest) {
 
     for (const key of AD_KEYS) {
       if (key in record) {
-        delete record[key];
+        if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+          record[key] = [];
+        } else {
+          delete record[key];
+        }
         removed = true;
       }
     }
@@ -62,7 +67,11 @@ if (!isLocalTest) {
       if (val && typeof val === 'object' && !Array.isArray(val)) {
         for (const key of AD_KEYS) {
           if (key in (val as Record<string, unknown>)) {
-            delete (val as Record<string, unknown>)[key];
+            if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+              (val as Record<string, unknown>)[key] = [];
+            } else {
+              delete (val as Record<string, unknown>)[key];
+            }
             removed = true;
           }
         }
@@ -135,7 +144,7 @@ if (!isLocalTest) {
     set(val: unknown) {
       if (val != null && typeof val === 'object') {
         const record = val as Record<string, unknown>;
-        delete record['adSlots'];
+        record['adSlots'] = [];
         delete record['promotedSparklesWebRenderer'];
       }
       _initialData = val;
@@ -209,7 +218,7 @@ if (!isLocalTest) {
         Object.defineProperty(Object.prototype, key, {
           configurable: true,
           get() {
-            return undefined;
+            return [];
           },
           set(val: unknown) {
             Object.defineProperty(this as object, key, {
