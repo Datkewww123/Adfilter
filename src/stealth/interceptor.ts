@@ -7,7 +7,6 @@ const AD_KEYS = [
   'adBreakParams',
   'adBreakHeartbeatParams',
   'adBreaks',
-  'playbackTracking',
 ];
 
 function purge(obj: unknown): void {
