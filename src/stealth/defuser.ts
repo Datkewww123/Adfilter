@@ -269,13 +269,11 @@ if (!isLocalTest) {
 
   function isCurrentAd(): boolean {
     const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
-    if (player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))) {
-      return true;
-    }
-    if (document.querySelector('.ytp-ad-player-overlay, .ytp-ad-player-overlay-layout, .ytp-ad-action-interstitial, .ytp-ad-module:not(:empty)')) {
-      return true;
-    }
-    return false;
+    // Chỉ kích hoạt khi chắc chắn có class quảng cáo, tuyệt đối không nhận diện nhầm video chính
+    return Boolean(
+      player &&
+        (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
+    );
   }
 
   function killAd(): void {
