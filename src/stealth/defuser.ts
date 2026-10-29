@@ -8,6 +8,7 @@
  * - Hỗ trợ triệt tiêu cả quảng cáo Shorts và Mid-roll.
  * - Active Ad-Killer trong MAIN world: Dập tắt 100% âm thanh quảng cáo ngay lập tức (0ms),
  *   gọi trực tiếp player.skipAd() từ engine gốc và tua dứt điểm không chờ đợi.
+ * - Loại bỏ hoàn toàn từ khóa 'export' để tương thích 100% với Classic Script của Chrome MV3.
  */
 import './interceptor';
 import { disguise } from './anti-detect';
@@ -22,7 +23,7 @@ const AD_KEYS = [
   'playbackTracking',
 ];
 
-export function purge(obj: unknown): void {
+function purge(obj: unknown): void {
   if (obj == null || typeof obj !== 'object') return;
   const record = obj as Record<string, unknown>;
   for (const key of AD_KEYS) {
