@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Defuser — Chạy trong MAIN world, document_start.
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
@@ -288,20 +288,16 @@ if (!isLocalTest) {
     }
   }
 
-  // ─── Native Autoplay: Gọi API gốc của YouTube để phát video ngay lập tức ──────
+  // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
+  // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
   function ensureAutoplay(): void {
     const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
     if (!player) return;
     const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
     if (isAd) return;
-
-    if (typeof player.getPlayerState === 'function' && typeof player.playVideo === 'function') {
-      const state = player.getPlayerState();
-      const v = document.querySelector<HTMLVideoElement>('video');
-      // Nếu trạng thái đang là 2 (PAUSED) hoặc -1 (UNSTARTED) khi mới vào video (< 1s)
-      if ((state === 2 || state === -1) && v && v.currentTime < 1) {
-        player.playVideo();
-      }
+    const v = document.querySelector<HTMLVideoElement>('video');
+    if (v && v.paused && v.currentTime < 1) {
+      void v.play().catch(() => undefined);
     }
   }
 
