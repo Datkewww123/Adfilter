@@ -1,4 +1,4 @@
-import { ext } from '../platform/api';
+﻿import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -24,6 +24,7 @@ import {
   type AdObservation,
 } from '../core/classifier';
 import { applyMask, removeMask } from '../stealth/visual-mask';
+import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/pipeline';
 let obs: AdObservation | null = null;
 
 const VERIFY_AFTER_MS = 250;
@@ -247,6 +248,7 @@ function execute(a: Action, s: Signals): void {
 
   // Cơ chế One-Shot Seek dứt khoát: tua 1 lần duy nhất cho mỗi quảng cáo và gọi play()
   if (a.type === 'SEEK_TO_END') {
+    onSeekExecuted();
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       lastSoughtDuration = v.duration;
@@ -345,6 +347,7 @@ function handle(s: Signals): void {
   for (const e of events) {
     if (e.type === 'AD_START') {
       applyMask();
+      onAdStart();
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
@@ -356,6 +359,7 @@ function handle(s: Signals): void {
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
     } else {
       removeMask();
+      onAdEnd();
       if (obs) {
         const c = classify(endObservation(obs, e.at));
         currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };
@@ -413,3 +417,11 @@ const observer = new PlayerObserver(handle, {
 });
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });
+
+// ─── Watchdog: Kiểm tra sức khỏe pipeline mỗi 60 giây ──────────────────────
+window.setInterval(() => {
+  const report = runHealthCheck();
+  if (!report.healthy) {
+    log.warn('[Pipeline Watchdog] Phát hiện vấn đề:', report);
+  }
+}, 60_000);
