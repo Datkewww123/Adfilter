@@ -13,7 +13,13 @@ function purge(obj: unknown): void {
   if (obj == null || typeof obj !== 'object') return;
   const record = obj as Record<string, unknown>;
   for (const key of AD_KEYS) {
-    if (key in record) delete record[key];
+    if (key in record) {
+      if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+        record[key] = [];
+      } else {
+        delete record[key];
+      }
+    }
   }
   // Triệt tiêu cả entries trong response của Shorts
   if (Array.isArray(record.entries)) {
