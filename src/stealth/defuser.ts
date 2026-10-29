@@ -260,9 +260,16 @@ if (!isLocalTest) {
       el.remove();
     }
 
-    // 2. Mở khóa scroll của body nếu YouTube cố tình khóa
+    // 2. Mo khoa scroll cua ca body va html/documentElement neu bi YouTube gan hidden/touch/overflow
     if (document.body && document.body.style.overflow === 'hidden') {
       document.body.style.overflow = '';
+    }
+    if (document.documentElement && document.documentElement.style.overflow === 'hidden') {
+      document.documentElement.style.overflow = '';
+    }
+    const ytdApp = document.querySelector('ytd-app') as HTMLElement | null;
+    if (ytdApp && ytdApp.style.overflow === 'hidden') {
+      ytdApp.style.overflow = '';
     }
 
     // 3. Quét các popup cảnh báo có nội dung chống adblock
