@@ -176,26 +176,9 @@ function instantIntervene(): void {
   for (const v of allVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek) {
-      if (Number.isFinite(v.duration) && v.duration > 0) {
-        v.currentTime = Math.max(0, v.duration - 0.1);
-        resumePlay();
-        try {
-          v.dispatchEvent(new Event('ended'));
-        } catch {}
-      } else {
-        const onMeta = (): void => {
-          v.removeEventListener('loadedmetadata', onMeta);
-          if (Number.isFinite(v.duration) && v.duration > 0) {
-            v.currentTime = Math.max(0, v.duration - 0.1);
-            resumePlay();
-            try {
-              v.dispatchEvent(new Event('ended'));
-            } catch {}
-          }
-        };
-        v.addEventListener('loadedmetadata', onMeta, { once: true });
-      }
+    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      resumePlay();
     }
   }
 
@@ -280,9 +263,6 @@ function execute(a: Action, s: Signals): void {
       v.currentTime = Math.max(0, v.duration - 0.1);
       v.playbackRate = cfg.maxSpeed;
       resumePlay();
-      try {
-        v.dispatchEvent(new Event('ended'));
-      } catch {}
     }
     const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
     for (const vid of videos) {
@@ -404,9 +384,22 @@ function handle(s: Signals): void {
       lastSoughtDuration = null;
       lastCurrentTime = 0;
       actuator.restore();
+
+      // Auto-Resume Watcher: Đảm bảo luồng video chính tự động play sau khi dập tắt quảng cáo
       resumePlay();
-      window.setTimeout(resumePlay, 200);
-      window.setTimeout(resumePlay, 500);
+      let checks = 0;
+      const resumeWatcher = window.setInterval(() => {
+        checks++;
+        const p = document.querySelector(SEL.player);
+        const inAd = p && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'));
+        if (!inAd) {
+          resumePlay();
+        }
+        if (checks >= 10) {
+          clearInterval(resumeWatcher);
+        }
+      }, 150);
+
       if (intervenedThisAd) watchPlayback();
       intervenedThisAd = false;
       log.info(clock(e.emittedAt), 'AD_END');
