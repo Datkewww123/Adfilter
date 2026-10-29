@@ -47,14 +47,6 @@ const recorder = new Recorder();
 const actuator = new Actuator({
   getVideo: () => getActiveVideo(document),
   clickSkip: () => {
-    // 1. Gọi trực tiếp API nội bộ của YouTube Player (0ms, không chờ đếm ngược)
-    try {
-      const player = document.querySelector<any>('#movie_player');
-      if (player && typeof player.skipAd === 'function') {
-        player.skipAd();
-      }
-    } catch {}
-
     const btn = getSkipButton(document);
     if (!btn) return false;
 
@@ -66,7 +58,6 @@ const actuator = new Actuator({
       if (v.paused) void v.play().catch(() => undefined);
     }
 
-    // Click button và phần tử con
     btn.click();
     const inner = btn.querySelector<HTMLElement>(
       '.ytp-skip-ad-button__text, .ytp-ad-skip-button-text-modern, span, div',
@@ -128,6 +119,37 @@ function send(msg: Msg): void {
   }
 }
 
+/**
+ * Tăng bộ đếm tích lũy bền vững trong storage.local (không mất khi refresh hay mở tab mới)
+ */
+function incrementTotalBlocked(count = 1, seconds = 0): void {
+  ext.storage.local
+    .get(['stats_total_blocked', 'stats_total_seconds'])
+    .then((r) => {
+      const curCount = typeof r.stats_total_blocked === 'number' ? r.stats_total_blocked : 0;
+      const curSec = typeof r.stats_total_seconds === 'number' ? r.stats_total_seconds : 0;
+      void ext.storage.local.set({
+        stats_total_blocked: curCount + count,
+        stats_total_seconds: curSec + Math.round(seconds),
+      });
+    })
+    .catch(() => undefined);
+}
+
+// Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world)
+window.addEventListener('message', (event) => {
+  if (event.data?.source === 'adfilter-defuser' && event.data?.type === 'AD_DEFUSED') {
+    currentStatus = {
+      ...currentStatus,
+      adsDetected: currentStatus.adsDetected + 1,
+      adSeconds: currentStatus.adSeconds + 15,
+      updatedAt: Date.now(),
+    };
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
+    incrementTotalBlocked(1, 15);
+  }
+});
+
 function resumePlay(): void {
   const v = getActiveVideo(document);
   if (v && v.paused) {
@@ -140,45 +162,8 @@ function resumePlay(): void {
 }
 
 /**
- * Cưỡng chế dập tắt quảng cáo tức thì:
- * 1. Gọi trực tiếp player.skipAd() từ engine của YouTube (nếu có).
- * 2. Tắt tiếng ngay lập tức (muted + volume 0).
- * 3. Tua video về cuối ngay kể cả khi duration chưa đầy đủ.
- */
-function silenceAndSkipAllVideos(): void {
-  try {
-    const player = document.querySelector<any>('#movie_player');
-    if (player && typeof player.skipAd === 'function') {
-      player.skipAd();
-    }
-  } catch {}
-
-  const allVideos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
-  for (const v of allVideos) {
-    v.muted = true;
-    v.volume = 0;
-    v.playbackRate = 16.0;
-
-    if (Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
-      try {
-        v.dispatchEvent(new Event('ended'));
-      } catch {}
-    } else {
-      // Ép thời gian nhảy đến điểm kết thúc để Blink engine kích hoạt chuyển bài
-      try {
-        v.currentTime = 999999;
-      } catch {}
-    }
-
-    if (v.paused) {
-      void v.play().catch(() => undefined);
-    }
-  }
-}
-
-/**
- * Can thiệp tức thời 0ms — dập tắt quảng cáo trong < 10ms, không đợi 5-6s timeout
+ * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
+ * tôn trọng hoàn toàn cấu hình maxSpeed, dryRun, allowSeek.
  */
 function instantIntervene(): void {
   const player = document.querySelector(SEL.player);
@@ -189,8 +174,18 @@ function instantIntervene(): void {
   actuator.noteBaseline();
   actuator.touch();
 
-  silenceAndSkipAllVideos();
-  resumePlay();
+  const allVideos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
+  for (const v of allVideos) {
+    v.muted = true;
+    v.playbackRate = cfg.maxSpeed;
+    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      resumePlay();
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
+    }
+  }
 
   const btn = getSkipButton(document);
   if (btn) {
@@ -199,7 +194,7 @@ function instantIntervene(): void {
     if (inner) inner.click();
   }
 
-  log.info('[instantIntervene] can thiệp tức thời 0ms trên toàn bộ video');
+  log.info('[instantIntervene] can thiệp tức thời 0ms');
 }
 
 function verifyLater(a: Action, startedAt: number): void {
@@ -267,12 +262,26 @@ function execute(a: Action, s: Signals): void {
 
   if (a.type === 'SEEK_TO_END') {
     onSeekExecuted();
-    silenceAndSkipAllVideos();
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       lastSoughtDuration = v.duration;
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      v.playbackRate = cfg.maxSpeed;
+      resumePlay();
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
     }
-    resumePlay();
+    const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
+    for (const vid of videos) {
+      if (vid !== v && Number.isFinite(vid.duration) && vid.duration > 0) {
+        vid.currentTime = Math.max(0, vid.duration - 0.1);
+        vid.playbackRate = cfg.maxSpeed;
+        if (vid.paused) {
+          void vid.play().catch(() => undefined);
+        }
+      }
+    }
   }
 
   const res = actuator.apply(a);
@@ -354,10 +363,8 @@ function handle(s: Signals): void {
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
       
-      // Can thiệp tức thời 0ms ngay tại thời điểm AD_START
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
 
-      // Bảo vệ: Tự động gỡ Visual Mask tối đa sau 800ms để người dùng thấy ngay video chính
       window.setTimeout(() => {
         const player = document.querySelector(SEL.player);
         if (!player || !player.classList.contains('ad-showing')) {
@@ -367,6 +374,7 @@ function handle(s: Signals): void {
     } else {
       removeMask();
       onAdEnd();
+      const adDurationSec = (e.at - adStartedAt) / 1000;
       if (obs) {
         const c = classify(endObservation(obs, e.at));
         currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };
@@ -375,9 +383,10 @@ function handle(s: Signals): void {
       currentStatus = {
         ...currentStatus,
         adsDetected: currentStatus.adsDetected + 1,
-        adSeconds: currentStatus.adSeconds + (e.at - adStartedAt) / 1000,
+        adSeconds: currentStatus.adSeconds + adDurationSec,
         updatedAt: e.emittedAt,
       };
+      incrementTotalBlocked(1, adDurationSec);
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
