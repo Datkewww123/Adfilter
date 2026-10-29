@@ -12,7 +12,7 @@
  * - Loại bỏ hoàn toàn từ khóa 'export' để tương thích 100% với Classic Script của Chrome MV3.
  * - Bỏ qua trên localhost / 127.0.0.1 để môi trường Playwright E2E test độc lập.
  * - Throttle AD_DEFUSED tối đa 1 lần / 2 giây để tránh đếm trùng quảng cáo.
- * - Trả về mảng rỗng [] cho adPlacements/playerAds/adSlots thay vì undefined để triệt tiêu độ trễ 5s của YouTube.
+ * - Native Autoplay: Tự động gọi player.playVideo() khi YouTube bị đứng ở trạng thái Pause ở đầu video.
  */
 import './interceptor';
 import { disguise } from './anti-detect';
@@ -41,12 +41,15 @@ if (!isLocalTest) {
 
     for (const key of AD_KEYS) {
       if (key in record) {
+        const val = record[key];
         if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+          const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
           record[key] = [];
+          if (hadAds) removed = true;
         } else {
           delete record[key];
+          removed = true;
         }
-        removed = true;
       }
     }
 
@@ -67,12 +70,15 @@ if (!isLocalTest) {
       if (val && typeof val === 'object' && !Array.isArray(val)) {
         for (const key of AD_KEYS) {
           if (key in (val as Record<string, unknown>)) {
+            const nestedVal = (val as Record<string, unknown>)[key];
             if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+              const hadAds = Array.isArray(nestedVal) ? nestedVal.length > 0 : nestedVal != null;
               (val as Record<string, unknown>)[key] = [];
+              if (hadAds) removed = true;
             } else {
               delete (val as Record<string, unknown>)[key];
+              removed = true;
             }
-            removed = true;
           }
         }
       }
@@ -218,7 +224,7 @@ if (!isLocalTest) {
         Object.defineProperty(Object.prototype, key, {
           configurable: true,
           get() {
-            return [];
+            return undefined;
           },
           set(val: unknown) {
             Object.defineProperty(this as object, key, {
@@ -282,14 +288,33 @@ if (!isLocalTest) {
     }
   }
 
-  // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup
+  // ─── Native Autoplay: Gọi API gốc của YouTube để phát video ngay lập tức ──────
+  function ensureAutoplay(): void {
+    const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
+    if (!player) return;
+    const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
+    if (isAd) return;
+
+    if (typeof player.getPlayerState === 'function' && typeof player.playVideo === 'function') {
+      const state = player.getPlayerState();
+      const v = document.querySelector<HTMLVideoElement>('video');
+      // Nếu trạng thái đang là 2 (PAUSED) hoặc -1 (UNSTARTED) khi mới vào video (< 1s)
+      if ((state === 2 || state === -1) && v && v.currentTime < 1) {
+        player.playVideo();
+      }
+    }
+  }
+
+  // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup & autoplay
   function initStealthMonitors(): void {
     removeInterruptionPopups();
+    ensureAutoplay();
 
     const target = document.body || document.documentElement;
     if (target) {
       new MutationObserver(() => {
         removeInterruptionPopups();
+        ensureAutoplay();
       }).observe(target, {
         attributes: true,
         attributeFilter: ['class'],
@@ -300,7 +325,15 @@ if (!isLocalTest) {
 
     window.setInterval(() => {
       removeInterruptionPopups();
-    }, 500);
+      ensureAutoplay();
+    }, 400);
+
+    // Kích hoạt lại khi chuyển video SPA trên YouTube
+    document.addEventListener('yt-navigate-finish', () => {
+      window.setTimeout(ensureAutoplay, 200);
+      window.setTimeout(ensureAutoplay, 600);
+      window.setTimeout(ensureAutoplay, 1200);
+    });
   }
 
   if (document.readyState === 'loading') {
