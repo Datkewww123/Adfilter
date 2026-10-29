@@ -144,6 +144,15 @@ window.addEventListener('load', startAutoResumeWatcher);
 document.addEventListener('yt-navigate-finish', startAutoResumeWatcher);
 
 
+let _ctxDead = false;
+function teardown(): void {
+  if (_ctxDead) return;
+  _ctxDead = true;
+  actuator.restore();
+  observer.stop();
+  log.info('extension context invalidated - content script stopped');
+}
+
 function send(msg: Msg): void {
   if (_ctxDead) return;
   try {
