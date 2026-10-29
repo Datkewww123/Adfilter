@@ -137,14 +137,17 @@ function incrementTotalBlocked(count = 1, seconds = 0): void {
 }
 
 // Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world).
-// Chỉ cập nhật trạng thái real-time trên popup — KHÔNG ghi vào storage.
-// Nguồn chân lý duy nhất cho storage là sự kiện AD_END bên dưới (1 lần / 1 quảng cáo).
+// Ghi nhận +1 quảng cáo đã chặn và ước tính tiết kiệm 15s (trung bình 1 pre-roll ad).
 window.addEventListener('message', (event) => {
   if (event.data?.source === 'adfilter-defuser' && event.data?.type === 'AD_DEFUSED') {
+    const DEFUSED_ESTIMATED_SEC = 15;
     currentStatus = {
       ...currentStatus,
+      adsDetected: currentStatus.adsDetected + 1,
+      adSeconds: currentStatus.adSeconds + DEFUSED_ESTIMATED_SEC,
       updatedAt: Date.now(),
     };
+    incrementTotalBlocked(1, DEFUSED_ESTIMATED_SEC);
     send({ kind: 'STATUS_UPDATE', status: currentStatus });
   }
 });
@@ -173,26 +176,9 @@ function instantIntervene(): void {
   for (const v of allVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek) {
-      if (Number.isFinite(v.duration) && v.duration > 0) {
-        v.currentTime = Math.max(0, v.duration - 0.1);
-        resumePlay();
-        try {
-          v.dispatchEvent(new Event('ended'));
-        } catch {}
-      } else {
-        const onMeta = (): void => {
-          v.removeEventListener('loadedmetadata', onMeta);
-          if (Number.isFinite(v.duration) && v.duration > 0) {
-            v.currentTime = Math.max(0, v.duration - 0.1);
-            resumePlay();
-            try {
-              v.dispatchEvent(new Event('ended'));
-            } catch {}
-          }
-        };
-        v.addEventListener('loadedmetadata', onMeta, { once: true });
-      }
+    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      resumePlay();
     }
   }
 
@@ -277,9 +263,6 @@ function execute(a: Action, s: Signals): void {
       v.currentTime = Math.max(0, v.duration - 0.1);
       v.playbackRate = cfg.maxSpeed;
       resumePlay();
-      try {
-        v.dispatchEvent(new Event('ended'));
-      } catch {}
     }
     const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
     for (const vid of videos) {
@@ -401,9 +384,22 @@ function handle(s: Signals): void {
       lastSoughtDuration = null;
       lastCurrentTime = 0;
       actuator.restore();
+
+      // Auto-Resume Watcher: Đảm bảo luồng video chính tự động play sau khi dập tắt quảng cáo
       resumePlay();
-      window.setTimeout(resumePlay, 200);
-      window.setTimeout(resumePlay, 500);
+      let checks = 0;
+      const resumeWatcher = window.setInterval(() => {
+        checks++;
+        const p = document.querySelector(SEL.player);
+        const inAd = p && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'));
+        if (!inAd) {
+          resumePlay();
+        }
+        if (checks >= 10) {
+          clearInterval(resumeWatcher);
+        }
+      }, 150);
+
       if (intervenedThisAd) watchPlayback();
       intervenedThisAd = false;
       log.info(clock(e.emittedAt), 'AD_END');
