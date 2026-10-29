@@ -70,12 +70,6 @@ const actuator = new Actuator({
     btn.dispatchEvent(new PointerEvent('pointerup', opts));
     btn.dispatchEvent(new MouseEvent('mouseup', opts));
     btn.dispatchEvent(new MouseEvent('click', opts));
-
-    const parent = btn.parentElement;
-    if (parent && parent !== document.body) {
-      parent.dispatchEvent(new MouseEvent('click', opts));
-      parent.click();
-    }
     return true;
   },
 });
