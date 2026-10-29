@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
  * TÀNG HÌNH VIDEO QUẢNG CÁO TỨC THỜI (CSS Layer 0)
  * Ngay khi YouTube gán class .ad-showing, video biến mất khỏi
  * tầm nhìn của người dùng (< 1ms) — lớp bảo vệ đầu tiên.
@@ -125,12 +125,6 @@ yt-playability-error-supported-renderers .yt-playability-error-supported-rendere
   pointer-events: none !important;
   opacity: 0 !important;
   height: 0 !important;
-  overflow: hidden !important;
+  /* Gỡ overflow: hidden để tránh khóa thanh cuộn của YouTube */
 }
 
-/* Đảm bảo người dùng luôn cuộn trang được bình thường, không bị popup YouTube khóa scroll */
-body.ytd-app,
-ytd-app,
-html {
-  overflow-y: auto !important;
-}

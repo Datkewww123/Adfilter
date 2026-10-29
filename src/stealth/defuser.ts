@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Defuser — Chạy trong MAIN world, document_start.
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
@@ -260,9 +260,16 @@ if (!isLocalTest) {
       el.remove();
     }
 
-    // 2. Mở khóa scroll của body nếu YouTube cố tình khóa
+    // 2. Mo khoa scroll cua ca body va html/documentElement neu bi YouTube gan hidden/touch/overflow
     if (document.body && document.body.style.overflow === 'hidden') {
       document.body.style.overflow = '';
+    }
+    if (document.documentElement && document.documentElement.style.overflow === 'hidden') {
+      document.documentElement.style.overflow = '';
+    }
+    const ytdApp = document.querySelector('ytd-app') as HTMLElement | null;
+    if (ytdApp && ytdApp.style.overflow === 'hidden') {
+      ytdApp.style.overflow = '';
     }
 
     // 3. Quét các popup cảnh báo có nội dung chống adblock
@@ -288,20 +295,21 @@ if (!isLocalTest) {
     }
   }
 
-  // ─── Native Autoplay: Gọi API gốc của YouTube để phát video ngay lập tức ──────
+  // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
+  // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
+  let _autoplayDone = false;
   function ensureAutoplay(): void {
+    if (_autoplayDone) return;
     const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
     if (!player) return;
     const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
     if (isAd) return;
-
-    if (typeof player.getPlayerState === 'function' && typeof player.playVideo === 'function') {
-      const state = player.getPlayerState();
-      const v = document.querySelector<HTMLVideoElement>('video');
-      // Nếu trạng thái đang là 2 (PAUSED) hoặc -1 (UNSTARTED) khi mới vào video (< 1s)
-      if ((state === 2 || state === -1) && v && v.currentTime < 1) {
-        player.playVideo();
+    const v = document.querySelector<HTMLVideoElement>('video');
+    if (v && v.currentTime < 1) {
+      if (v.paused) {
+        void v.play().catch(() => undefined);
       }
+      _autoplayDone = true;
     }
   }
 
@@ -327,15 +335,11 @@ if (!isLocalTest) {
       removeInterruptionPopups();
       ensureAutoplay();
     }, 400);
-
-    // Kích hoạt lại khi chuyển video SPA trên YouTube
     document.addEventListener('yt-navigate-finish', () => {
-      window.setTimeout(ensureAutoplay, 200);
-      window.setTimeout(ensureAutoplay, 600);
-      window.setTimeout(ensureAutoplay, 1200);
+      _autoplayDone = false;
+      window.setTimeout(ensureAutoplay, 300);
     });
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initStealthMonitors);
   } else {
