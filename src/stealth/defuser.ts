@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Defuser — Chạy trong MAIN world, document_start.
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
@@ -10,7 +10,7 @@
  *   gọi trực tiếp player.skipAd() từ engine gốc và tua dứt điểm không chờ đợi.
  * - Loại bỏ hoàn toàn từ khóa 'export' để tương thích 100% với Classic Script của Chrome MV3.
  * - Bỏ qua trên localhost / 127.0.0.1 để môi trường Playwright E2E test độc lập.
- * - Bắn thông điệp postMessage về Content Script mỗi khi triệt tiêu thành công để cập nhật bộ đếm.
+ * - Throttle AD_DEFUSED tối đa 1 lần / 2 giây để tránh đếm trùng quảng cáo.
  */
 import './interceptor';
 import { disguise } from './anti-detect';
@@ -28,6 +28,10 @@ if (!isLocalTest) {
     'adBreaks',
     'playbackTracking',
   ];
+
+  // Throttle chống spam: chỉ gửi 1 tín hiệu AD_DEFUSED tối đa mỗi 2 giây
+  let _lastDefusedAt = 0;
+  const DEFUSED_THROTTLE_MS = 2000;
 
   function purge(obj: unknown): void {
     if (obj == null || typeof obj !== 'object') return;
@@ -65,11 +69,15 @@ if (!isLocalTest) {
       }
     }
 
-    // Báo cáo về Content Script để tăng bộ đếm quảng cáo đã chặn
+    // Báo cáo về Content Script — throttle 2 giây chống spam đếm trùng
     if (removed && typeof window !== 'undefined') {
-      try {
-        window.postMessage({ source: 'adfilter-defuser', type: 'AD_DEFUSED' }, '*');
-      } catch {}
+      const now = Date.now();
+      if (now - _lastDefusedAt >= DEFUSED_THROTTLE_MS) {
+        _lastDefusedAt = now;
+        try {
+          window.postMessage({ source: 'adfilter-defuser', type: 'AD_DEFUSED' }, '*');
+        } catch {}
+      }
     }
   }
 
