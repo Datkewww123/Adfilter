@@ -438,3 +438,16 @@ window.setInterval(() => {
     log.warn('[Pipeline Watchdog] Phát hiện vấn đề:', report);
   }
 }, 60_000);
+
+// Lắng nghe lệnh RESET_STATS từ popup: reset bộ đếm phiên về 0
+ext.runtime.onMessage.addListener((msg: unknown) => {
+  if (msg && typeof msg === 'object' && (msg as { kind?: string }).kind === 'RESET_STATS') {
+    currentStatus = {
+      ...currentStatus,
+      adsDetected: 0,
+      adSeconds: 0,
+      updatedAt: Date.now(),
+    };
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
+  }
+});

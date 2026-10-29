@@ -22,13 +22,21 @@ ext.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
     return false; // Kết thúc nhánh STATUS_UPDATE
   }
 
+  if (raw.kind === 'RESET_STATS') {
+    return false; // Background không cần xử lý, content script tự handle
+  }
+
   // Nhánh GET_STATUS từ popup
-  const key = statusKey(raw.tabId);
-  void ext.storage.session.get(key).then((r) => {
-    console.log(`[AdFilter Background] 📤 Trả lời GET_STATUS cho tab:${raw.tabId}:`, r[key] ?? null);
-    sendResponse(r[key] ?? null);
-  });
-  return true; // Giữ kênh để trả lời bất đồng bộ
+  if (raw.kind === 'GET_STATUS') {
+    const key = statusKey(raw.tabId);
+    void ext.storage.session.get(key).then((r) => {
+      console.log(`[AdFilter Background] 📤 Trả lời GET_STATUS cho tab:${raw.tabId}:`, r[key] ?? null);
+      sendResponse(r[key] ?? null);
+    });
+    return true; // Giữ kênh để trả lời bất đồng bộ
+  }
+
+  return false;
 });
 
 ext.tabs.onRemoved.addListener((tabId) => {

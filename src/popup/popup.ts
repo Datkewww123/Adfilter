@@ -7,6 +7,7 @@ const statusEl = document.getElementById('status');
 const statCount = document.getElementById('stat-count');
 const statTime = document.getElementById('stat-time');
 const exportBtn = document.getElementById('exportLogs');
+const resetBtn = document.getElementById('resetStats');
 
 function show(lines: string[]): void {
   if (statusEl) statusEl.textContent = lines.join(' ');
@@ -79,6 +80,31 @@ exportBtn?.addEventListener('click', async () => {
   a.download = `adfilter-log-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+// Nút Đặt lại bộ đếm: xóa stats trong storage, reset hiển thị về 0
+resetBtn?.addEventListener('click', async () => {
+  try {
+    await ext.storage.local.remove(['stats_total_blocked', 'stats_total_seconds']);
+
+    // Cập nhật UI ngay lập tức không cần chờ refresh
+    if (statCount) statCount.textContent = '0 quảng cáo';
+    if (statTime) statTime.textContent = '0 giây';
+    show(['✅ Đã đặt lại bộ đếm. Theo dõi luồng phát...']);
+
+    // Thông báo cho content script trên tab hiện tại reset phiên về 0
+    const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id !== undefined) {
+      try {
+        await ext.tabs.sendMessage(tab.id, { kind: 'RESET_STATS' } as Msg);
+      } catch {
+        // Tab chưa inject content script thì bỏ qua
+      }
+    }
+  } catch (e) {
+    log.warn('reset stats failed', e);
+    show(['Lỗi khi đặt lại bộ đếm.']);
+  }
 });
 
 void refresh();
