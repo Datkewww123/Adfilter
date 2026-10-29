@@ -13,9 +13,12 @@
  * - Bỏ qua trên localhost / 127.0.0.1 để môi trường Playwright E2E test độc lập.
  * - Throttle AD_DEFUSED tối đa 1 lần / 2 giây để tránh đếm trùng quảng cáo.
  * - Native Autoplay: Tự động gọi player.playVideo() khi YouTube bị đứng ở trạng thái Pause ở đầu video.
+ * - Mở khóa thanh cuộn bằng cách gỡ class body.no-scroll / body.no-y-scroll
+ *   (YouTube khóa cuộn bằng CSS class, không phải inline style).
  */
 import './interceptor';
 import { disguise } from './anti-detect';
+import { releaseScrollLockIfSafe } from './scrollLock';
 
 // Chỉ kích hoạt trên môi trường YouTube thật, không chạy trên fake-youtube của E2E test
 const isLocalTest = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
@@ -255,22 +258,24 @@ if (!isLocalTest) {
   ] as const;
 
   function removeInterruptionPopups(): void {
-    // 1. Xóa các phần tử gây cản trở và backdrop làm tối màn hình
-    for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog, tp-yt-iron-overlay-backdrop, iron-overlay-backdrop')) {
+    // 1. Xóa dialog cảnh báo chặn quảng cáo.
+    // Với từng phần tử enforcement, gỡ luôn dialog cha (nếu có) để không còn
+    // một dialog rỗng bị coi là dialog thật và giữ khóa cuộn.
+    // KHÔNG xóa tp-yt-iron-overlay-backdrop khỏi DOM nữa: CSS đã ẩn backdrop,
+    // còn xóa DOM sẽ làm overlay manager của YouTube kẹt trạng thái và giữ khóa cuộn.
+    for (const el of document.querySelectorAll(
+      'ytd-enforcement-message-view-model, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog',
+    )) {
+      (el.closest('tp-yt-paper-dialog, ytd-popup-modal') ?? el).remove();
+    }
+    for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container')) {
       el.remove();
     }
 
-    // 2. Mo khoa scroll cua ca body va html/documentElement neu bi YouTube gan hidden/touch/overflow
-    if (document.body && document.body.style.overflow === 'hidden') {
-      document.body.style.overflow = '';
-    }
-    if (document.documentElement && document.documentElement.style.overflow === 'hidden') {
-      document.documentElement.style.overflow = '';
-    }
-    const ytdApp = document.querySelector('ytd-app') as HTMLElement | null;
-    if (ytdApp && ytdApp.style.overflow === 'hidden') {
-      ytdApp.style.overflow = '';
-    }
+    // 2. Mở khóa cuộn: YouTube dùng class body.no-scroll / body.no-y-scroll
+    // (không phải inline style), nên phải xóa cả class lẫn inline overflow.
+    // Chỉ mở khi không có dialog thật đang mở để không phá Share/Settings.
+    releaseScrollLockIfSafe(document);
 
     // 3. Quét các popup cảnh báo có nội dung chống adblock
     for (const sel of POPUP_SELECTORS) {
@@ -298,6 +303,7 @@ if (!isLocalTest) {
   // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
   // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
   let _autoplayDone = false;
+  let _autoplayAttempts = 0;
   function ensureAutoplay(): void {
     if (_autoplayDone) return;
     const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
@@ -305,11 +311,19 @@ if (!isLocalTest) {
     const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
     if (isAd) return;
     const v = document.querySelector<HTMLVideoElement>('video');
-    if (v && v.currentTime < 1) {
-      if (v.paused) {
-        void v.play().catch(() => undefined);
+    if (!v || !v.paused || v.readyState < 2) return;
+
+    const isLive = !Number.isFinite(v.duration) || v.duration === 0;
+    const shouldPlay = isLive || v.currentTime < 2;
+
+    if (shouldPlay) {
+      _autoplayAttempts++;
+      // console.log removed
+      void v.play().catch(() => undefined);
+      // Đánh dấu done sau lần thử đầu tiên để tránh spam
+      if (_autoplayAttempts >= 1) {
+        _autoplayDone = true;
       }
-      _autoplayDone = true;
     }
   }
 
@@ -337,7 +351,11 @@ if (!isLocalTest) {
     }, 400);
     document.addEventListener('yt-navigate-finish', () => {
       _autoplayDone = false;
-      window.setTimeout(ensureAutoplay, 300);
+      _autoplayAttempts = 0;
+      window.setTimeout(() => {
+        removeInterruptionPopups();
+        ensureAutoplay();
+      }, 300);
     });
   }
   if (document.readyState === 'loading') {

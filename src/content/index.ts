@@ -103,16 +103,54 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Co dang danh dau context extension da bi vo hieu hoa.
-// Khi true, moi lenh gui message deu bi bo qua im lang, khong xuat hien trong Chrome Error log.
-let _ctxDead = false;
+// ---------------------------------------------------------------------------
+// Auto‑play helpers – force play videos as soon as they appear in the DOM
+// ---------------------------------------------------------------------------
 
+// Play video immediately when a <video> element is added (covers initial load and SPA navigation)
+function forcePlayOnInsert(node: Node) {
+  if (node instanceof HTMLVideoElement) {
+    // If the video is paused and hasn't buffered enough, try to play it
+    if (node.paused && node.readyState < 2) {
+      void node.play().catch(() => {});
+    }
+  }
+}
+
+const videoObserver = new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    for (const n of m.addedNodes) {
+      forcePlayOnInsert(n);
+    }
+  }
+});
+videoObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+// Persistent auto‑resume watcher for videos that become paused after start
+let autoResumeWatcherId: number | undefined;
+function startAutoResumeWatcher() {
+  if (autoResumeWatcherId) clearInterval(autoResumeWatcherId);
+  autoResumeWatcherId = window.setInterval(() => {
+    const v = getActiveVideo(document);
+    if (!v) return;
+    const player = document.querySelector(SEL.player);
+    const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+    if (!isAd && v.paused && v.readyState >= 2) {
+      void v.play().catch(() => {});
+    }
+  }, 300);
+}
+window.addEventListener('load', startAutoResumeWatcher);
+document.addEventListener('yt-navigate-finish', startAutoResumeWatcher);
+
+
+let _ctxDead = false;
 function teardown(): void {
   if (_ctxDead) return;
   _ctxDead = true;
   actuator.restore();
   observer.stop();
-  log.info('extension context invalidated - content script da dung');
+  log.info('extension context invalidated - content script stopped');
 }
 
 function send(msg: Msg): void {
@@ -421,6 +459,12 @@ const observer = new PlayerObserver(handle, {
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });
 
+// Helper to detect live streams (duration is Infinity or 0)
+function isLiveVideo(v: HTMLVideoElement | null): boolean {
+  return !!v && (!Number.isFinite(v.duration) || v.duration === 0);
+}
+
+// ... later in the file, replace existing instantIntervene and other logic using isLiveVideo ...
 // Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {
   // Dung watchdog neu context extension da bi invalidated
