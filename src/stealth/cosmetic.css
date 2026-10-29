@@ -125,6 +125,6 @@ yt-playability-error-supported-renderers .yt-playability-error-supported-rendere
   pointer-events: none !important;
   opacity: 0 !important;
   height: 0 !important;
-  overflow: hidden !important;
+  /* Gỡ overflow: hidden để tránh khóa thanh cuộn của YouTube */
 }
 
