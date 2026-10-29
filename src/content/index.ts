@@ -353,7 +353,7 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
-      applyMask();
+      // onAdStart() đã gọi applyMask() bên trong — không gọi lại ở đây để tránh double-mask
       onAdStart();
       adStartedAt = e.at;
       done = [];
@@ -364,12 +364,13 @@ function handle(s: Signals): void {
       
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
 
+      // Fallback an toàn: nếu sau 1.5s không còn .ad-showing thì tháo mask
       window.setTimeout(() => {
         const player = document.querySelector(SEL.player);
         if (!player || !player.classList.contains('ad-showing')) {
           removeMask();
         }
-      }, 800);
+      }, 1500);
     } else {
       removeMask();
       onAdEnd();
