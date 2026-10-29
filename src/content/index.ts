@@ -1,4 +1,4 @@
-﻿import { ext } from '../platform/api';
+import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -25,6 +25,7 @@ import {
 } from '../core/classifier';
 import { applyMask, removeMask } from '../stealth/visual-mask';
 import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/pipeline';
+
 let obs: AdObservation | null = null;
 
 const VERIFY_AFTER_MS = 250;
@@ -57,16 +58,12 @@ const actuator = new Actuator({
       if (v.paused) void v.play().catch(() => undefined);
     }
 
-    // 1. Click trực tiếp lên button
     btn.click();
-
-    // 2. Click lên phần tử text/icon con bên trong button
     const inner = btn.querySelector<HTMLElement>(
       '.ytp-skip-ad-button__text, .ytp-ad-skip-button-text-modern, span, div',
     );
     if (inner) inner.click();
 
-    // 3. Gửi chuỗi sự kiện chuột hoàn chỉnh
     const opts = { bubbles: true, cancelable: true, composed: true, view: window };
     btn.dispatchEvent(new PointerEvent('pointerdown', opts));
     btn.dispatchEvent(new MouseEvent('mousedown', opts));
@@ -90,7 +87,6 @@ void loadConfig().then((c) => {
   log.info('config', cfg);
 }).catch(() => undefined);
 
-// Luôn reset ngắt mạch sạch sẽ khi khởi động
 breaker = emptyBreaker();
 void saveBreaker(breaker).catch(() => undefined);
 
@@ -123,6 +119,37 @@ function send(msg: Msg): void {
   }
 }
 
+/**
+ * Tăng bộ đếm tích lũy bền vững trong storage.local (không mất khi refresh hay mở tab mới)
+ */
+function incrementTotalBlocked(count = 1, seconds = 0): void {
+  ext.storage.local
+    .get(['stats_total_blocked', 'stats_total_seconds'])
+    .then((r) => {
+      const curCount = typeof r.stats_total_blocked === 'number' ? r.stats_total_blocked : 0;
+      const curSec = typeof r.stats_total_seconds === 'number' ? r.stats_total_seconds : 0;
+      void ext.storage.local.set({
+        stats_total_blocked: curCount + count,
+        stats_total_seconds: curSec + Math.round(seconds),
+      });
+    })
+    .catch(() => undefined);
+}
+
+// Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world)
+window.addEventListener('message', (event) => {
+  if (event.data?.source === 'adfilter-defuser' && event.data?.type === 'AD_DEFUSED') {
+    currentStatus = {
+      ...currentStatus,
+      adsDetected: currentStatus.adsDetected + 1,
+      adSeconds: currentStatus.adSeconds + 15,
+      updatedAt: Date.now(),
+    };
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
+    incrementTotalBlocked(1, 15);
+  }
+});
+
 function resumePlay(): void {
   const v = getActiveVideo(document);
   if (v && v.paused) {
@@ -136,7 +163,7 @@ function resumePlay(): void {
 
 /**
  * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
- * không cần chờ debounce hay planStep. Tắt tiếng + tua về cuối ngay lập tức.
+ * tôn trọng hoàn toàn cấu hình maxSpeed, dryRun, allowSeek.
  */
 function instantIntervene(): void {
   const player = document.querySelector(SEL.player);
@@ -147,25 +174,19 @@ function instantIntervene(): void {
   actuator.noteBaseline();
   actuator.touch();
 
-  const v = getActiveVideo(document);
-  if (!v) return;
-
-  // Tắt tiếng ngay lập tức
-  v.muted = true;
-
-  // Tăng tốc theo cấu hình ngay lập tức
-  v.playbackRate = cfg.maxSpeed;
-
-  // Tua về cuối ngay nếu duration đã có và kích hoạt sự kiện kết thúc
-  if (Number.isFinite(v.duration) && v.duration > 0) {
-    v.currentTime = Math.max(0, v.duration - 0.1);
-    resumePlay();
-    try {
-      v.dispatchEvent(new Event('ended'));
-    } catch {}
+  const allVideos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
+  for (const v of allVideos) {
+    v.muted = true;
+    v.playbackRate = cfg.maxSpeed;
+    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      resumePlay();
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
+    }
   }
 
-  // Click skip nếu nút đã xuất hiện
   const btn = getSkipButton(document);
   if (btn) {
     btn.click();
@@ -178,7 +199,6 @@ function instantIntervene(): void {
 
 function verifyLater(a: Action, startedAt: number): void {
   window.setTimeout(() => {
-    // Trích xuất tín hiệu MỚI NHẤT từ DOM và thẻ video để kiểm tra chính xác
     const s = extractSignals(document, Date.now());
     lastSignals = s;
     const ok = verifyAction(a, s);
@@ -196,18 +216,15 @@ function verifyLater(a: Action, startedAt: number): void {
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
       if (a.type === 'CLICK_SKIP') {
-        // Synthetic click bị YouTube chặn isTrusted, không spam click để tránh nghẽn event loop.
-        // Chuyển hướng kích hoạt SEEK_TO_END để tua dứt điểm ngay lập tức.
         done = done.filter((t) => t !== 'SEEK_TO_END');
         lastSoughtDuration = null;
       } else {
         done = done.filter((t) => t !== a.type);
       }
-      // BUG FIX: Không gọi actuator.restore() khi quảng cáo vẫn đang chiếu!
-      // Chỉ restore khi AD_END — tránh tự bật tiếng lại giữa chừng quảng cáo.
     }
   }, VERIFY_AFTER_MS);
 }
+
 function watchPlayback(): void {
   const first = lastSignals;
   if (!first) return;
@@ -229,8 +246,6 @@ function watchPlayback(): void {
 }
 
 function execute(a: Action, s: Signals): void {
-  // KHÓA BẢO VỆ TUYỆT ĐỐI CHO VIDEO CỦA NGƯỜI DÙNG:
-  // Chỉ can thiệp khi player THỰC SỰ đang chiếu quảng cáo (có class .ad-showing hoặc .ad-interrupting)
   const player = document.querySelector(SEL.player);
   const isAd =
     player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
@@ -239,14 +254,12 @@ function execute(a: Action, s: Signals): void {
     return;
   }
 
-  // Chỉ dừng lại khi trang hiện cảnh báo chống adblock (ENFORCEMENT_SEEN)
   if (!canAct(breaker, s.t)) {
     log.warn('ngắt mạch đang mở do cảnh báo trang, bỏ qua', a.type);
     recordAction({ at: s.t, action: a.type, dryRun: false, ok: false, error: 'breaker-open' });
     return;
   }
 
-  // Cơ chế One-Shot Seek dứt khoát: tua 1 lần duy nhất cho mỗi quảng cáo và gọi play()
   if (a.type === 'SEEK_TO_END') {
     onSeekExecuted();
     const v = getActiveVideo(document);
@@ -263,7 +276,7 @@ function execute(a: Action, s: Signals): void {
     for (const vid of videos) {
       if (vid !== v && Number.isFinite(vid.duration) && vid.duration > 0) {
         vid.currentTime = Math.max(0, vid.duration - 0.1);
-        vid.playbackRate = 16.0;
+        vid.playbackRate = cfg.maxSpeed;
         if (vid.paused) {
           void vid.play().catch(() => undefined);
         }
@@ -279,23 +292,19 @@ function execute(a: Action, s: Signals): void {
     return;
   }
   if (res.skipped) {
-    // Cho phép thử lại ở frame tiếp theo khi duration đã nạp xong
     done = done.filter((t) => t !== a.type);
   }
 }
 
 function planStep(s: Signals): void {
-  // Bắt buộc s.adShowing phải là true mới lên kế hoạch can thiệp
   if (!s.adShowing) return;
 
   const v = getActiveVideo(document);
   if (v && Number.isFinite(v.duration) && v.duration > 0) {
-    // Nếu video chưa tua xong về cuối, tiếp tục giải phóng SEEK_TO_END để ép tua dứt điểm
     if (v.currentTime < v.duration - 0.2) {
       done = done.filter((t) => t !== 'SEEK_TO_END');
       lastSoughtDuration = null;
     } else {
-      // Khi đã ở cuối quảng cáo mà bị dừng hình, kích hoạt play ngay
       resumePlay();
     }
     if (Number.isFinite(v.currentTime)) {
@@ -303,7 +312,6 @@ function planStep(s: Signals): void {
     }
   }
 
-  // Khi bật allowSeek, cho phép tua ngay (msIntoAd >= SEEK_AFTER_MS)
   const msIntoAd = cfg.allowSeek ? Math.max(SEEK_AFTER_MS, s.t - adStartedAt) : s.t - adStartedAt;
 
   const actions = plan(
@@ -352,14 +360,21 @@ function handle(s: Signals): void {
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
-      lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
-      // Can thiệp tức thời 0ms ngay tại thời điểm AD_START — không chờ planStep
+      
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
+
+      window.setTimeout(() => {
+        const player = document.querySelector(SEL.player);
+        if (!player || !player.classList.contains('ad-showing')) {
+          removeMask();
+        }
+      }, 800);
     } else {
       removeMask();
       onAdEnd();
+      const adDurationSec = (e.at - adStartedAt) / 1000;
       if (obs) {
         const c = classify(endObservation(obs, e.at));
         currentStatus = { ...currentStatus, adKind: c.kind, confidence: c.confidence };
@@ -368,9 +383,10 @@ function handle(s: Signals): void {
       currentStatus = {
         ...currentStatus,
         adsDetected: currentStatus.adsDetected + 1,
-        adSeconds: currentStatus.adSeconds + (e.at - adStartedAt) / 1000,
+        adSeconds: currentStatus.adSeconds + adDurationSec,
         updatedAt: e.emittedAt,
       };
+      incrementTotalBlocked(1, adDurationSec);
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
@@ -409,8 +425,6 @@ function handle(s: Signals): void {
 }
 
 const observer = new PlayerObserver(handle, {
-  // Callback tức thời 0ms ngay khi MutationObserver thấy .ad-showing trên DOM,
-  // không qua throttle MIN_GAP_MS hay State Machine debounce.
   onInstant: () => {
     if (cfg.enabled && !cfg.dryRun) instantIntervene();
   },
@@ -418,7 +432,7 @@ const observer = new PlayerObserver(handle, {
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });
 
-// ─── Watchdog: Kiểm tra sức khỏe pipeline mỗi 60 giây ──────────────────────
+// Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {
   const report = runHealthCheck();
   if (!report.healthy) {
