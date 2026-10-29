@@ -1,4 +1,4 @@
-﻿import { ext } from '../platform/api';
+import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -153,10 +153,6 @@ function resumePlay(): void {
   const v = getActiveVideo(document);
   if (v && v.paused) {
     void v.play().catch(() => undefined);
-  }
-  const bigPlay = document.querySelector<HTMLElement>('.ytp-large-play-button');
-  if (bigPlay) {
-    bigPlay.click();
   }
 }
 
