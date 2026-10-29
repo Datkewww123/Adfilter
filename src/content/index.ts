@@ -137,14 +137,17 @@ function incrementTotalBlocked(count = 1, seconds = 0): void {
 }
 
 // Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world).
-// Chỉ cập nhật trạng thái real-time trên popup — KHÔNG ghi vào storage.
-// Nguồn chân lý duy nhất cho storage là sự kiện AD_END bên dưới (1 lần / 1 quảng cáo).
+// Ghi nhận +1 quảng cáo đã chặn và ước tính tiết kiệm 15s (trung bình 1 pre-roll ad).
 window.addEventListener('message', (event) => {
   if (event.data?.source === 'adfilter-defuser' && event.data?.type === 'AD_DEFUSED') {
+    const DEFUSED_ESTIMATED_SEC = 15;
     currentStatus = {
       ...currentStatus,
+      adsDetected: currentStatus.adsDetected + 1,
+      adSeconds: currentStatus.adSeconds + DEFUSED_ESTIMATED_SEC,
       updatedAt: Date.now(),
     };
+    incrementTotalBlocked(1, DEFUSED_ESTIMATED_SEC);
     send({ kind: 'STATUS_UPDATE', status: currentStatus });
   }
 });
