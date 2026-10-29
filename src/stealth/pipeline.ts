@@ -19,6 +19,7 @@
 
 import { applyMask, removeMask } from './visual-mask';
 import { inspectHealth, type WatchdogReport } from './watchdog';
+import { releaseScrollLockIfSafe } from './scrollLock';
 
 // ─── Trạng thái pipeline ─────────────────────────────────────────────────────
 
@@ -62,11 +63,13 @@ export function onAdStart(): void {
 
 /**
  * Gọi khi quảng cáo kết thúc (AD_END).
- * Gỡ Visual Mask và đặt pipeline về IDLE.
+ * Gỡ Visual Mask, mở khóa scroll và đặt pipeline về IDLE.
  */
 export function onAdEnd(): void {
   state.activeLayer = 'IDLE';
   removeMask();
+  // Unlock scroll after ad ends
+  releaseScrollLockIfSafe(document);
 }
 
 /**
