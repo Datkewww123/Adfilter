@@ -113,39 +113,6 @@ function send(msg: Msg): void {
   }
 }
 
-/**
- * Tăng bộ đếm tích lũy bền vững trong storage.local (không mất khi refresh hay mở tab mới)
- */
-function incrementTotalBlocked(count = 1, seconds = 0): void {
-  ext.storage.local
-    .get(['stats_total_blocked', 'stats_total_seconds'])
-    .then((r) => {
-      const curCount = typeof r.stats_total_blocked === 'number' ? r.stats_total_blocked : 0;
-      const curSec = typeof r.stats_total_seconds === 'number' ? r.stats_total_seconds : 0;
-      void ext.storage.local.set({
-        stats_total_blocked: curCount + count,
-        stats_total_seconds: curSec + Math.round(seconds),
-      });
-    })
-    .catch(() => undefined);
-}
-
-// Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world).
-// Ghi nhận +1 quảng cáo đã chặn và ước tính tiết kiệm 15s (trung bình 1 pre-roll ad).
-window.addEventListener('message', (event) => {
-  if (event.data?.source === 'adfilter-defuser' && event.data?.type === 'AD_DEFUSED') {
-    const DEFUSED_ESTIMATED_SEC = 15;
-    currentStatus = {
-      ...currentStatus,
-      adsDetected: currentStatus.adsDetected + 1,
-      adSeconds: currentStatus.adSeconds + DEFUSED_ESTIMATED_SEC,
-      updatedAt: Date.now(),
-    };
-    incrementTotalBlocked(1, DEFUSED_ESTIMATED_SEC);
-    send({ kind: 'STATUS_UPDATE', status: currentStatus });
-  }
-});
-
 function resumePlay(): void {
   const v = getActiveVideo(document);
   if (v && v.paused) {
@@ -373,7 +340,6 @@ function handle(s: Signals): void {
         adSeconds: currentStatus.adSeconds + adDurationSec,
         updatedAt: e.emittedAt,
       };
-      incrementTotalBlocked(1, adDurationSec);
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
@@ -442,16 +408,3 @@ window.setInterval(() => {
     log.warn('[Pipeline Watchdog] Phát hiện vấn đề:', report);
   }
 }, 60_000);
-
-// Lắng nghe lệnh RESET_STATS từ popup: reset bộ đếm phiên về 0
-ext.runtime.onMessage.addListener((msg: unknown) => {
-  if (msg && typeof msg === 'object' && (msg as { kind?: string }).kind === 'RESET_STATS') {
-    currentStatus = {
-      ...currentStatus,
-      adsDetected: 0,
-      adSeconds: 0,
-      updatedAt: Date.now(),
-    };
-    send({ kind: 'STATUS_UPDATE', status: currentStatus });
-  }
-});
