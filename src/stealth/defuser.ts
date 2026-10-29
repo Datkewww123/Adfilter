@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Defuser — Chạy trong MAIN world, document_start.
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
@@ -321,12 +321,15 @@ if (!isLocalTest) {
       }
     } catch {}
 
-    // 3. Click tất cả các nút Skip của YouTube
-    const skipButtons = document.querySelectorAll<HTMLElement>(
-      '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot, [id^="skip-button"]'
-    );
-    for (const btn of skipButtons) {
-      btn.click();
+    // 3. Click tất cả các nút Skip của YouTube (CHỈ tìm bên trong player, không tìm ngoài document)
+    const playerEl = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as HTMLElement | null;
+    if (playerEl) {
+      const skipButtons = playerEl.querySelectorAll<HTMLElement>(
+        '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot button, .ytp-ad-skip-button-container button'
+      );
+      for (const btn of skipButtons) {
+        btn.click();
+      }
     }
   }
 
