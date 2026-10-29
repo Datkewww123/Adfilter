@@ -1,4 +1,4 @@
-import type { AdPhase } from './types';
+﻿import type { AdPhase } from './types';
 
 export interface TabStatus {
   phase: AdPhase;
@@ -13,7 +13,8 @@ export interface TabStatus {
 
 export type Msg =
   | { kind: 'STATUS_UPDATE'; status: TabStatus }
-  | { kind: 'GET_STATUS'; tabId: number };
+  | { kind: 'GET_STATUS'; tabId: number }
+  | { kind: 'RESET_STATS' };
 
 export const statusKey = (tabId: number) => `tab:${tabId}`;
 
@@ -33,5 +34,6 @@ export function isMsg(x: unknown): x is Msg {
   const m = x as { kind?: unknown; tabId?: unknown; status?: unknown };
   if (m.kind === 'GET_STATUS') return typeof m.tabId === 'number';
   if (m.kind === 'STATUS_UPDATE') return typeof m.status === 'object' && m.status !== null;
+  if (m.kind === 'RESET_STATS') return true;
   return false;
 }

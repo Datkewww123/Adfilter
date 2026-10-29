@@ -1,4 +1,4 @@
-import { ext } from '../platform/api';
+﻿import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -136,17 +136,16 @@ function incrementTotalBlocked(count = 1, seconds = 0): void {
     .catch(() => undefined);
 }
 
-// Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world)
+// Lắng nghe tín hiệu quảng cáo bị triệt tiêu từ Defuser (MAIN world).
+// Chỉ cập nhật trạng thái real-time trên popup — KHÔNG ghi vào storage.
+// Nguồn chân lý duy nhất cho storage là sự kiện AD_END bên dưới (1 lần / 1 quảng cáo).
 window.addEventListener('message', (event) => {
   if (event.data?.source === 'adfilter-defuser' && event.data?.type === 'AD_DEFUSED') {
     currentStatus = {
       ...currentStatus,
-      adsDetected: currentStatus.adsDetected + 1,
-      adSeconds: currentStatus.adSeconds + 15,
       updatedAt: Date.now(),
     };
     send({ kind: 'STATUS_UPDATE', status: currentStatus });
-    incrementTotalBlocked(1, 15);
   }
 });
 
@@ -439,3 +438,16 @@ window.setInterval(() => {
     log.warn('[Pipeline Watchdog] Phát hiện vấn đề:', report);
   }
 }, 60_000);
+
+// Lắng nghe lệnh RESET_STATS từ popup: reset bộ đếm phiên về 0
+ext.runtime.onMessage.addListener((msg: unknown) => {
+  if (msg && typeof msg === 'object' && (msg as { kind?: string }).kind === 'RESET_STATS') {
+    currentStatus = {
+      ...currentStatus,
+      adsDetected: 0,
+      adSeconds: 0,
+      updatedAt: Date.now(),
+    };
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
+  }
+});
