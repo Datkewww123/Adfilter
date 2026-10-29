@@ -6,8 +6,9 @@
  * Nâng cấp Tuần Stealth-3 & Bản vá Active Ad-Killer:
  * - Khóa bẫy Defuser (Hardening) qua Object.defineProperty.
  * - Hỗ trợ triệt tiêu cả quảng cáo Shorts và Mid-roll.
- * - Active Ad-Killer trong MAIN world: Dập tắt 100% âm thanh quảng cáo ngay lập tức (0ms),
- *   gọi trực tiếp player.skipAd() từ engine gốc và tua dứt điểm không chờ đợi.
+ * - Xóa triệt để popup cảnh báo và backdrop làm tối màn hình, trả lại quyền điều khiển hoàn toàn cho người dùng.
+ * - Toàn bộ can thiệp video (tua, tắt tiếng, nút skip) do Content Script Actuator + instantIntervene() quản lý
+ *   với đầy đủ chốt bảo vệ (Circuit Breaker, Baseline Restore).
  * - Loại bỏ hoàn toàn từ khóa 'export' để tương thích 100% với Classic Script của Chrome MV3.
  * - Bỏ qua trên localhost / 127.0.0.1 để môi trường Playwright E2E test độc lập.
  * - Throttle AD_DEFUSED tối đa 1 lần / 2 giây để tránh đếm trùng quảng cáo.
@@ -225,7 +226,7 @@ if (!isLocalTest) {
 
   console.log('[AdFilter Stealth] Defuser đã kích hoạt ở MAIN world (bẫy JSON.parse + ytcfg + prototype)');
 
-  // ─── Bẫy 7: Xóa triệt tiêu popup Enforcement và Interruption ───────────────
+  // ─── Bẫy 7: Xóa triệt tiêu popup Enforcement, Interruption và Backdrop ───────────
   const POPUP_SELECTORS = [
     'yt-notification-action-renderer',
     'tp-yt-paper-toast',
@@ -234,15 +235,24 @@ if (!isLocalTest) {
     'snackbar-container',
     'tp-yt-paper-dialog.ytd-enforcement-message-view-model',
     '#enforce-dialog',
+    'tp-yt-iron-overlay-backdrop',
+    'iron-overlay-backdrop',
   ] as const;
 
   function removeInterruptionPopups(): void {
-    for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog')) {
+    // 1. Xóa các phần tử gây cản trở và backdrop làm tối màn hình
+    for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog, tp-yt-iron-overlay-backdrop, iron-overlay-backdrop')) {
       el.remove();
     }
 
+    // 2. Mở khóa scroll của body nếu YouTube cố tình khóa
+    if (document.body && document.body.style.overflow === 'hidden') {
+      document.body.style.overflow = '';
+    }
+
+    // 3. Quét các popup cảnh báo có nội dung chống adblock
     for (const sel of POPUP_SELECTORS) {
-      if (sel === 'ytd-third-party-manager' || sel === 'snackbar-container' || sel === '#enforce-dialog') continue;
+      if (sel === 'ytd-third-party-manager' || sel === 'snackbar-container' || sel === '#enforce-dialog' || sel === 'tp-yt-iron-overlay-backdrop' || sel === 'iron-overlay-backdrop') continue;
       const els = document.querySelectorAll(sel);
       for (const el of els) {
         const text = el.textContent?.toLowerCase() ?? '';
@@ -263,102 +273,14 @@ if (!isLocalTest) {
     }
   }
 
-  // ─── Bẫy 8: Active Ad-Killer trong MAIN World (Triệt tiêu 0ms âm thanh & video quảng cáo) ───
-  let wasAdPlaying = false;
-
-  function isCurrentAd(): boolean {
-    const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
-    // Chỉ kích hoạt khi chắc chắn có class quảng cáo, tuyệt đối không nhận diện nhầm video chính
-    return Boolean(
-      player &&
-        (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
-    );
-  }
-
-  function killAd(): void {
-    if (!isCurrentAd()) {
-      if (wasAdPlaying) {
-        wasAdPlaying = false;
-        const v = document.querySelector<HTMLVideoElement>('video');
-        if (v) {
-          const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
-          v.muted = player && typeof player.isMuted === 'function' ? player.isMuted() : false;
-          v.playbackRate = 1.0;
-          if (v.paused) {
-            void v.play().catch(() => undefined);
-          }
-        }
-      }
-      return;
-    }
-
-    wasAdPlaying = true;
-    const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
-
-    // 1. Cưỡng chế TẮT TIẾNG ngay lập tức và tăng tốc 16x toàn bộ thẻ video
-    const videos = document.querySelectorAll<HTMLVideoElement>('video');
-    for (const v of videos) {
-      v.muted = true;
-      v.volume = 0;
-      v.playbackRate = 16.0;
-      if (Number.isFinite(v.duration) && v.duration > 0) {
-        v.currentTime = Math.max(0, v.duration - 0.1);
-        try {
-          v.dispatchEvent(new Event('ended'));
-        } catch {}
-      } else {
-        try {
-          v.currentTime = 999999;
-        } catch {}
-      }
-    }
-
-    // 2. Gọi trực tiếp API nội bộ của YouTube player (chỉ có trong MAIN world!)
-    try {
-      if (player && typeof player.skipAd === 'function') {
-        player.skipAd();
-      }
-    } catch {}
-
-    // 3. Click tất cả các nút Skip của YouTube (CHỈ tìm bên trong player, không tìm ngoài document)
-    const playerEl = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as HTMLElement | null;
-    if (playerEl) {
-      const skipButtons = playerEl.querySelectorAll<HTMLElement>(
-        '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot button, .ytp-ad-skip-button-container button'
-      );
-      for (const btn of skipButtons) {
-        btn.click();
-      }
-    }
-  }
-
-  // Lắng nghe sự kiện để dập tắt âm thanh quảng cáo tức thì
-  document.addEventListener('timeupdate', killAd, true);
-  document.addEventListener('play', killAd, true);
-  document.addEventListener(
-    'volumechange',
-    (e) => {
-      if (isCurrentAd()) {
-        const target = e.target as HTMLMediaElement;
-        if (target && !target.muted) {
-          target.muted = true;
-          target.volume = 0;
-        }
-      }
-    },
-    true,
-  );
-
-  // Khởi tạo MutationObserver và bộ kiểm tra định kỳ 50ms
+  // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup
   function initStealthMonitors(): void {
     removeInterruptionPopups();
-    killAd();
 
     const target = document.body || document.documentElement;
     if (target) {
       new MutationObserver(() => {
         removeInterruptionPopups();
-        killAd();
       }).observe(target, {
         attributes: true,
         attributeFilter: ['class'],
@@ -369,8 +291,7 @@ if (!isLocalTest) {
 
     window.setInterval(() => {
       removeInterruptionPopups();
-      killAd();
-    }, 50);
+    }, 500);
   }
 
   if (document.readyState === 'loading') {
