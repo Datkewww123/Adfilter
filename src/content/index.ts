@@ -1,4 +1,4 @@
-﻿import { ext } from '../platform/api';
+import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -25,6 +25,7 @@ import {
 } from '../core/classifier';
 import { applyMask, removeMask } from '../stealth/visual-mask';
 import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/pipeline';
+
 let obs: AdObservation | null = null;
 
 const VERIFY_AFTER_MS = 250;
@@ -135,7 +136,34 @@ function resumePlay(): void {
 }
 
 /**
- * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
+ * Cưỡng chế tắt tiếng và tua dứt điểm TẤT CẢ thẻ video trên trang (kể cả video chạy ngầm)
+ */
+function silenceAndSkipAllVideos(): void {
+  const allVideos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
+  for (const v of allVideos) {
+    // 1. Cưỡng chế tắt tiếng tức khắc
+    v.muted = true;
+    v.volume = 0;
+
+    // 2. Tăng tốc tối đa (16x)
+    v.playbackRate = cfg.maxSpeed;
+
+    // 3. Tua về giây cuối cùng nếu đã biết duration
+    if (Number.isFinite(v.duration) && v.duration > 0) {
+      v.currentTime = Math.max(0, v.duration - 0.1);
+      try {
+        v.dispatchEvent(new Event('ended'));
+      } catch {}
+    }
+
+    if (v.paused) {
+      void v.play().catch(() => undefined);
+    }
+  }
+}
+
+/**
+ * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing hoặc ad audio ngầm,
  * không cần chờ debounce hay planStep. Tắt tiếng + tua về cuối ngay lập tức.
  */
 function instantIntervene(): void {
@@ -147,23 +175,9 @@ function instantIntervene(): void {
   actuator.noteBaseline();
   actuator.touch();
 
-  const v = getActiveVideo(document);
-  if (!v) return;
-
-  // Tắt tiếng ngay lập tức
-  v.muted = true;
-
-  // Tăng tốc theo cấu hình ngay lập tức
-  v.playbackRate = cfg.maxSpeed;
-
-  // Tua về cuối ngay nếu duration đã có và kích hoạt sự kiện kết thúc
-  if (Number.isFinite(v.duration) && v.duration > 0) {
-    v.currentTime = Math.max(0, v.duration - 0.1);
-    resumePlay();
-    try {
-      v.dispatchEvent(new Event('ended'));
-    } catch {}
-  }
+  // Tắt tiếng và tua toàn bộ video chạy ngầm
+  silenceAndSkipAllVideos();
+  resumePlay();
 
   // Click skip nếu nút đã xuất hiện
   const btn = getSkipButton(document);
@@ -173,7 +187,7 @@ function instantIntervene(): void {
     if (inner) inner.click();
   }
 
-  log.info('[instantIntervene] can thiệp tức thời 0ms');
+  log.info('[instantIntervene] can thiệp tức thời 0ms trên toàn bộ video');
 }
 
 function verifyLater(a: Action, startedAt: number): void {
@@ -203,11 +217,10 @@ function verifyLater(a: Action, startedAt: number): void {
       } else {
         done = done.filter((t) => t !== a.type);
       }
-      // BUG FIX: Không gọi actuator.restore() khi quảng cáo vẫn đang chiếu!
-      // Chỉ restore khi AD_END — tránh tự bật tiếng lại giữa chừng quảng cáo.
     }
   }, VERIFY_AFTER_MS);
 }
+
 function watchPlayback(): void {
   const first = lastSignals;
   if (!first) return;
@@ -246,29 +259,15 @@ function execute(a: Action, s: Signals): void {
     return;
   }
 
-  // Cơ chế One-Shot Seek dứt khoát: tua 1 lần duy nhất cho mỗi quảng cáo và gọi play()
+  // Cơ chế One-Shot Seek dứt khoát: tua toàn bộ thẻ video và gọi play()
   if (a.type === 'SEEK_TO_END') {
     onSeekExecuted();
+    silenceAndSkipAllVideos();
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
       lastSoughtDuration = v.duration;
-      v.currentTime = Math.max(0, v.duration - 0.1);
-      v.playbackRate = cfg.maxSpeed;
-      resumePlay();
-      try {
-        v.dispatchEvent(new Event('ended'));
-      } catch {}
     }
-    const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
-    for (const vid of videos) {
-      if (vid !== v && Number.isFinite(vid.duration) && vid.duration > 0) {
-        vid.currentTime = Math.max(0, vid.duration - 0.1);
-        vid.playbackRate = 16.0;
-        if (vid.paused) {
-          void vid.play().catch(() => undefined);
-        }
-      }
-    }
+    resumePlay();
   }
 
   const res = actuator.apply(a);
@@ -352,11 +351,18 @@ function handle(s: Signals): void {
       done = [];
       lastSoughtDuration = null;
       lastCurrentTime = 0;
-      lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
       // Can thiệp tức thời 0ms ngay tại thời điểm AD_START — không chờ planStep
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
+
+      // Bảo vệ: Tự động gỡ Visual Mask sau tối đa 2 giây tránh màn hình đen nếu AD_END bị kẹt
+      window.setTimeout(() => {
+        const player = document.querySelector(SEL.player);
+        if (!player || !player.classList.contains('ad-showing')) {
+          removeMask();
+        }
+      }, 2000);
     } else {
       removeMask();
       onAdEnd();
