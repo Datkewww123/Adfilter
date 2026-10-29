@@ -173,12 +173,26 @@ function instantIntervene(): void {
   for (const v of allVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
-      resumePlay();
-      try {
-        v.dispatchEvent(new Event('ended'));
-      } catch {}
+    if (cfg.allowSeek) {
+      if (Number.isFinite(v.duration) && v.duration > 0) {
+        v.currentTime = Math.max(0, v.duration - 0.1);
+        resumePlay();
+        try {
+          v.dispatchEvent(new Event('ended'));
+        } catch {}
+      } else {
+        const onMeta = (): void => {
+          v.removeEventListener('loadedmetadata', onMeta);
+          if (Number.isFinite(v.duration) && v.duration > 0) {
+            v.currentTime = Math.max(0, v.duration - 0.1);
+            resumePlay();
+            try {
+              v.dispatchEvent(new Event('ended'));
+            } catch {}
+          }
+        };
+        v.addEventListener('loadedmetadata', onMeta, { once: true });
+      }
     }
   }
 
@@ -387,6 +401,9 @@ function handle(s: Signals): void {
       lastSoughtDuration = null;
       lastCurrentTime = 0;
       actuator.restore();
+      resumePlay();
+      window.setTimeout(resumePlay, 200);
+      window.setTimeout(resumePlay, 500);
       if (intervenedThisAd) watchPlayback();
       intervenedThisAd = false;
       log.info(clock(e.emittedAt), 'AD_END');
