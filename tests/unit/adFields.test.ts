@@ -7,7 +7,8 @@ describe('adFields: danh sách trường quảng cáo', () => {
     expect(AD_PLAYER_FIELDS).toContain('playerAds');
     expect(AD_PLAYER_FIELDS).toContain('adSlots');
     expect(AD_PLAYER_FIELDS).toContain('adBreaks');
-    expect(AD_PLAYER_FIELDS).toContain('playbackTracking');
+    // playbackTracking phải được giữ nguyên để không bị 403 Forbidden trên videoplayback
+    expect(AD_PLAYER_FIELDS).not.toContain('playbackTracking');
   });
 
   it('stripAdFields xóa đúng các trường QC mà giữ nguyên dữ liệu video chính', () => {
@@ -17,7 +18,7 @@ describe('adFields: danh sách trường quảng cáo', () => {
       playerAds: [{ ad: {} }],
       adSlots: [{ slot: {} }],
       adBreaks: [{ break: {} }],
-      playbackTracking: { ping: 'url' },
+      playbackTracking: { videostatsPlaybackUrl: 'url' },
       streamingData: { formats: [] },
     };
     const result = stripAdFields(fake);
@@ -27,7 +28,8 @@ describe('adFields: danh sách trường quảng cáo', () => {
     expect('playerAds' in result).toBe(false);
     expect('adSlots' in result).toBe(false);
     expect('adBreaks' in result).toBe(false);
-    expect('playbackTracking' in result).toBe(false);
+    // playbackTracking của video chính được bảo vệ toàn vẹn
+    expect('playbackTracking' in result).toBe(true);
   });
 
   it('stripAdFields không lỗi khi đối tượng không có trường QC', () => {

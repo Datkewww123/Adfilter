@@ -12,7 +12,6 @@ export const AD_PLAYER_FIELDS: readonly string[] = [
   'adBreakParams',
   'adBreakHeartbeatParams',
   'adBreaks',
-  'playbackTracking',
 ] as const;
 
 /**

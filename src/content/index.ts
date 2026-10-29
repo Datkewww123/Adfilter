@@ -1,4 +1,4 @@
-﻿import { ext } from '../platform/api';
+import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -154,10 +154,6 @@ function resumePlay(): void {
   if (v && v.paused) {
     void v.play().catch(() => undefined);
   }
-  const bigPlay = document.querySelector<HTMLElement>('.ytp-large-play-button');
-  if (bigPlay) {
-    bigPlay.click();
-  }
 }
 
 /**
@@ -177,12 +173,26 @@ function instantIntervene(): void {
   for (const v of allVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
-      resumePlay();
-      try {
-        v.dispatchEvent(new Event('ended'));
-      } catch {}
+    if (cfg.allowSeek) {
+      if (Number.isFinite(v.duration) && v.duration > 0) {
+        v.currentTime = Math.max(0, v.duration - 0.1);
+        resumePlay();
+        try {
+          v.dispatchEvent(new Event('ended'));
+        } catch {}
+      } else {
+        const onMeta = (): void => {
+          v.removeEventListener('loadedmetadata', onMeta);
+          if (Number.isFinite(v.duration) && v.duration > 0) {
+            v.currentTime = Math.max(0, v.duration - 0.1);
+            resumePlay();
+            try {
+              v.dispatchEvent(new Event('ended'));
+            } catch {}
+          }
+        };
+        v.addEventListener('loadedmetadata', onMeta, { once: true });
+      }
     }
   }
 
@@ -353,7 +363,7 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
-      applyMask();
+      // onAdStart() đã gọi applyMask() bên trong — không gọi lại ở đây để tránh double-mask
       onAdStart();
       adStartedAt = e.at;
       done = [];
@@ -364,12 +374,13 @@ function handle(s: Signals): void {
       
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
 
+      // Fallback an toàn: nếu sau 1.5s không còn .ad-showing thì tháo mask
       window.setTimeout(() => {
         const player = document.querySelector(SEL.player);
         if (!player || !player.classList.contains('ad-showing')) {
           removeMask();
         }
-      }, 800);
+      }, 1500);
     } else {
       removeMask();
       onAdEnd();
@@ -390,6 +401,9 @@ function handle(s: Signals): void {
       lastSoughtDuration = null;
       lastCurrentTime = 0;
       actuator.restore();
+      resumePlay();
+      window.setTimeout(resumePlay, 200);
+      window.setTimeout(resumePlay, 500);
       if (intervenedThisAd) watchPlayback();
       intervenedThisAd = false;
       log.info(clock(e.emittedAt), 'AD_END');

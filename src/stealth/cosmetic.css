@@ -33,8 +33,7 @@
 #movie_player.ad-showing .ytp-ad-image-overlay,
 .ytp-ad-player-overlay,
 .ytp-ad-player-overlay-layout,
-.ytp-ad-action-interstitial,
-.ytp-ad-module {
+.ytp-ad-action-interstitial {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -102,8 +101,10 @@ ytd-reel-shelf-renderer:has(ytd-ad-slot-renderer) {
 }
 
 /* ============================================================
- * POPUP CẢNH BÁO / THÔNG BÁO GIÁN ĐOẠN (Experiencing interruptions)
+ * POPUP CẢNH BÁO / THÔNG BÁO GIÁN ĐOẠN & BACKDROP TỐI MÀN HÌNH
  * ============================================================ */
+tp-yt-iron-overlay-backdrop,
+iron-overlay-backdrop,
 yt-notification-action-renderer,
 yt-notification-action-renderer.ytd-popup-container,
 .ytp-suggested-action,
@@ -125,4 +126,11 @@ yt-playability-error-supported-renderers .yt-playability-error-supported-rendere
   opacity: 0 !important;
   height: 0 !important;
   overflow: hidden !important;
+}
+
+/* Đảm bảo người dùng luôn cuộn trang được bình thường, không bị popup YouTube khóa scroll */
+body.ytd-app,
+ytd-app,
+html {
+  overflow-y: auto !important;
 }

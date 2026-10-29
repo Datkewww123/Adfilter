@@ -3,7 +3,7 @@ export const SEL = {
   video: 'video.html5-main-video',
   adOverlay: '.ytp-ad-player-overlay, .ytp-ad-player-overlay-layout',
   skipButton:
-    '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot button, .ytp-skip-ad-button-slot button, [id*="skip-button"], .ytp-ad-skip-button-container button, button.ytp-ad-button-vm',
+    '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot button, .ytp-skip-ad-button-slot button, .ytp-ad-skip-button-container button, button.ytp-ad-button-vm',
   adBadge: '.ytp-ad-simple-ad-badge, .ytp-ad-text',
 } as const;
 
@@ -37,7 +37,7 @@ export function getSkipButton(doc: Document): HTMLElement | null {
     return null;
   }
 
-  const candidates = doc.querySelectorAll<HTMLElement>(SEL.skipButton);
+  const candidates = player.querySelectorAll<HTMLElement>(SEL.skipButton);
   for (const el of candidates) {
     // 1. Chỉ loại trừ các nút cài đặt app / liên kết trang của nhà tài trợ
     if (
