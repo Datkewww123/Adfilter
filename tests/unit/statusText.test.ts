@@ -7,7 +7,25 @@ describe('describeStatus', () => {
     expect(describeStatus(null)).toEqual(['Chưa có dữ liệu cho tab này. Hãy mở trang YouTube.']);
   });
 
-  it('trạng thái đầy đủ cho đúng các dòng', () => {
+  it('trạng thái UNKNOWN hiển thị đang theo dõi', () => {
+    const s = emptyStatus(); // phase mặc định là UNKNOWN
+    const lines = describeStatus(s);
+    expect(lines[0]).toContain('Đang theo dõi');
+    // Không hiển thị adKind hay can thiệp khi chưa có dữ liệu
+    expect(lines.some((l) => l.startsWith('Loại:'))).toBe(false);
+    expect(lines.some((l) => l.startsWith('Can thiệp:'))).toBe(false);
+  });
+
+  it('trạng thái NORMAL hiển thị đang xem video bình thường', () => {
+    const s = { ...emptyStatus(), phase: 'NORMAL' as const };
+    const lines = describeStatus(s);
+    expect(lines[0]).toContain('Đang xem video bình thường');
+    // Khi NORMAL, không hiển thị adKind (dù có giá trị)
+    expect(lines.some((l) => l.startsWith('Loại:'))).toBe(false);
+    expect(lines.some((l) => l.startsWith('Quảng cáo:'))).toBe(false);
+  });
+
+  it('trạng thái AD hiển thị đang chặn và loại quảng cáo kèm can thiệp', () => {
     const s = {
       ...emptyStatus(),
       phase: 'AD' as const,
@@ -19,10 +37,11 @@ describe('describeStatus', () => {
       interventionsFail: 1,
     };
     const lines = describeStatus(s);
-    expect(lines).toContain('Trạng thái: AD');
-    expect(lines).toContain('Loại: Bỏ qua được (95%)');
-    expect(lines).toContain('Quảng cáo: 2 · Thời lượng: 0:43');
+    expect(lines[0]).toContain('Đang chặn quảng cáo');
+    expect(lines).toContain('Loại: Có thể bỏ qua (95%)');
     expect(lines).toContain('Can thiệp: 3/4 thành công');
+    // Không còn dòng "Quảng cáo: X · Thời lượng: Y" vì vô nghĩa khi Defuser chặn từ gốc
+    expect(lines.some((l) => l.startsWith('Quảng cáo:'))).toBe(false);
   });
 
   it('không có dòng Can thiệp khi tổng bằng 0', () => {
@@ -32,7 +51,7 @@ describe('describeStatus', () => {
   });
 
   it('adKind lạ thì in nguyên giá trị', () => {
-    const s = { ...emptyStatus(), adKind: 'CUSTOM_AD', confidence: 0.8 };
+    const s = { ...emptyStatus(), phase: 'AD' as const, adKind: 'CUSTOM_AD', confidence: 0.8 };
     const lines = describeStatus(s);
     expect(lines).toContain('Loại: CUSTOM_AD (80%)');
   });
