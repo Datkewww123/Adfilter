@@ -1,4 +1,4 @@
-import { ext } from '../platform/api';
+﻿import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -103,13 +103,33 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// Co dang danh dau context extension da bi vo hieu hoa.
+// Khi true, moi lenh gui message deu bi bo qua im lang, khong xuat hien trong Chrome Error log.
+let _ctxDead = false;
+
+function teardown(): void {
+  if (_ctxDead) return;
+  _ctxDead = true;
+  actuator.restore();
+  observer.stop();
+  log.info('extension context invalidated - content script da dung');
+}
+
 function send(msg: Msg): void {
+  if (_ctxDead) return;
   try {
-    void ext.runtime.sendMessage(msg).catch(() => undefined);
+    void ext.runtime.sendMessage(msg).catch((err: unknown) => {
+      const errMsg = String(err);
+      if (
+        errMsg.includes('context invalidated') ||
+        errMsg.includes('Extension context') ||
+        errMsg.includes('receiving end does not exist')
+      ) {
+        teardown();
+      }
+    });
   } catch {
-    log.warn('extension context invalidated, stop observing');
-    actuator.restore();
-    observer.stop();
+    teardown();
   }
 }
 
@@ -403,8 +423,10 @@ send({ kind: 'STATUS_UPDATE', status: currentStatus });
 
 // Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {
+  // Dung watchdog neu context extension da bi invalidated
+  if (_ctxDead) return;
   const report = runHealthCheck();
   if (!report.healthy) {
-    log.warn('[Pipeline Watchdog] Phát hiện vấn đề:', report);
+    log.warn('[Pipeline Watchdog] Phat hien van de:', report);
   }
 }, 60_000);
