@@ -43,11 +43,11 @@ if (!isLocalTest) {
 
     // Triệt tiêu quảng cáo trên YouTube Shorts
     if (Array.isArray(record.entries)) {
-      const origLen = record.entries.length;
-      record.entries = record.entries.filter(
-        (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
-      );
-      if (record.entries.length < origLen) {
+      const entries = record.entries as any[];
+      const origLen = entries.length;
+      const filtered = entries.filter((entry: any) => !entry?.command?.reelWatchEndpoint?.ad);
+      if (filtered.length < origLen) {
+        record.entries = filtered;
         removed = true;
       }
     }
