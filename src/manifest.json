@@ -4,20 +4,32 @@
   "version": "0.1.0",
   "description": "YouTube Ad Filter Extension",
   "permissions": ["storage"],
-  "host_permissions": ["*://*.youtube.com/*", "*://youtube.com/*"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://youtube.com/*",
+    "*://m.youtube.com/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
       "js": ["defuser.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["*://*.youtube.com/*", "*://youtube.com/*"],
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
       "js": ["content.js"],
       "css": ["cosmetic.css"],
       "run_at": "document_idle"
