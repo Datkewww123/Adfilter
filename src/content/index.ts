@@ -1,4 +1,4 @@
-﻿import { ext } from '../platform/api';
+import { ext } from '../platform/api';
 import { log } from '../core/log';
 import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
@@ -104,45 +104,47 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Auto‑play helpers – force play videos as soon as they appear in the DOM
+// Initial Autoplay Helper (Chỉ kích hoạt lúc vào trang/chuyển video, không ép play khi user bấm pause)
 // ---------------------------------------------------------------------------
+function attachInitialAutoplay(video: HTMLVideoElement): void {
+  // Không can thiệp nếu video đã kết thúc (để YouTube tự động sang bài tiếp theo)
+  if (video.ended) return;
 
-// Play video immediately when a <video> element is added (covers initial load and SPA navigation)
-function forcePlayOnInsert(node: Node) {
-  if (node instanceof HTMLVideoElement) {
-    // If the video is paused and hasn't buffered enough, try to play it
-    if (node.paused && node.readyState < 2) {
-      void node.play().catch(() => {});
+  const onCanPlay = () => {
+    // Chỉ kích hoạt nếu ở đầu video (< 2s) và không phải quảng cáo
+    const player = document.querySelector(SEL.player);
+    const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+    if (!isAd && video.paused && !video.ended && video.currentTime < 2) {
+      void video.play().catch(() => {});
     }
+  };
+
+  if (video.readyState >= 2) {
+    onCanPlay();
+  } else {
+    video.addEventListener('canplay', onCanPlay, { once: true });
+    video.addEventListener('loadeddata', onCanPlay, { once: true });
   }
 }
 
 const videoObserver = new MutationObserver((mutations) => {
   for (const m of mutations) {
     for (const n of m.addedNodes) {
-      forcePlayOnInsert(n);
+      if (n instanceof HTMLVideoElement) {
+        attachInitialAutoplay(n);
+      } else if (n instanceof HTMLElement) {
+        const v = n.querySelector('video');
+        if (v) attachInitialAutoplay(v);
+      }
     }
   }
 });
 videoObserver.observe(document.documentElement, { childList: true, subtree: true });
 
-// Persistent auto‑resume watcher for videos that become paused after start
-let autoResumeWatcherId: number | undefined;
-function startAutoResumeWatcher() {
-  if (autoResumeWatcherId) clearInterval(autoResumeWatcherId);
-  autoResumeWatcherId = window.setInterval(() => {
-    const v = getActiveVideo(document);
-    if (!v) return;
-    const player = document.querySelector(SEL.player);
-    const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-    if (!isAd && v.paused && v.readyState >= 2) {
-      void v.play().catch(() => {});
-    }
-  }, 300);
-}
-window.addEventListener('load', startAutoResumeWatcher);
-document.addEventListener('yt-navigate-finish', startAutoResumeWatcher);
-
+document.addEventListener('yt-navigate-finish', () => {
+  const v = getActiveVideo(document);
+  if (v) attachInitialAutoplay(v);
+});
 
 let _ctxDead = false;
 function teardown(): void {
@@ -150,6 +152,7 @@ function teardown(): void {
   _ctxDead = true;
   actuator.restore();
   observer.stop();
+  videoObserver.disconnect();
   log.info('extension context invalidated - content script stopped');
 }
 
@@ -173,7 +176,7 @@ function send(msg: Msg): void {
 
 function resumePlay(): void {
   const v = getActiveVideo(document);
-  if (v && v.paused) {
+  if (v && v.paused && !v.ended) {
     void v.play().catch(() => undefined);
   }
 }
@@ -288,7 +291,7 @@ function execute(a: Action, s: Signals): void {
       if (vid !== v && Number.isFinite(vid.duration) && vid.duration > 0) {
         vid.currentTime = Math.max(0, vid.duration - 0.1);
         vid.playbackRate = cfg.maxSpeed;
-        if (vid.paused) {
+        if (vid.paused && !vid.ended) {
           void vid.play().catch(() => undefined);
         }
       }
@@ -403,7 +406,7 @@ function handle(s: Signals): void {
       lastCurrentTime = 0;
       actuator.restore();
 
-      // Auto-Resume Watcher: Đảm bảo luồng video chính tự động play sau khi dập tắt quảng cáo
+      // Auto-Resume: Đảm bảo luồng video chính tự động play sau khi dập tắt quảng cáo
       resumePlay();
       let checks = 0;
       const resumeWatcher = window.setInterval(() => {
@@ -464,7 +467,6 @@ function isLiveVideo(v: HTMLVideoElement | null): boolean {
   return !!v && (!Number.isFinite(v.duration) || v.duration === 0);
 }
 
-// ... later in the file, replace existing instantIntervene and other logic using isLiveVideo ...
 // Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {
   // Dung watchdog neu context extension da bi invalidated
