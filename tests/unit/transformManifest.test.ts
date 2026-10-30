@@ -21,33 +21,44 @@ const opts = (o: Partial<{ target: 'chromium' | 'firefox'; dev: boolean; version
 });
 
 describe('transformManifest', () => {
-  it('giữ nguyên service_worker và world MAIN đối với target chromium', () => {
-    const m = transformManifest(base(), opts({ target: 'chromium' }));
+  it('chromium giữ service_worker, không có gecko', () => {
+    const m = transformManifest(base(), opts());
     expect(m.background?.service_worker).toBe('background.js');
     expect(m.browser_specific_settings).toBeUndefined();
     expect(m.content_scripts[0].world).toBe('MAIN');
   });
 
-  it('chuyển sang background.scripts và gán gecko id đối với target firefox', () => {
+  it('firefox dùng scripts và có gecko id', () => {
     const m = transformManifest(base(), opts({ target: 'firefox' }));
     expect(m.background?.scripts).toEqual(['background.js']);
     expect(m.background?.service_worker).toBeUndefined();
     expect(m.browser_specific_settings?.gecko.id).toBe(GECKO_ID);
     expect(m.browser_specific_settings?.gecko.strict_min_version).toBe('115.0');
-    // Đảm bảo không còn world MAIN trong Firefox để tránh cảnh báo lint
     expect(m.content_scripts[0].world).toBeUndefined();
   });
 
-  it('bổ sung host_permissions và matches cho localhost khi dev: true', () => {
-    const m = transformManifest(base(), opts({ dev: true }));
-    expect(m.host_permissions).toContain('*://localhost/*');
-    expect(m.content_scripts[0].matches).toContain('*://localhost/*');
-    expect(m.content_scripts[1].matches).toContain('*://localhost/*');
+  it('bản thường không có localhost, bản dev có ở cả hai chỗ', () => {
+    const normal = transformManifest(base(), opts());
+    expect(JSON.stringify(normal)).not.toContain('localhost');
+    const dev = transformManifest(base(), opts({ dev: true }));
+    expect(dev.host_permissions).toContain('*://localhost/*');
+    expect(dev.content_scripts[0]?.matches).toContain('*://localhost/*');
   });
 
-  it('xử lý đúng semantic version có tag tiền phát hành (-beta, -alpha)', () => {
-    const m = transformManifest(base(), opts({ version: '1.2.3-beta.1' }));
-    expect(m.version).toBe('1.2.3');
-    expect(m.version_name).toBe('1.2.3-beta.1');
+  it('phiên bản tiền phát hành: cắt hậu tố và đặt version_name cho chromium', () => {
+    const m = transformManifest(base(), opts({ version: '0.2.0-rc.1' }));
+    expect(m.version).toBe('0.2.0');
+    expect(m.version_name).toBe('0.2.0-rc.1');
+  });
+
+  it('firefox không đặt version_name', () => {
+    const m = transformManifest(base(), opts({ target: 'firefox', version: '0.2.0-rc.1' }));
+    expect(m.version_name).toBeUndefined();
+  });
+
+  it('không sửa manifest gốc', () => {
+    const b = base();
+    transformManifest(b, opts({ target: 'firefox', dev: true }));
+    expect(b).toEqual(base());
   });
 });

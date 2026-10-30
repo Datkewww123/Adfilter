@@ -1,12 +1,17 @@
 import * as esbuild from 'esbuild';
 import fs from 'node:fs/promises';
+import { transformManifest, type Target } from './transformManifest';
 
 async function build() {
-  const dev = process.argv.includes('--dev');
-  const out = dev ? 'dist/chromium-dev' : 'dist/chromium';
+  const args = process.argv.slice(2);
+  const dev = args.includes('--dev');
+  const targetArg = args.find((a) => a.startsWith('--target='));
+  const target: Target = (targetArg ? targetArg.split('=')[1] : 'chromium') as Target;
+
+  const out = dev ? `dist/${target}-dev` : `dist/${target}`;
   await fs.mkdir(out, { recursive: true });
 
-  // 1. Build TypeScript
+  // 1. Biên dịch TypeScript
   await esbuild.build({
     entryPoints: {
       background: 'src/background/index.ts',
@@ -23,35 +28,29 @@ async function build() {
     define: { __E2E__: String(dev) },
   });
 
-  // 2. Đồng bộ version từ package.json vào manifest
+  // 2. Chuyển đổi và ghi Manifest theo target
   const pkg = JSON.parse(await fs.readFile('package.json', 'utf8'));
-  const manifest = JSON.parse(await fs.readFile('src/manifest.json', 'utf8'));
-  manifest.version = String(pkg.version).split('-')[0];
-  if (String(pkg.version).includes('-')) {
-    manifest.version_name = pkg.version;
-  }
+  const baseManifest = JSON.parse(await fs.readFile('src/manifest.json', 'utf8'));
 
-  if (dev) {
-    manifest.host_permissions = manifest.host_permissions || [];
-    manifest.host_permissions.push('*://localhost/*', 'http://localhost/*');
-    if (manifest.content_scripts) {
-      for (const cs of manifest.content_scripts) {
-        cs.matches = cs.matches || [];
-        cs.matches.push('*://localhost/*', 'http://localhost/*');
-      }
-    }
-  }
-  await fs.writeFile(`${out}/manifest.json`, JSON.stringify(manifest, null, 2));
+  const finalManifest = transformManifest(baseManifest, {
+    target,
+    dev,
+    version: pkg.version ?? '0.1.0',
+  });
 
-  // 3. Copy các file tĩnh
+  await fs.writeFile(`${out}/manifest.json`, JSON.stringify(finalManifest, null, 2));
+
+  // 3. Sao chép tài nguyên tĩnh
   await fs.copyFile('src/stealth/cosmetic.css', `${out}/cosmetic.css`);
   await fs.copyFile('src/popup/popup.html', `${out}/popup.html`);
   await fs.copyFile('src/options/options.html', `${out}/options.html`);
 
-  if (!dev) {
+  // Nếu là Chromium bản chính thức, đồng bộ ra dist/ gốc
+  if (!dev && target === 'chromium') {
     await fs.cp(out, 'dist', { recursive: true });
     console.log('✅ Mirrored build to dist/');
   }
+
   console.log(`✅ Build completed -> ${out}/`);
 }
 
