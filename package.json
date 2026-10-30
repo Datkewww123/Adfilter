@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "tsx scripts/build.ts --target=chromium",
+    "build:dev": "tsx scripts/build.ts --target=chromium --dev",
+    "build:firefox": "tsx scripts/build.ts --target=firefox",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "tsc --noEmit",
@@ -15,7 +17,6 @@
     "eval": "tsx scripts/eval.ts",
     "sweep": "tsx scripts/sweep.ts",
     "summarize": "tsx scripts/summarize-actions.ts",
-    "build:dev": "node scripts/build.mjs --dev",
     "e2e": "playwright test"
   },
   "keywords": [],
