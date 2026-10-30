@@ -1,29 +1,51 @@
-export const SEL = {
+export interface Selectors {
+  player: string;
+  video: string;
+  adOverlay: string;
+  skipButton: string;
+  adBadge: string;
+}
+
+export const SELECTORS_DESKTOP: Selectors = {
   player: '#movie_player',
   video: 'video.html5-main-video',
   adOverlay: '.ytp-ad-player-overlay, .ytp-ad-player-overlay-layout',
   skipButton:
     '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot button, .ytp-skip-ad-button-slot button, .ytp-ad-skip-button-container button, button.ytp-ad-button-vm',
   adBadge: '.ytp-ad-simple-ad-badge, .ytp-ad-text',
-} as const;
+};
+
+// Cấu hình selector cho YouTube Mobile (m.youtube.com)
+export const SELECTORS_MOBILE: Selectors = {
+  player: '#player-container-id, .player-container, #movie_player',
+  video: 'video.video-stream, video',
+  adOverlay: '.ad-container, .ytm-ad-overlay, .ytp-ad-player-overlay',
+  skipButton:
+    '.ytm-skip-ad-button, .videoAdUiSkipButton, .ytp-skip-ad-button, .ytp-ad-skip-button',
+  adBadge: '.ad-interrupting, .ytp-ad-badge, .ytm-ad-badge',
+};
+
+export function selectorsFor(hostname: string): Selectors {
+  return hostname === 'm.youtube.com' ? SELECTORS_MOBILE : SELECTORS_DESKTOP;
+}
+
+export const SEL: Selectors = selectorsFor(typeof location !== 'undefined' ? location.hostname : '');
 
 export const AD_CLASSES = ['ad-showing', 'ad-interrupting'] as const;
 declare const __E2E__: boolean | undefined;
 const E2E = typeof __E2E__ !== 'undefined' && __E2E__ === true;
 export const ENFORCEMENT_SELECTORS: readonly string[] = E2E ? ['#adblock-warning'] : [];
 
-/** Tìm thẻ video đang thực sự phát (hỗ trợ nhiều thẻ video trong Ad Pod 1 of 3, 2 of 3) */
+/** Tìm thẻ video đang thực sự phát (hỗ trợ cả Desktop lẫn Mobile) */
 export function getActiveVideo(doc: Document): HTMLVideoElement | null {
   const player = doc.querySelector(SEL.player);
   const videos = Array.from((player || doc).querySelectorAll<HTMLVideoElement>('video'));
   if (videos.length === 0) return null;
   if (videos.length === 1) return videos[0];
 
-  // 1. Ưu tiên video đang phát (không bị paused) và có duration hữu hạn > 0
   const playing = videos.find((v) => !v.paused && Number.isFinite(v.duration) && v.duration > 0);
   if (playing) return playing;
 
-  // 2. Video có duration hữu hạn > 0
   const withDuration = videos.find((v) => Number.isFinite(v.duration) && v.duration > 0);
   if (withDuration) return withDuration;
 
@@ -39,30 +61,21 @@ export function getSkipButton(doc: Document): HTMLElement | null {
 
   const candidates = player.querySelectorAll<HTMLElement>(SEL.skipButton);
   for (const el of candidates) {
-    // 1. Chỉ loại trừ các nút cài đặt app / liên kết trang của nhà tài trợ
-    if (
-      el.closest(
-        '.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button',
-      )
-    ) {
+    if (el.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button')) {
       continue;
     }
-
-    // 2. Không được là nút bị vô hiệu hóa
     if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
       continue;
     }
 
-    // 3. Nhận diện chữ "Skip" / "Bỏ qua" hoặc class skip đặc thù của YouTube
     const text = (el.textContent || '').trim().toLowerCase();
     const isSkipWord = text.includes('skip') || text.includes('bỏ qua');
     const isSkipClass =
       el.classList.contains('ytp-skip-ad-button') ||
       el.classList.contains('ytp-ad-skip-button') ||
-      el.classList.contains('ytp-ad-skip-button-modern') ||
+      el.classList.contains('ytm-skip-ad-button') ||
       el.closest('.ytp-ad-skip-button-slot, .ytp-skip-ad-button-slot') !== null;
 
-    // Nếu chỉ là số đếm ngược đơn thuần (5, 4, 3, 2, 1) mà chưa có chữ Skip thì chưa được bấm
     const isCountdownOnly = /^\d+$/.test(text);
     if (isCountdownOnly) continue;
 
@@ -72,7 +85,6 @@ export function getSkipButton(doc: Document): HTMLElement | null {
     }
   }
 
-  // Fallback: Tìm bất kỳ button nào trong player có chữ Skip
   const buttons = player.querySelectorAll<HTMLElement>('button, [role="button"]');
   for (const b of buttons) {
     if (b.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button')) continue;

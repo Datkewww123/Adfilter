@@ -7,7 +7,7 @@ const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8')) as {
 };
 
 const ALLOWED_PERMISSIONS = ['storage'];
-const ALLOWED_HOSTS = ['*://*.youtube.com/*', '*://youtube.com/*'];
+const ALLOWED_HOSTS = ['*://*.youtube.com/*', '*://youtube.com/*', '*://m.youtube.com/*'];
 
 describe('manifest: không phình quyền', () => {
   it('chỉ dùng các permission đã được duyệt', () => {

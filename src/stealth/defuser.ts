@@ -257,44 +257,69 @@ if (!isLocalTest) {
     'iron-overlay-backdrop',
   ] as const;
 
-  function removeInterruptionPopups(): void {
+  const POPUP_SELECTOR = POPUP_SELECTORS.join(', ');
+  const ENFORCEMENT_SELECTOR =
+    'ytd-enforcement-message-view-model, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog';
+  const ALWAYS_REMOVE_SELECTOR = 'ytd-third-party-manager, snackbar-container';
+
+  function removeInterruptionPopups(
+    root: ParentNode = document,
+    includeDescendants = true,
+  ): void {
+    const candidates = new Set<Element>();
+    if (root instanceof Element) {
+      let ancestor: Element | null = root;
+      while (ancestor) {
+        if (ancestor.matches(POPUP_SELECTOR)) candidates.add(ancestor);
+        ancestor = ancestor.parentElement;
+      }
+    }
+    if (includeDescendants) {
+      for (const el of root.querySelectorAll(POPUP_SELECTOR)) candidates.add(el);
+    }
+
     // 1. Xóa dialog cảnh báo chặn quảng cáo.
     // Với từng phần tử enforcement, gỡ luôn dialog cha (nếu có) để không còn
     // một dialog rỗng bị coi là dialog thật và giữ khóa cuộn.
     // KHÔNG xóa tp-yt-iron-overlay-backdrop khỏi DOM nữa: CSS đã ẩn backdrop,
     // còn xóa DOM sẽ làm overlay manager của YouTube kẹt trạng thái và giữ khóa cuộn.
-    for (const el of document.querySelectorAll(
-      'ytd-enforcement-message-view-model, tp-yt-paper-dialog.ytd-enforcement-message-view-model, #enforce-dialog',
-    )) {
-      (el.closest('tp-yt-paper-dialog, ytd-popup-modal') ?? el).remove();
-    }
-    for (const el of document.querySelectorAll('ytd-third-party-manager, snackbar-container')) {
-      el.remove();
+    let removedEnforcement = false;
+    for (const el of candidates) {
+      if (el.matches(ENFORCEMENT_SELECTOR)) {
+        (el.closest('tp-yt-paper-dialog, ytd-popup-modal') ?? el).remove();
+        removedEnforcement = true;
+      } else if (el.matches(ALWAYS_REMOVE_SELECTOR)) {
+        el.remove();
+      }
     }
 
     // 2. Mở khóa cuộn: YouTube dùng class body.no-scroll / body.no-y-scroll
     // (không phải inline style), nên phải xóa cả class lẫn inline overflow.
     // Chỉ mở khi không có dialog thật đang mở để không phá Share/Settings.
-    releaseScrollLockIfSafe(document);
+    if (removedEnforcement) releaseScrollLockIfSafe(document);
 
     // 3. Quét các popup cảnh báo có nội dung chống adblock
-    for (const sel of POPUP_SELECTORS) {
-      if (sel === 'ytd-third-party-manager' || sel === 'snackbar-container' || sel === '#enforce-dialog' || sel === 'tp-yt-iron-overlay-backdrop' || sel === 'iron-overlay-backdrop') continue;
-      const els = document.querySelectorAll(sel);
-      for (const el of els) {
-        const text = el.textContent?.toLowerCase() ?? '';
-        if (
-          text.includes('interruption') ||
-          text.includes('ad blocker') ||
-          text.includes('ads') ||
-          text.includes('allow youtube ads') ||
-          text.includes('trình chặn')
-        ) {
-          el.remove();
-          const v = document.querySelector<HTMLVideoElement>('video');
-          if (v && v.paused) {
-            void v.play().catch(() => undefined);
-          }
+    for (const el of candidates) {
+      if (
+        el.matches(ENFORCEMENT_SELECTOR) ||
+        el.matches(ALWAYS_REMOVE_SELECTOR) ||
+        el.matches('tp-yt-iron-overlay-backdrop, iron-overlay-backdrop') ||
+        !el.isConnected
+      ) {
+        continue;
+      }
+      const text = el.textContent?.toLowerCase() ?? '';
+      if (
+        text.includes('interruption') ||
+        text.includes('ad blocker') ||
+        text.includes('ads') ||
+        text.includes('allow youtube ads') ||
+        text.includes('trình chặn')
+      ) {
+        el.remove();
+        const v = document.querySelector<HTMLVideoElement>('video');
+        if (v && v.paused) {
+          void v.play().catch(() => undefined);
         }
       }
     }
@@ -327,6 +352,12 @@ if (!isLocalTest) {
     }
   }
 
+  function isPlayerMutation(mutation: MutationRecord): boolean {
+    const target =
+      mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+    return !!target?.closest('#movie_player, .html5-video-player');
+  }
+
   // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup & autoplay
   function initStealthMonitors(): void {
     removeInterruptionPopups();
@@ -334,9 +365,26 @@ if (!isLocalTest) {
 
     const target = document.body || document.documentElement;
     if (target) {
-      new MutationObserver(() => {
-        removeInterruptionPopups();
-        ensureAutoplay();
+      new MutationObserver((mutations) => {
+        let playerChanged = false;
+        const changedTargets = new Set<Element>();
+        const addedRoots = new Set<Element>();
+        for (const mutation of mutations) {
+          if (isPlayerMutation(mutation)) {
+            playerChanged = true;
+            continue;
+          }
+          const target =
+            mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+          if (target) changedTargets.add(target);
+          for (const node of mutation.addedNodes) {
+            if (node instanceof Element) addedRoots.add(node);
+            else if (node.parentElement) changedTargets.add(node.parentElement);
+          }
+        }
+        if (playerChanged) ensureAutoplay();
+        for (const root of changedTargets) removeInterruptionPopups(root, false);
+        for (const root of addedRoots) removeInterruptionPopups(root);
       }).observe(target, {
         attributes: true,
         attributeFilter: ['class'],
@@ -346,9 +394,8 @@ if (!isLocalTest) {
     }
 
     window.setInterval(() => {
-      removeInterruptionPopups();
       ensureAutoplay();
-    }, 400);
+    }, 1000);
     document.addEventListener('yt-navigate-finish', () => {
       _autoplayDone = false;
       _autoplayAttempts = 0;
