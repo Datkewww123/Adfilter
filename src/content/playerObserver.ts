@@ -2,8 +2,8 @@ import { SEL } from './selectors';
 import { extractSignals } from './extractSignals';
 import type { Signals } from '../core/types';
 
-const MIN_GAP_MS = 100;
 const SAFETY_TICK_MS = 250;
+const MIN_GAP_MS = SAFETY_TICK_MS;
 
 export class PlayerObserver {
   private mo?: MutationObserver;
