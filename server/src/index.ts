@@ -5,12 +5,22 @@ import { PostgresStore } from './store';
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '0.0.0.0';
 const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error('Missing DATABASE_URL environment variable. See .env.example.');
+// .env is loaded into the container by Compose (env_file), so the password
+// arrives as POSTGRES_PASSWORD; PGPASSWORD is also accepted for plain libpq use.
+const dbPassword = process.env.PGPASSWORD ?? process.env.POSTGRES_PASSWORD;
+
+if (!connectionString && !dbPassword) {
+  console.error(
+    'Missing database credentials: set DATABASE_URL, or PGPASSWORD/POSTGRES_PASSWORD in .env (see .env.example).',
+  );
   process.exit(1);
 }
 
-const pool = new Pool({ connectionString, max: 10, idleTimeoutMillis: 30000 });
+const pool = new Pool({
+  ...(connectionString ? { connectionString } : { password: dbPassword }),
+  max: 10,
+  idleTimeoutMillis: 30000,
+});
 const store = new PostgresStore(pool);
 const app = buildApp(store);
 
