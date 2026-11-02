@@ -329,8 +329,7 @@ if (!isLocalTest) {
         el.remove();
         const v = document.querySelector<HTMLVideoElement>('video');
         if (v && v.paused && !v.ended && v.readyState >= MIN_READY_STATE) {
-          const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
-          if (isLivePlayback(v, player)) {
+          if (isLivePlayback(v)) {
             const edge = inspectLiveEdge(v);
             if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v);
           }
@@ -364,7 +363,7 @@ if (!isLocalTest) {
       _liveSeekAt = undefined;
     }
 
-    const isLive = isLivePlayback(v, player);
+    const isLive = isLivePlayback(v);
     const edge = isLive ? inspectLiveEdge(v) : null;
     const now = Date.now();
     const snapshot = {

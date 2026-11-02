@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   inspectLiveEdge,
+  isLivePlayback,
   seekToLiveEdge,
   shouldAttemptAutoplay,
   shouldCorrectLiveRewind,
@@ -119,6 +120,21 @@ describe('shouldCorrectLiveRewind', () => {
   });
 });
 
+describe('isLivePlayback', () => {
+  it('không coi video thường chưa nạp duration là livestream', () => {
+    expect(isLivePlayback({ duration: 0 })).toBe(false);
+    expect(isLivePlayback({ duration: Number.NaN })).toBe(false);
+  });
+
+  it('không coi video VOD có duration hữu hạn là livestream', () => {
+    expect(isLivePlayback({ duration: 600 })).toBe(false);
+  });
+
+  it('nhận diện livestream qua duration Infinity', () => {
+    expect(isLivePlayback({ duration: Infinity })).toBe(true);
+  });
+});
+
 describe('live edge helpers', () => {
   it('tính đúng khoảng cách tới live edge', () => {
     expect(inspectLiveEdge(liveVideo(98, 100))).toMatchObject({
@@ -139,5 +155,27 @@ describe('live edge helpers', () => {
     expect(seekToLiveEdge(video)).toBe(true);
     expect(video.currentTime).toBe(99.5);
     expect(seekToLiveEdge(video)).toBe(false);
+  });
+
+  it('tuyệt đối không tua video VOD có duration hữu hạn', () => {
+    const video = { ...liveVideo(0, 100), duration: 100 };
+    expect(seekToLiveEdge(video)).toBe(false);
+    expect(video.currentTime).toBe(0);
+  });
+
+  it('không tua video chưa rõ duration (0/NaN) vì có thể là VOD đang load', () => {
+    const zero = { ...liveVideo(0, 100), duration: 0 };
+    expect(seekToLiveEdge(zero)).toBe(false);
+    expect(zero.currentTime).toBe(0);
+
+    const nan = { ...liveVideo(0, 100), duration: Number.NaN };
+    expect(seekToLiveEdge(nan)).toBe(false);
+    expect(nan.currentTime).toBe(0);
+  });
+
+  it('chỉ tua khi duration xác nhận livestream (Infinity)', () => {
+    const video = { ...liveVideo(0, 100), duration: Infinity };
+    expect(seekToLiveEdge(video)).toBe(true);
+    expect(video.currentTime).toBe(99.5);
   });
 });

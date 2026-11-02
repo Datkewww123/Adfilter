@@ -94,6 +94,7 @@ interface SeekableLike {
 interface LiveVideoLike {
   currentTime: number;
   seekable: SeekableLike;
+  duration?: number;
 }
 
 export function inspectLiveEdge(video: LiveVideoLike): LiveEdgeInfo {
@@ -117,6 +118,12 @@ export function inspectLiveEdge(video: LiveVideoLike): LiveEdgeInfo {
 }
 
 export function seekToLiveEdge(video: LiveVideoLike): boolean {
+  // Chốt an toàn cuối cùng: chỉ tua video có duration = Infinity (livestream).
+  // Mọi duration hữu hạn — kể cả 0/NaN — đều bị chặn để không tua nhầm VOD.
+  if (video.duration !== undefined && video.duration !== Infinity) {
+    return false;
+  }
+
   const info = inspectLiveEdge(video);
   if (!info.canSeek || info.edge === null || info.atLiveEdge) return false;
 
@@ -124,15 +131,9 @@ export function seekToLiveEdge(video: LiveVideoLike): boolean {
   return true;
 }
 
-export function isLivePlayback(
-  video: { duration: number },
-  player: Element | null = null,
-): boolean {
-  if (
-    player &&
-    (player.classList.contains('ytp-live') || player.querySelector('.ytp-live-badge') !== null)
-  ) {
-    return true;
-  }
-  return !Number.isFinite(video.duration) || video.duration === 0;
+export function isLivePlayback(video: { duration: number }): boolean {
+  // Chỉ duration = Infinity mới là dấu hiệu livestream đáng tin cậy.
+  // duration = 0/NaN chỉ là metadata chưa nạp xong, có thể là video thường —
+  // nếu coi đó là live, extension sẽ tua nhầm video thường tới cuối.
+  return video.duration === Infinity;
 }

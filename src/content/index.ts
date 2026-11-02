@@ -149,8 +149,7 @@ function stopAutoplayPolling(watch: AutoplayWatch): void {
 }
 
 function pollAutoplay(video: HTMLVideoElement, watch: AutoplayWatch): void {
-  const player = document.querySelector(SEL.player);
-  const isLive = isLivePlayback(video, player);
+  const isLive = isLivePlayback(video);
   const edge = isLive ? inspectLiveEdge(video) : null;
   const now = Date.now();
   const snapshot = {
@@ -294,7 +293,7 @@ function resumePlay(): void {
   if (!v || !v.paused || v.ended || v.readyState < MIN_READY_STATE) return;
 
   // Livestream đang ở đầu DVR sau quảng cáo: tua tới live edge trước khi play.
-  if (isLivePlayback(v, document.querySelector(SEL.player))) {
+  if (isLivePlayback(v)) {
     const edge = inspectLiveEdge(v);
     if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v);
   }
