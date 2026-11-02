@@ -111,10 +111,10 @@ function attachInitialAutoplay(video: HTMLVideoElement): void {
   if (video.ended) return;
 
   const onCanPlay = () => {
-    // Chỉ kích hoạt nếu ở đầu video (< 2s) và không phải quảng cáo
+    // Chỉ kích hoạt nếu không phải quảng cáo
     const player = document.querySelector(SEL.player);
     const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-    if (!isAd && video.paused && !video.ended && video.currentTime < 2) {
+    if (!isAd && video.paused && !video.ended) {
       void video.play().catch(() => {});
     }
   };
