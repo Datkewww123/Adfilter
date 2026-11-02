@@ -19,6 +19,7 @@
 import './interceptor';
 import { disguise } from './anti-detect';
 import { releaseScrollLockIfSafe } from './scrollLock';
+import { AUTOPLAY_WINDOW_MS, shouldAttemptAutoplay } from '../core/autoplayGuard';
 
 // Chỉ kích hoạt trên môi trường YouTube thật, không chạy trên fake-youtube của E2E test
 const isLocalTest = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
@@ -318,7 +319,7 @@ if (!isLocalTest) {
       ) {
         el.remove();
         const v = document.querySelector<HTMLVideoElement>('video');
-        if (v && v.paused) {
+        if (v && v.paused && !v.ended && v.readyState >= 2) {
           void v.play().catch(() => undefined);
         }
       }
@@ -328,22 +329,41 @@ if (!isLocalTest) {
   // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
   // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
   let _autoplayDone = false;
-  let _autoplayAttempts = 0;
+  let _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
+
   function ensureAutoplay(): void {
     if (_autoplayDone) return;
-    const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
+    const player = (document.getElementById('movie_player') ||
+      document.querySelector('.html5-video-player')) as Element | null;
     if (!player) return;
-    const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
-    if (isAd) return;
-    const v = document.querySelector<HTMLVideoElement>('video');
-    if (!v || !v.paused) return;
 
-    _autoplayAttempts++;
-    void v.play().catch(() => undefined);
-    // Đánh dấu done sau lần thử đầu tiên để tránh spam
-    if (_autoplayAttempts >= 1) {
-      _autoplayDone = true;
+    const isAd =
+      player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
+
+    const v = player.querySelector<HTMLVideoElement>('video');
+    if (
+      !v ||
+      !shouldAttemptAutoplay({
+        paused: v.paused,
+        ended: v.ended,
+        readyState: v.readyState,
+        isAd,
+        alreadyPlayed: false,
+        now: Date.now(),
+        deadline: _autoplayDeadline,
+      })
+    ) {
+      return;
     }
+
+    // Chỉ đánh dấu hoàn tất khi play() thực sự thành công.
+    // Nếu thất bại (video chưa sẵn sàng / autoplay bị chặn), vòng lặp định kỳ sẽ thử lại.
+    void v
+      .play()
+      .then(() => {
+        _autoplayDone = true;
+      })
+      .catch(() => undefined);
   }
 
   function isPlayerMutation(mutation: MutationRecord): boolean {
@@ -354,6 +374,7 @@ if (!isLocalTest) {
 
   // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup & autoplay
   function initStealthMonitors(): void {
+    _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
     removeInterruptionPopups();
     ensureAutoplay();
 
@@ -392,7 +413,7 @@ if (!isLocalTest) {
     }, 1000);
     document.addEventListener('yt-navigate-finish', () => {
       _autoplayDone = false;
-      _autoplayAttempts = 0;
+      _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
       window.setTimeout(() => {
         removeInterruptionPopups();
         ensureAutoplay();

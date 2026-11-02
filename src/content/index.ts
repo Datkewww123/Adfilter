@@ -25,6 +25,11 @@ import {
 } from '../core/classifier';
 import { applyMask, removeMask } from '../stealth/visual-mask';
 import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/pipeline';
+import {
+  AUTOPLAY_SETTLE_MS,
+  AUTOPLAY_WINDOW_MS,
+  shouldAttemptAutoplay,
+} from '../core/autoplayGuard';
 
 let obs: AdObservation | null = null;
 
@@ -104,46 +109,123 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Initial Autoplay Helper (Chỉ kích hoạt lúc vào trang/chuyển video, không ép play khi user bấm pause)
+// Initial Autoplay Helper
+// Chỉ tự phát khi YouTube đang giữ video ở trạng thái pause lúc vừa nạp bài.
+// Không giành quyền pause của người dùng: khi video đã phát ổn định thì dừng theo dõi.
 // ---------------------------------------------------------------------------
-function attachInitialAutoplay(video: HTMLVideoElement): void {
-  // Không can thiệp nếu video đã kết thúc (để YouTube tự động sang bài tiếp theo)
-  if (video.ended) return;
+interface AutoplayWatch {
+  played: boolean;
+  deadline: number;
+  timer?: number;
+  settleTimer?: number;
+}
 
-  const onCanPlay = () => {
-    // Chỉ kích hoạt nếu không phải quảng cáo
-    const player = document.querySelector(SEL.player);
-    const isAd = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-    if (!isAd && video.paused && !video.ended) {
-      void video.play().catch(() => {});
-    }
-  };
+const autoplayWatches = new WeakMap<HTMLVideoElement, AutoplayWatch>();
 
-  if (video.readyState >= 2) {
-    onCanPlay();
-  } else {
-    video.addEventListener('canplay', onCanPlay, { once: true });
-    video.addEventListener('loadeddata', onCanPlay, { once: true });
+function isAdPlaying(): boolean {
+  const player = document.querySelector(SEL.player);
+  return (
+    !!player &&
+    (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
+  );
+}
+
+function stopAutoplayPolling(watch: AutoplayWatch): void {
+  if (watch.timer !== undefined) {
+    window.clearInterval(watch.timer);
+    watch.timer = undefined;
   }
+  if (watch.settleTimer !== undefined) {
+    window.clearTimeout(watch.settleTimer);
+    watch.settleTimer = undefined;
+  }
+}
+
+function pollAutoplay(video: HTMLVideoElement, watch: AutoplayWatch): void {
+  if (
+    shouldAttemptAutoplay({
+      paused: video.paused,
+      ended: video.ended,
+      readyState: video.readyState,
+      isAd: isAdPlaying(),
+      alreadyPlayed: watch.played,
+      now: Date.now(),
+      deadline: watch.deadline,
+    })
+  ) {
+    void video.play().catch(() => undefined);
+  }
+
+  if (video.ended || Date.now() >= watch.deadline) {
+    stopAutoplayPolling(watch);
+  }
+}
+
+function startAutoplayPolling(video: HTMLVideoElement, watch: AutoplayWatch): void {
+  if (watch.timer === undefined) {
+    watch.timer = window.setInterval(() => pollAutoplay(video, watch), 250);
+  }
+  pollAutoplay(video, watch);
+}
+
+function watchAutoplay(video: HTMLVideoElement): void {
+  let watch = autoplayWatches.get(video);
+
+  if (!watch) {
+    const created: AutoplayWatch = { played: !video.paused, deadline: 0 };
+    watch = created;
+    autoplayWatches.set(video, created);
+
+    // Video bắt đầu phát: chỉ coi là "đã ổn định" sau một khoảng ngắn.
+    // Nếu YouTube pause lại ngay trong khoảng này, bộ theo dõi vẫn tiếp tục cứu video.
+    video.addEventListener('playing', () => {
+      if (created.settleTimer !== undefined) window.clearTimeout(created.settleTimer);
+      created.settleTimer = window.setTimeout(() => {
+        created.played = true;
+        stopAutoplayPolling(created);
+      }, AUTOPLAY_SETTLE_MS);
+    });
+
+    // Bài mới được nạp vào cùng thẻ <video>: bắt đầu lại chu kỳ theo dõi.
+    video.addEventListener('loadstart', () => {
+      if (created.settleTimer !== undefined) {
+        window.clearTimeout(created.settleTimer);
+        created.settleTimer = undefined;
+      }
+      created.played = false;
+      created.deadline = Date.now() + AUTOPLAY_WINDOW_MS;
+      startAutoplayPolling(video, created);
+    });
+
+    video.addEventListener('ended', () => stopAutoplayPolling(created));
+  }
+
+  if (!video.paused) watch.played = true;
+  watch.deadline = Date.now() + AUTOPLAY_WINDOW_MS;
+  startAutoplayPolling(video, watch);
 }
 
 const videoObserver = new MutationObserver((mutations) => {
   for (const m of mutations) {
     for (const n of m.addedNodes) {
       if (n instanceof HTMLVideoElement) {
-        attachInitialAutoplay(n);
+        watchAutoplay(n);
       } else if (n instanceof HTMLElement) {
         const v = n.querySelector('video');
-        if (v) attachInitialAutoplay(v);
+        if (v) watchAutoplay(v);
       }
     }
   }
 });
 videoObserver.observe(document.documentElement, { childList: true, subtree: true });
 
+// Video có thể đã tồn tại trước khi content script chạy (document_idle).
+// Phải theo dõi cả video hiện có, nếu không sẽ bỏ lỡ đúng lúc video bị pause khi nạp.
+document.querySelectorAll<HTMLVideoElement>('video').forEach((v) => watchAutoplay(v));
+
 document.addEventListener('yt-navigate-finish', () => {
   const v = getActiveVideo(document);
-  if (v) attachInitialAutoplay(v);
+  if (v) watchAutoplay(v);
 });
 
 let _ctxDead = false;
@@ -176,7 +258,8 @@ function send(msg: Msg): void {
 
 function resumePlay(): void {
   const v = getActiveVideo(document);
-  if (v && v.paused && !v.ended) {
+  // Chỉ gọi play() khi media đã có dữ liệu — gọi quá sớm dễ làm lệch trạng thái player.
+  if (v && v.paused && !v.ended && v.readyState >= 2) {
     void v.play().catch(() => undefined);
   }
 }
