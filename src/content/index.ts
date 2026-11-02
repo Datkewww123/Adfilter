@@ -28,7 +28,13 @@ import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/p
 import {
   AUTOPLAY_SETTLE_MS,
   AUTOPLAY_WINDOW_MS,
+  MIN_READY_STATE,
+  inspectLiveEdge,
+  isLivePlayback,
+  seekToLiveEdge,
   shouldAttemptAutoplay,
+  shouldCorrectLiveRewind,
+  shouldSeekToLiveEdge,
 } from '../core/autoplayGuard';
 
 let obs: AdObservation | null = null;
@@ -118,6 +124,7 @@ interface AutoplayWatch {
   deadline: number;
   timer?: number;
   settleTimer?: number;
+  liveSeekAt?: number;
 }
 
 const autoplayWatches = new WeakMap<HTMLVideoElement, AutoplayWatch>();
@@ -142,21 +149,38 @@ function stopAutoplayPolling(watch: AutoplayWatch): void {
 }
 
 function pollAutoplay(video: HTMLVideoElement, watch: AutoplayWatch): void {
-  if (
-    shouldAttemptAutoplay({
-      paused: video.paused,
-      ended: video.ended,
-      readyState: video.readyState,
-      isAd: isAdPlaying(),
-      alreadyPlayed: watch.played,
-      now: Date.now(),
-      deadline: watch.deadline,
-    })
-  ) {
+  const player = document.querySelector(SEL.player);
+  const isLive = isLivePlayback(video, player);
+  const edge = isLive ? inspectLiveEdge(video) : null;
+  const now = Date.now();
+  const snapshot = {
+    paused: video.paused,
+    ended: video.ended,
+    readyState: video.readyState,
+    isAd: isAdPlaying(),
+    alreadyPlayed: watch.played,
+    now,
+    deadline: watch.deadline,
+    isLive,
+    atLiveEdge: edge?.atLiveEdge ?? false,
+    canSeekLive: edge?.canSeek ?? false,
+    currentTime: video.currentTime,
+  };
+
+  // Livestream bị YouTube đưa về đầu DVR: tua tới live edge trước khi play.
+  // Chỉ làm trong cửa sổ nạp trang và tối đa mỗi 2 giây một lần.
+  if (shouldCorrectLiveRewind(snapshot) || shouldSeekToLiveEdge(snapshot)) {
+    if (watch.liveSeekAt === undefined || now - watch.liveSeekAt >= 2000) {
+      if (seekToLiveEdge(video)) watch.liveSeekAt = now;
+    }
+    return;
+  }
+
+  if (shouldAttemptAutoplay(snapshot)) {
     void video.play().catch(() => undefined);
   }
 
-  if (video.ended || Date.now() >= watch.deadline) {
+  if (video.ended || now >= watch.deadline) {
     stopAutoplayPolling(watch);
   }
 }
@@ -169,6 +193,9 @@ function startAutoplayPolling(video: HTMLVideoElement, watch: AutoplayWatch): vo
 }
 
 function watchAutoplay(video: HTMLVideoElement): void {
+  const player = document.querySelector(SEL.player);
+  if (player && !player.contains(video)) return;
+
   let watch = autoplayWatches.get(video);
 
   if (!watch) {
@@ -194,6 +221,7 @@ function watchAutoplay(video: HTMLVideoElement): void {
       }
       created.played = false;
       created.deadline = Date.now() + AUTOPLAY_WINDOW_MS;
+      created.liveSeekAt = undefined;
       startAutoplayPolling(video, created);
     });
 
@@ -225,7 +253,11 @@ document.querySelectorAll<HTMLVideoElement>('video').forEach((v) => watchAutopla
 
 document.addEventListener('yt-navigate-finish', () => {
   const v = getActiveVideo(document);
-  if (v) watchAutoplay(v);
+  if (v) {
+    const watch = autoplayWatches.get(v);
+    if (watch) watch.liveSeekAt = undefined;
+    watchAutoplay(v);
+  }
 });
 
 let _ctxDead = false;
@@ -258,10 +290,16 @@ function send(msg: Msg): void {
 
 function resumePlay(): void {
   const v = getActiveVideo(document);
-  // Chỉ gọi play() khi media đã có dữ liệu — gọi quá sớm dễ làm lệch trạng thái player.
-  if (v && v.paused && !v.ended && v.readyState >= 2) {
-    void v.play().catch(() => undefined);
+  // Chỉ gọi play() khi media đã đủ dữ liệu phát mượt — gọi quá sớm dễ làm lệch trạng thái player.
+  if (!v || !v.paused || v.ended || v.readyState < MIN_READY_STATE) return;
+
+  // Livestream đang ở đầu DVR sau quảng cáo: tua tới live edge trước khi play.
+  if (isLivePlayback(v, document.querySelector(SEL.player))) {
+    const edge = inspectLiveEdge(v);
+    if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v);
   }
+
+  void v.play().catch(() => undefined);
 }
 
 /**

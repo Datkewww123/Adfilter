@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { shouldAttemptAutoplay, type AutoplaySnapshot } from '../../src/core/autoplayGuard';
+import {
+  inspectLiveEdge,
+  seekToLiveEdge,
+  shouldAttemptAutoplay,
+  shouldCorrectLiveRewind,
+  shouldSeekToLiveEdge,
+  type AutoplaySnapshot,
+} from '../../src/core/autoplayGuard';
 
 const base: AutoplaySnapshot = {
   paused: true,
@@ -11,13 +18,25 @@ const base: AutoplaySnapshot = {
   deadline: 2_000,
 };
 
+function liveVideo(currentTime: number, edge: number) {
+  return {
+    currentTime,
+    seekable: {
+      length: 1,
+      start: () => 0,
+      end: () => edge,
+    },
+  };
+}
+
 describe('shouldAttemptAutoplay', () => {
   it('cho phép tự phát khi video đã sẵn sàng và đang pause', () => {
     expect(shouldAttemptAutoplay(base)).toBe(true);
   });
 
-  it('chờ đến khi media có dữ liệu (readyState >= 2)', () => {
-    expect(shouldAttemptAutoplay({ ...base, readyState: 1 })).toBe(false);
+  it('chờ đến khi media đủ dữ liệu phát mượt (readyState >= 3)', () => {
+    expect(shouldAttemptAutoplay({ ...base, readyState: 2 })).toBe(false);
+    expect(shouldAttemptAutoplay({ ...base, readyState: 3 })).toBe(true);
   });
 
   it('không can thiệp khi video đang phát', () => {
@@ -38,5 +57,87 @@ describe('shouldAttemptAutoplay', () => {
 
   it('dừng thử sau thời hạn chờ', () => {
     expect(shouldAttemptAutoplay({ ...base, now: 2_001 })).toBe(false);
+  });
+
+  it('chỉ tự phát livestream khi đã ở sát live edge', () => {
+    expect(
+      shouldAttemptAutoplay({ ...base, isLive: true, atLiveEdge: false }),
+    ).toBe(false);
+    expect(
+      shouldAttemptAutoplay({ ...base, isLive: true, atLiveEdge: true }),
+    ).toBe(true);
+  });
+});
+
+describe('shouldSeekToLiveEdge', () => {
+  it('yêu cầu tua tới live edge khi livestream đang pause ở đầu DVR', () => {
+    expect(
+      shouldSeekToLiveEdge({
+        ...base,
+        isLive: true,
+        atLiveEdge: false,
+        canSeekLive: true,
+        currentTime: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it('không tua khi livestream đã ở live edge hoặc không đọc được seekable', () => {
+    expect(
+      shouldSeekToLiveEdge({ ...base, isLive: true, atLiveEdge: true, canSeekLive: true }),
+    ).toBe(false);
+    expect(
+      shouldSeekToLiveEdge({ ...base, isLive: true, atLiveEdge: false, canSeekLive: false }),
+    ).toBe(false);
+  });
+});
+
+describe('shouldCorrectLiveRewind', () => {
+  it('sửa livestream bị phát lại từ đầu ngay cả khi video đang chạy', () => {
+    expect(
+      shouldCorrectLiveRewind({
+        ...base,
+        paused: false,
+        isLive: true,
+        atLiveEdge: false,
+        canSeekLive: true,
+        currentTime: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it('không can thiệp khi người dùng đã tua xa khỏi mốc 0', () => {
+    expect(
+      shouldCorrectLiveRewind({
+        ...base,
+        isLive: true,
+        atLiveEdge: false,
+        canSeekLive: true,
+        currentTime: 30,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('live edge helpers', () => {
+  it('tính đúng khoảng cách tới live edge', () => {
+    expect(inspectLiveEdge(liveVideo(98, 100))).toMatchObject({
+      atLiveEdge: true,
+      canSeek: true,
+      edge: 100,
+      distance: 2,
+    });
+    expect(inspectLiveEdge(liveVideo(10, 100))).toMatchObject({
+      atLiveEdge: false,
+      canSeek: true,
+      distance: 90,
+    });
+  });
+
+  it('tua tới sát live edge và không tua lặp lại khi đã ở đó', () => {
+    const video = liveVideo(0, 100);
+    expect(seekToLiveEdge(video)).toBe(true);
+    expect(video.currentTime).toBe(99.5);
+    expect(seekToLiveEdge(video)).toBe(false);
   });
 });
