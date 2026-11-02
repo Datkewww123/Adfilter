@@ -19,6 +19,16 @@
 import './interceptor';
 import { disguise } from './anti-detect';
 import { releaseScrollLockIfSafe } from './scrollLock';
+import {
+  AUTOPLAY_WINDOW_MS,
+  MIN_READY_STATE,
+  inspectLiveEdge,
+  isLivePlayback,
+  seekToLiveEdge,
+  shouldAttemptAutoplay,
+  shouldCorrectLiveRewind,
+  shouldSeekToLiveEdge,
+} from '../core/autoplayGuard';
 
 // Chỉ kích hoạt trên môi trường YouTube thật, không chạy trên fake-youtube của E2E test
 const isLocalTest = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
@@ -318,7 +328,11 @@ if (!isLocalTest) {
       ) {
         el.remove();
         const v = document.querySelector<HTMLVideoElement>('video');
-        if (v && v.paused) {
+        if (v && v.paused && !v.ended && v.readyState >= MIN_READY_STATE) {
+          if (isLivePlayback(v)) {
+            const edge = inspectLiveEdge(v);
+            if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v);
+          }
           void v.play().catch(() => undefined);
         }
       }
@@ -328,28 +342,63 @@ if (!isLocalTest) {
   // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
   // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
   let _autoplayDone = false;
-  let _autoplayAttempts = 0;
+  let _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
+  let _autoplayVideo: HTMLVideoElement | null = null;
+  let _liveSeekAt: number | undefined;
+
   function ensureAutoplay(): void {
     if (_autoplayDone) return;
-    const player = (document.getElementById('movie_player') || document.querySelector('.html5-video-player')) as any;
+    const player = (document.getElementById('movie_player') ||
+      document.querySelector('.html5-video-player')) as Element | null;
     if (!player) return;
-    const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
-    if (isAd) return;
-    const v = document.querySelector<HTMLVideoElement>('video');
-    if (!v || !v.paused || v.readyState < 2) return;
 
-    const isLive = !Number.isFinite(v.duration) || v.duration === 0;
-    const shouldPlay = isLive || v.currentTime < 2;
+    const isAd =
+      player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
 
-    if (shouldPlay) {
-      _autoplayAttempts++;
-      // console.log removed
-      void v.play().catch(() => undefined);
-      // Đánh dấu done sau lần thử đầu tiên để tránh spam
-      if (_autoplayAttempts >= 1) {
-        _autoplayDone = true;
-      }
+    const v = player.querySelector<HTMLVideoElement>('video');
+    if (!v) return;
+
+    if (_autoplayVideo !== v) {
+      _autoplayVideo = v;
+      _liveSeekAt = undefined;
     }
+
+    const isLive = isLivePlayback(v);
+    const edge = isLive ? inspectLiveEdge(v) : null;
+    const now = Date.now();
+    const snapshot = {
+      paused: v.paused,
+      ended: v.ended,
+      readyState: v.readyState,
+      isAd,
+      alreadyPlayed: false,
+      now,
+      deadline: _autoplayDeadline,
+      isLive,
+      atLiveEdge: edge?.atLiveEdge ?? false,
+      canSeekLive: edge?.canSeek ?? false,
+      currentTime: v.currentTime,
+    };
+
+    // Livestream bị đưa về đầu DVR: tua tới live edge trước khi play.
+    // Chỉ làm trong cửa sổ nạp trang và tối đa mỗi 2 giây một lần.
+    if (shouldCorrectLiveRewind(snapshot) || shouldSeekToLiveEdge(snapshot)) {
+      if (_liveSeekAt === undefined || now - _liveSeekAt >= 2000) {
+        if (seekToLiveEdge(v)) _liveSeekAt = now;
+      }
+      return;
+    }
+
+    if (!shouldAttemptAutoplay(snapshot)) return;
+
+    // Chỉ đánh dấu hoàn tất khi play() thực sự thành công.
+    // Nếu thất bại (video chưa sẵn sàng / autoplay bị chặn), vòng lặp định kỳ sẽ thử lại.
+    void v
+      .play()
+      .then(() => {
+        _autoplayDone = true;
+      })
+      .catch(() => undefined);
   }
 
   function isPlayerMutation(mutation: MutationRecord): boolean {
@@ -360,6 +409,7 @@ if (!isLocalTest) {
 
   // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup & autoplay
   function initStealthMonitors(): void {
+    _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
     removeInterruptionPopups();
     ensureAutoplay();
 
@@ -398,7 +448,8 @@ if (!isLocalTest) {
     }, 1000);
     document.addEventListener('yt-navigate-finish', () => {
       _autoplayDone = false;
-      _autoplayAttempts = 0;
+      _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
+      _liveSeekAt = undefined;
       window.setTimeout(() => {
         removeInterruptionPopups();
         ensureAutoplay();
