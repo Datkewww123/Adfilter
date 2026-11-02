@@ -336,19 +336,13 @@ if (!isLocalTest) {
     const isAd = player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
     if (isAd) return;
     const v = document.querySelector<HTMLVideoElement>('video');
-    if (!v || !v.paused || v.readyState < 2) return;
+    if (!v || !v.paused) return;
 
-    const isLive = !Number.isFinite(v.duration) || v.duration === 0;
-    const shouldPlay = isLive || v.currentTime < 2;
-
-    if (shouldPlay) {
-      _autoplayAttempts++;
-      // console.log removed
-      void v.play().catch(() => undefined);
-      // Đánh dấu done sau lần thử đầu tiên để tránh spam
-      if (_autoplayAttempts >= 1) {
-        _autoplayDone = true;
-      }
+    _autoplayAttempts++;
+    void v.play().catch(() => undefined);
+    // Đánh dấu done sau lần thử đầu tiên để tránh spam
+    if (_autoplayAttempts >= 1) {
+      _autoplayDone = true;
     }
   }
 
