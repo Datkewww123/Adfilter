@@ -116,15 +116,72 @@ window.addEventListener('keydown', (e) => {
 
 // ---------------------------------------------------------------------------
 // Initial Autoplay Helper
-// Chỉ tự phát khi YouTube đang giữ video ở trạng thái pause lúc vừa nạp bài.
-// Không giành quyền pause của người dùng: khi video đã phát ổn định thì dừng theo dõi.
+// Chỉ cứu video đúng 1 lần nếu YouTube tự động pause ngầm ở 3 giây đầu nạp video.
+// Sau 3 giây hoặc khi người dùng thao tác, tự động hủy để trả lại quyền cho người dùng.
 // ---------------------------------------------------------------------------
+function attachInitialAutoplay(video: HTMLVideoElement): void {
+  if (video.ended) return;
+
+  const onCanPlay = () => {
+    const player = document.querySelector(SEL.player);
+    const isAd =
+      player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+    if (!isAd && video.paused && !video.ended && video.currentTime < 3) {
+      void video.play().catch(() => {});
+    }
+  };
+
+  if (video.readyState >= 2) {
+    onCanPlay();
+  } else {
+    video.addEventListener('canplay', onCanPlay, { once: true });
+    video.addEventListener('loadeddata', onCanPlay, { once: true });
+  }
+
+  // Bắt hiện tượng YouTube ngầm pause ở giây thứ 1-2
+  const onPause = () => {
+    const player = document.querySelector(SEL.player);
+    const isAd =
+      player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+    // Chỉ kích hoạt nếu YouTube tự pause trong 3 giây đầu và không phải quảng cáo
+    if (!isAd && video.currentTime < 3 && !video.ended) {
+      void video.play().catch(() => {});
+    }
+  };
+
+  video.addEventListener('pause', onPause, { once: true });
+}
+
+// Lắng nghe các thẻ video mới được thêm vào DOM
+const videoObserver = new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    for (const n of m.addedNodes) {
+      if (n instanceof HTMLVideoElement) {
+        attachInitialAutoplay(n);
+      } else if (n instanceof HTMLElement) {
+        const v = n.querySelector('video');
+        if (v) attachInitialAutoplay(v);
+      }
+    }
+  }
+});
+videoObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+// Áp dụng cho các video hiện có
+document.querySelectorAll<HTMLVideoElement>('video').forEach((v) => attachInitialAutoplay(v));
+
+document.addEventListener('yt-navigate-finish', () => {
+  const v = getActiveVideo(document);
+  if (v) attachInitialAutoplay(v);
+});
+
 let _ctxDead = false;
 function teardown(): void {
   if (_ctxDead) return;
   _ctxDead = true;
   actuator.restore();
   observer.stop();
+  videoObserver.disconnect();
   log.info('extension context invalidated - content script stopped');
 }
 
