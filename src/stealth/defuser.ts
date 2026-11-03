@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Defuser — Chạy trong MAIN world, document_start.
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
@@ -19,6 +19,7 @@
 import './interceptor';
 import { disguise } from './anti-detect';
 import { releaseScrollLockIfSafe } from './scrollLock';
+import { installPauseGuard } from './pauseGuard';
 import {
   AUTOPLAY_WINDOW_MS,
   MIN_READY_STATE,
@@ -34,6 +35,9 @@ import {
 const isLocalTest = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
 if (!isLocalTest) {
+  // ─── Bẫy 0: Khóa lệnh pause ngầm của YouTube trong lúc nạp video ───────────────
+  installPauseGuard(window);
+
   const AD_KEYS = [
     'adPlacements',
     'playerAds',
