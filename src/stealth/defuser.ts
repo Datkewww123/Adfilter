@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Defuser — Chạy trong MAIN world, document_start.
  * Đặt bẫy JSON.parse, getter/setter hook lên ytInitialPlayerResponse và ytplayer.config
  * để xóa sạch trường QC trước khi trình phát video YouTube kịp đọc.
@@ -339,89 +339,23 @@ if (!isLocalTest) {
     }
   }
 
-  // Passive Autoplay: Chi kich hoat tren the <video> truc tiep, tuyet doi KHONG goi API player.playVideo()
-  // vi player.playVideo() se cuop focus va giu chat vi tri viewport/scroll khi nguoi dung dang cuon trang.
-  let _autoplayDone = false;
-  let _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
-  let _autoplayVideo: HTMLVideoElement | null = null;
-  let _liveSeekAt: number | undefined;
-
-  function ensureAutoplay(): void {
-    if (_autoplayDone) return;
-    const player = (document.getElementById('movie_player') ||
-      document.querySelector('.html5-video-player')) as Element | null;
-    if (!player) return;
-
-    const isAd =
-      player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting');
-
-    const v = player.querySelector<HTMLVideoElement>('video');
-    if (!v) return;
-
-    if (_autoplayVideo !== v) {
-      _autoplayVideo = v;
-      _liveSeekAt = undefined;
-    }
-
-    const isLive = isLivePlayback(v);
-    const edge = isLive ? inspectLiveEdge(v) : null;
-    const now = Date.now();
-    const snapshot = {
-      paused: v.paused,
-      ended: v.ended,
-      readyState: v.readyState,
-      isAd,
-      alreadyPlayed: false,
-      now,
-      deadline: _autoplayDeadline,
-      isLive,
-      atLiveEdge: edge?.atLiveEdge ?? false,
-      canSeekLive: edge?.canSeek ?? false,
-      currentTime: v.currentTime,
-    };
-
-    // Livestream bị đưa về đầu DVR: tua tới live edge trước khi play.
-    // Chỉ làm trong cửa sổ nạp trang và tối đa mỗi 2 giây một lần.
-    if (shouldCorrectLiveRewind(snapshot) || shouldSeekToLiveEdge(snapshot)) {
-      if (_liveSeekAt === undefined || now - _liveSeekAt >= 2000) {
-        if (seekToLiveEdge(v)) _liveSeekAt = now;
-      }
-      return;
-    }
-
-    if (!shouldAttemptAutoplay(snapshot)) return;
-
-    // Chỉ đánh dấu hoàn tất khi play() thực sự thành công.
-    // Nếu thất bại (video chưa sẵn sàng / autoplay bị chặn), vòng lặp định kỳ sẽ thử lại.
-    void v
-      .play()
-      .then(() => {
-        _autoplayDone = true;
-      })
-      .catch(() => undefined);
-  }
-
   function isPlayerMutation(mutation: MutationRecord): boolean {
     const target =
       mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
     return !!target?.closest('#movie_player, .html5-video-player');
   }
 
-  // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup & autoplay
+  // Khởi tạo MutationObserver và bộ kiểm tra định kỳ cho popup
   function initStealthMonitors(): void {
-    _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
     removeInterruptionPopups();
-    ensureAutoplay();
 
     const target = document.body || document.documentElement;
     if (target) {
       new MutationObserver((mutations) => {
-        let playerChanged = false;
         const changedTargets = new Set<Element>();
         const addedRoots = new Set<Element>();
         for (const mutation of mutations) {
           if (isPlayerMutation(mutation)) {
-            playerChanged = true;
             continue;
           }
           const target =
@@ -432,7 +366,6 @@ if (!isLocalTest) {
             else if (node.parentElement) changedTargets.add(node.parentElement);
           }
         }
-        if (playerChanged) ensureAutoplay();
         for (const root of changedTargets) removeInterruptionPopups(root, false);
         for (const root of addedRoots) removeInterruptionPopups(root);
       }).observe(target, {
@@ -443,16 +376,9 @@ if (!isLocalTest) {
       });
     }
 
-    window.setInterval(() => {
-      ensureAutoplay();
-    }, 1000);
     document.addEventListener('yt-navigate-finish', () => {
-      _autoplayDone = false;
-      _autoplayDeadline = Date.now() + AUTOPLAY_WINDOW_MS;
-      _liveSeekAt = undefined;
       window.setTimeout(() => {
         removeInterruptionPopups();
-        ensureAutoplay();
       }, 300);
     });
   }
