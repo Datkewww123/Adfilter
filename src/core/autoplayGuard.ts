@@ -3,9 +3,8 @@
  *
  * Mục tiêu: chỉ can thiệp đúng lúc YouTube đang giữ video ở trạng thái pause
  * lúc vừa nạp trang. Tuyệt đối không giành quyền pause của người dùng:
- * - Video phải đủ dữ liệu để phát mượt (readyState >= 3) mới được gọi play().
- *   Chờ đến HAVE_FUTURE_DATA tránh việc YouTube đổi nút sang Pause khi video
- *   vẫn còn đang load.
+ * - Video có dữ liệu khung hình (readyState >= 2) là đủ điều kiện để kích hoạt phát,
+ *   tránh việc video bị giữ ở trạng thái pause lúc đang load.
  * - Với livestream, phải kiểm tra video đã ở sát mép phát trực tiếp chưa.
  *   Nếu player còn đứng ở đầu DVR (currentTime ~ 0), phải tua tới live edge
  *   trước khi play, nếu không video sẽ phát lại từ đầu.
@@ -19,8 +18,8 @@ export const AUTOPLAY_WINDOW_MS = 15_000;
 /** Thời gian video phải phát liên tục để coi là đã tự phát ổn định. */
 export const AUTOPLAY_SETTLE_MS = 1_500;
 
-/** HAVE_FUTURE_DATA — đủ dữ liệu để phát tiếp, không còn ở trạng thái load. */
-export const MIN_READY_STATE = 3;
+/** HAVE_CURRENT_DATA — đã có dữ liệu để bắt đầu phát, không bị pause lúc load. */
+export const MIN_READY_STATE = 2;
 
 /** Sai số (giây) được coi là đang ở sát mép phát trực tiếp. */
 export const LIVE_EDGE_TOLERANCE_S = 3;
