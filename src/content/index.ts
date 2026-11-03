@@ -224,10 +224,17 @@ function watchAutoplay(video: HTMLVideoElement): void {
       startAutoplayPolling(video, created);
     });
 
+    // Kích hoạt ngay khi video vừa nạp đủ khung hình đầu tiên
+    video.addEventListener('canplay', () => {
+      if (watch) pollAutoplay(video, watch);
+    });
+    video.addEventListener('loadeddata', () => {
+      if (watch) pollAutoplay(video, watch);
+    });
+
     video.addEventListener('ended', () => stopAutoplayPolling(created));
   }
 
-  if (!video.paused) watch.played = true;
   watch.deadline = Date.now() + AUTOPLAY_WINDOW_MS;
   startAutoplayPolling(video, watch);
 }

@@ -35,8 +35,9 @@ describe('shouldAttemptAutoplay', () => {
     expect(shouldAttemptAutoplay(base)).toBe(true);
   });
 
-  it('chờ đến khi media đủ dữ liệu phát mượt (readyState >= 3)', () => {
-    expect(shouldAttemptAutoplay({ ...base, readyState: 2 })).toBe(false);
+  it('cho phép phát khi media có dữ liệu hiện tại (readyState >= 2)', () => {
+    expect(shouldAttemptAutoplay({ ...base, readyState: 1 })).toBe(false);
+    expect(shouldAttemptAutoplay({ ...base, readyState: 2 })).toBe(true);
     expect(shouldAttemptAutoplay({ ...base, readyState: 3 })).toBe(true);
   });
 
