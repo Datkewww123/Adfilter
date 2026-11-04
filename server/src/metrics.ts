@@ -18,6 +18,18 @@ export const interventionsTotal = new client.Counter({
   registers: [register],
 });
 
+export const canaryOk = new client.Gauge({
+  name: 'adfilter_canary_ok',
+  help: '1 nếu lần canary gần nhất thấy đủ cấu trúc, 0 nếu thiếu',
+  registers: [register],
+});
+
+export const canaryLast = new client.Gauge({
+  name: 'adfilter_canary_last_run_timestamp_seconds',
+  help: 'Thời điểm chạy canary gần nhất',
+  registers: [register],
+});
+
 export function recordEventMetrics(events: EventInput[]): void {
   for (const e of events) {
     eventsTotal.inc({ type: e.type, browser: e.browser.split('/')[0] || 'Unknown' });
@@ -25,4 +37,8 @@ export function recordEventMetrics(events: EventInput[]): void {
       interventionsTotal.inc({ strategy: e.strategy, ok: String(e.ok ?? false) });
     }
   }
+}
+export function recordCanary(ok: boolean): void {
+  canaryOk.set(ok ? 1 : 0);
+  canaryLast.set(Date.now() / 1000);
 }

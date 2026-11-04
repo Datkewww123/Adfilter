@@ -1,5 +1,7 @@
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { BatchSchema } from './schema';
+import { recordCanary } from './metrics';
 import type { Store } from './store';
 
 export function buildApp(store: Store): FastifyInstance {
@@ -30,6 +32,23 @@ export function buildApp(store: Store): FastifyInstance {
     } catch {
       return reply.status(503).send({ error: 'service unavailable' });
     }
+  });
+
+  const CanarySchema = z
+    .object({
+      ok: z.boolean(),
+      missing: z.array(z.enum(['player', 'video', 'adOverlay', 'skipButton', 'adBadge'])).max(5),
+      ts: z.number().int().positive(),
+    })
+    .strict();
+
+  app.post('/canary', async (req, reply) => {
+    const parsed = CanarySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'invalid canary' });
+    }
+    recordCanary(parsed.data.ok);
+    return reply.code(202).send({ accepted: true });
   });
 
   return app;

@@ -17,6 +17,7 @@
     "eval": "tsx scripts/eval.ts",
     "sweep": "tsx scripts/sweep.ts",
     "summarize": "tsx scripts/summarize-actions.ts",
+    "canary": "tsx canary/check.ts",
     "e2e": "playwright test"
   },
   "keywords": [],
