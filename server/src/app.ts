@@ -1,7 +1,7 @@
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { BatchSchema } from './schema';
-import { recordCanary } from './metrics';
+import { recordCanary, recordAlertWebhook, register } from './metrics';
 import type { Store } from './store';
 
 export function buildApp(store: Store): FastifyInstance {
@@ -18,6 +18,11 @@ export function buildApp(store: Store): FastifyInstance {
   app.get('/health', async (_req, reply) => {
     const ok = await store.ping();
     return ok ? { status: 'healthy' } : reply.status(503).send({ status: 'unhealthy' });
+  });
+
+  app.get('/metrics', async (_req, reply) => {
+    reply.header('Content-Type', register.contentType);
+    return register.metrics();
   });
 
   app.post('/events', async (req, reply) => {
@@ -49,6 +54,14 @@ export function buildApp(store: Store): FastifyInstance {
     }
     recordCanary(parsed.data.ok);
     return reply.code(202).send({ accepted: true });
+  });
+
+  // Bể hứng cảnh báo Webhook từ Grafana
+  app.post('/alert-hook', async (req, reply) => {
+    const body = req.body as any;
+    const status = typeof body?.status === 'string' ? body.status : 'firing';
+    recordAlertWebhook(status);
+    return reply.code(200).send({ status: 'received' });
   });
 
   return app;
