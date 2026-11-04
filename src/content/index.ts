@@ -116,8 +116,7 @@ window.addEventListener('keydown', (e) => {
 
 // ---------------------------------------------------------------------------
 // Initial Autoplay Helper
-// Chỉ cứu video đúng 1 lần nếu YouTube tự động pause ngầm ở 3 giây đầu nạp video.
-// Sau 3 giây hoặc khi người dùng thao tác, tự động hủy để trả lại quyền cho người dùng.
+// Cứu video lúc mới nạp trang nếu YouTube cố tình kìm hãm ở trạng thái pause
 // ---------------------------------------------------------------------------
 function attachInitialAutoplay(video: HTMLVideoElement): void {
   if (video.ended) return;
@@ -137,19 +136,6 @@ function attachInitialAutoplay(video: HTMLVideoElement): void {
     video.addEventListener('canplay', onCanPlay, { once: true });
     video.addEventListener('loadeddata', onCanPlay, { once: true });
   }
-
-  // Bắt hiện tượng YouTube ngầm pause ở giây thứ 1-2
-  const onPause = () => {
-    const player = document.querySelector(SEL.player);
-    const isAd =
-      player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-    // Chỉ kích hoạt nếu YouTube tự pause trong 3 giây đầu và không phải quảng cáo
-    if (!isAd && video.currentTime < 3 && !video.ended) {
-      void video.play().catch(() => {});
-    }
-  };
-
-  video.addEventListener('pause', onPause, { once: true });
 }
 
 // Lắng nghe các thẻ video mới được thêm vào DOM

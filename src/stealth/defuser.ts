@@ -386,6 +386,108 @@ if (!isLocalTest) {
       }, 300);
     });
   }
+
+  // ─── Bẫy 8: Auto-Resume Guard — Triệt tiêu vĩnh viễn lỗi video tự động Pause ngầm ───
+  let _lastUserPauseGestureAt = 0;
+  const USER_PAUSE_WINDOW_MS = 1000;
+
+  function markUserAction(): void {
+    _lastUserPauseGestureAt = Date.now();
+  }
+
+  if (typeof window !== 'undefined') {
+    const onUserPointer = (e: MouseEvent | PointerEvent) => {
+      if (!e.isTrusted) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (
+        target.closest(
+          '#movie_player, .html5-video-player, video, .ytp-play-button, .ytp-chrome-bottom, .ytp-progress-bar',
+        )
+      ) {
+        markUserAction();
+      }
+    };
+
+    const onUserKey = (e: KeyboardEvent) => {
+      if (!e.isTrusted) return;
+      if (e.code === 'Space' || e.key === ' ' || e.code === 'KeyK' || e.key === 'k' || e.key === 'K') {
+        const active = document.activeElement;
+        if (
+          active &&
+          (active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            active.getAttribute('contenteditable') === 'true')
+        ) {
+          return;
+        }
+        markUserAction();
+      }
+    };
+
+    try {
+      window.addEventListener('pointerdown', onUserPointer, { capture: true, passive: true });
+      window.addEventListener('keydown', onUserKey, { capture: true, passive: true });
+    } catch {}
+
+    function attachAutoResume(video: HTMLVideoElement): void {
+      if ((video as any)._hasAutoResumeAttached) return;
+      (video as any)._hasAutoResumeAttached = true;
+
+      video.addEventListener('pause', () => {
+        // Nếu người dùng vừa chủ động tương tác trong 1s qua -> Tôn trọng tuyệt đối
+        if (Date.now() - _lastUserPauseGestureAt < USER_PAUSE_WINDOW_MS) return;
+
+        // Nếu video đã kết thúc tự nhiên -> Không ép phát
+        if (video.ended) return;
+
+        // Nếu đang trong luồng quảng cáo thật sự -> Để actuator xử lý
+        const player = (document.querySelector('#movie_player') ||
+          document.querySelector('.html5-video-player')) as any;
+        if (
+          player &&
+          (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
+        ) {
+          return;
+        }
+
+        // LỖI AUTO-PAUSE NGẦM: YouTube tự ý dừng video do chặn ad-break hoặc anti-adblock
+        // Phục hồi lại ngay lập tức qua API chính thức player.playVideo() để đồng bộ 100% UI
+        window.setTimeout(() => {
+          if (Date.now() - _lastUserPauseGestureAt < USER_PAUSE_WINDOW_MS) return;
+          if (!video.paused || video.ended) return;
+
+          if (player && typeof player.playVideo === 'function') {
+            try {
+              player.playVideo();
+            } catch {
+              void video.play().catch(() => {});
+            }
+          } else {
+            void video.play().catch(() => {});
+          }
+        }, 50);
+      });
+    }
+
+    // Gắn cho các video hiện có và video mới
+    document.querySelectorAll<HTMLVideoElement>('video').forEach(attachAutoResume);
+    const videoWatcher = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const n of m.addedNodes) {
+          if (n instanceof HTMLVideoElement) attachAutoResume(n);
+          else if (n instanceof HTMLElement) {
+            const v = n.querySelector('video');
+            if (v) attachAutoResume(v);
+          }
+        }
+      }
+    });
+    const docTarget = document.body || document.documentElement;
+    if (docTarget) {
+      videoWatcher.observe(docTarget, { childList: true, subtree: true });
+    }
+  }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initStealthMonitors);
   } else {
