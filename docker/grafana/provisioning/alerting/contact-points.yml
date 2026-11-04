@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=none
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: adfilter-webhook
+    receivers:
+      - uid: adfilter-webhook
+        type: webhook
+        settings:
+          url: http://api:3000/alert-hook
+          httpMethod: POST
+
+policies:
+  - orgId: 1
+    receiver: adfilter-webhook
+    group_by: ['alertname']

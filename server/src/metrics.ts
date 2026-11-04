@@ -30,6 +30,13 @@ export const canaryLast = new client.Gauge({
   registers: [register],
 });
 
+export const alertWebhooksTotal = new client.Counter({
+  name: 'adfilter_alert_webhooks_total',
+  help: 'Tổng số thông báo cảnh báo webhook nhận được từ Grafana',
+  labelNames: ['status'],
+  registers: [register],
+});
+
 export function recordEventMetrics(events: EventInput[]): void {
   for (const e of events) {
     eventsTotal.inc({ type: e.type, browser: e.browser.split('/')[0] || 'Unknown' });
@@ -38,7 +45,12 @@ export function recordEventMetrics(events: EventInput[]): void {
     }
   }
 }
+
 export function recordCanary(ok: boolean): void {
   canaryOk.set(ok ? 1 : 0);
   canaryLast.set(Date.now() / 1000);
+}
+
+export function recordAlertWebhook(status: string): void {
+  alertWebhooksTotal.inc({ status });
 }

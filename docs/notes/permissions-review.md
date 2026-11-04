@@ -11,3 +11,11 @@
 
 ## Quy trình khi cần thêm quyền mới:
 Mọi quyền mới phải được khai báo trong `ALLOWED_PERMISSIONS` của `tests/unit/manifest.test.ts` và giải trình rõ lý do trong tài liệu này trước khi được merge vào `main`.
+# 🔒 Thẩm Định Quyền Manifest V3 (Least Privilege Review)
+
+| Quyền (Permission) | Lý do sử dụng | Biện pháp giảm thiểu rủi ro bảo mật |
+| :--- | :--- | :--- |
+| `declarativeNetRequest` | Chặn các URL tải chunk quảng cáo và URL theo dõi ở tầng mạng | Chỉ so khớp theo quy tắc lọc tĩnh; không đọc nội dung request |
+| `storage` | Lưu trữ cấu hình bật/tắt của người dùng và số liệu thống kê | Chỉ lưu dữ liệu cục bộ trên máy, không gửi thông tin cá nhân ra ngoài |
+| `alarms` | Lên lịch tự động kiểm tra định kỳ sức khỏe bộ lọc | Không tạo vòng lặp vô tận gây hao pin |
+| Host: `*://*.youtube.com/*` | Phạm vi chèn content script và defuser | Giới hạn duy nhất trên YouTube, không xin quyền `*://*/*` toàn mạng |

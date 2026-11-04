@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=none
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: AdFilter-Canary-Alerts
+    folder: Production
+    interval: 15s
+    rules:
+      - uid: canary-structure-down
+        title: YouTube DOM Structure Down (Canary Failed)
+        condition: B
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: adfilter_canary_ok == 0
+              instant: true
+              range: false
+          - refId: B
+            type: threshold
+            settings:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        for: 15s
+        annotations:
+          summary: "Cấu trúc YouTube Player đã thay đổi! Bộ lọc AdFilter có nguy cơ bị hỏng."
+        labels:
+          severity: critical
