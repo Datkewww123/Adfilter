@@ -10,3 +10,11 @@ Thumbs.db
 tmp/
 playwright-report/
 test-results/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+infra/backend.hcl
+infra/terraform.tfvars

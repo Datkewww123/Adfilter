@@ -55,3 +55,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod
         continue-on-error: true
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: terraform-linters/setup-tflint@v4
+      - run: terraform -chdir=infra fmt -check -recursive
+      - run: terraform -chdir=infra init -backend=false
+      - run: terraform -chdir=infra validate
+      - run: tflint --chdir=infra --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - run: tflint --chdir=infra
