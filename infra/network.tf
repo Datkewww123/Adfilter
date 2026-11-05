@@ -2,8 +2,9 @@ provider "aws" {
   region = var.region
   default_tags {
     tags = {
-      Project   = var.name
-      ManagedBy = "terraform"
+      Project    = var.name
+      ManagedBy  = "terraform"
+      GithubRepo = var.github_repo
     }
   }
 }
