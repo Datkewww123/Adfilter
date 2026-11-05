@@ -1,176 +1,121 @@
-# AdFilter — Chrome Extension Lọc Quảng Cáo YouTube
+# AdFilter — Tiện ích Lọc Quảng cáo YouTube (Manifest V3) & Hệ thống Quan sát Đám mây
 
-> **Lưu ý & Phạm vi dự án:** AdFilter là dự án mã nguồn mở phục vụ mục đích học tập, nghiên cứu kỹ thuật và thử nghiệm cá nhân cục bộ. Extension **không** được phát hành lên Chrome Web Store. Việc can thiệp vào trình phát video có thể trái với Điều khoản Dịch vụ của YouTube, người dùng nên thử nghiệm trên tài khoản phụ hoặc trình duyệt riêng biệt.
+[![Verify CI](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml/badge.svg)](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](CHANGELOG.md)
+
+> **Mô tả & Phạm vi Dự án:** AdFilter là tiện ích trình duyệt đa nền tảng (**Chromium & Firefox Manifest V3**) viết bằng TypeScript với kiến trúc **Lõi Quyết định Thuần (Pure Core)**, kết hợp hệ thống **Observability (Fastify, PostgreSQL, Prometheus, Grafana, Canary)** và hạ tầng **AWS Terraform IaC & OIDC Continuous Deployment**. Dự án phục vụ mục đích học tập, nghiên cứu kỹ thuật phần mềm và thử nghiệm cá nhân trên tài khoản phụ; tiện ích **không** được phát hành lên Chrome Web Store hay Mozilla Add-ons.
 
 ---
 
-## 1. Tổng quan & Kiến trúc dự án (Phiên bản 0.2.0 - Stealth Engine & Cloud Telemetry)
+## 1. Kiến trúc Tổng thể Hệ thống
 
-AdFilter được xây dựng theo chuẩn **Chrome Extensions Manifest V3** với kiến trúc phòng thủ theo chiều sâu **3 Lớp (Defense-in-Depth)** kết hợp giữa **Stealth Engine**, **Pure Core State Machine** và hạ tầng **Observability & CD trên AWS**:
+Chi tiết kiến trúc, ranh giới tin cậy và các đánh đổi kỹ thuật được mô tả đầy đủ tại **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ```mermaid
-flowchart TD
-    subgraph Browser ["Môi trường Trình duyệt (Chrome / Firefox MV3)"]
-        YTP["YouTube Player (DOM & Video Element)"]
-        DEF["LỚP 1: Defuser & Interceptor (MAIN world, 0ms)"]
-        VM["LỚP 2: Visual Mask & Cosmetic CSS (<50ms)"]
-        CS["LỚP 3: Content Script (Actuator Fast Seek, ~0.05s)"]
-        WD["Selector Watchdog (Giám sát định kỳ)"]
-        SW["Background Service Worker"]
-        POP["Popup UI & Options Page"]
-    end
-
-    subgraph PureCore ["Pure Core (Logic thuần túy, 0 phụ thuộc DOM)"]
-        SM["Detector State Machine"]
-        INT["Intervention Planner"]
-        CB["Circuit Breaker"]
-        CLS["Progressive Classifier"]
-    end
-
-    subgraph Cloud ["Hạ tầng AWS (Terraform IaC & Zero-SSH SSM)"]
-        GHA["GitHub Actions (OIDC AssumeRole)"]
-        ECR["Amazon ECR (Immutable Image Tags)"]
-        S3["Amazon S3 (TF State & Deploy Bundles)"]
-        EC2["EC2 App Server (Docker Compose: API + Postgres + Prometheus + Grafana)"]
-    end
-
-    YTP -->|ytInitialPlayerResponse, fetch| DEF
-    DEF -->|Triệt tiêu 99% trường QC| YTP
-    YTP -.->|Lọt QC| VM
-    VM -.->|Che mắt & tàng hình| CS
-    CS -->|Signals| SM
-    SM -->|State: AD / NONE| INT
-    INT -->|Action: Fast Seek| CS
-    CS -->|Tua dứt điểm 0.05s| YTP
-    WD -->|Báo cáo rò rỉ & sai lệch DOM| CS
-    CS -->|Tin nhắn trạng thái| SW
-    SW <-->|Đồng bộ dữ liệu| POP
-    SW -.->|Opt-in Telemetry qua SSM Port Forward| EC2
-    GHA -->|Push Image| ECR
-    GHA -->|Upload Bundle| S3
-    GHA -->|SSM SendCommand (deploy.sh)| EC2
-    EC2 -->|Pull Image & Bundle| ECR
-    EC2 -->|Read Bundle| S3
+flowchart LR
+  YT[Trang YouTube] --> CS[Content script]
+  CS --> CORE[Loi thuan: detector, planner, classifier]
+  CORE --> ACT[Actuator: khoi phuc duoc]
+  CS --> BG[Service worker]
+  BG --> API[API su kien tren AWS]
+  API --> PG[(PostgreSQL)]
+  API --> PROM[Prometheus]
+  PROM --> GR[Grafana va canh bao]
+  CAN[Canary] --> API
+  GH[GitHub Actions] -->|OIDC| AWS[(AWS: ECR, S3, SSM, EC2)]
 ```
 
-### Kiến trúc 3 Lớp Chặn Quảng Cáo:
-1. **LỚP 1: Defuser & Interceptor (MAIN World, `document_start`)**
-   - Đặt bẫy `ytInitialPlayerResponse`, `ytInitialData`, `ytplayer.config` và hook `window.fetch`/`XMLHttpRequest`.
-   - Xóa bỏ sạch sẽ các trường quảng cáo (`adPlacements`, `playerAds`, `adSlots`, `adBreaks`).
-   - Hardening chống ghi đè qua `Object.defineProperty`, ngụy trang mã nguồn gốc (`disguise`) và bảo vệ luồng phát bằng Auto-Resume Guard.
-2. **LỚP 2: Visual Mask & Cosmetic CSS (< 50ms)**
-   - Ngay lập tức ẩn video quảng cáo bằng CSS `visibility: hidden`, `opacity: 0`.
-   - Phủ màn hình đen Visual Mask che mắt tức thời nếu quảng cáo chưa kịp biến mất.
-   - Loại bỏ hoàn toàn banner trang chủ, masthead, gợi ý tài trợ và quảng cáo trên YouTube Shorts.
-3. **LỚP 3: Fast Seek & Actuator Fallback (~0.05s)**
-   - Dự phòng cho 1% quảng cáo có thể lọt qua: State Machine nhận diện và Actuator tua video về `duration - 0.1s` trong ~0.05 giây để kích hoạt video chính ngay lập tức.
-   - Circuit Breaker tự ngắt nếu phát hiện cảnh báo chặn ad-block.
+### Các Bản ghi Quyết định Kiến trúc (Architecture Decision Records — ADRs):
+- **[ADR-0001](docs/decisions/0001-pure-core.md):** Tách Lõi Quyết định Thuần (`src/core/`) khỏi DOM và Chrome API.
+- **[ADR-0002](docs/decisions/0002-dry-run-default.md):** Chế độ Chạy thử (`dryRun`) làm công tắc an toàn hạng nhất.
+- **[ADR-0003](docs/decisions/0003-circuit-breaker-and-safe-degradation.md):** Bộ Ngắt mạch (`Circuit Breaker`) và Hạ cấp An toàn khi gặp cảnh báo trang.
+- **[ADR-0004](docs/decisions/0004-opt-in-telemetry-whitelist.md):** Telemetry Tùy chọn (`Opt-in`) và Lọc Danh sách Trắng Kép.
+- **[ADR-0005](docs/decisions/0005-ssm-not-ssh.md):** Quản trị Máy chủ qua AWS SSM Session Manager thay vì Mở Cổng SSH (`0 inbound rules`).
+- **[ADR-0006](docs/decisions/0006-oidc-not-keys.md):** Xác thực GitHub Actions với AWS bằng OIDC thay vì Khóa Dài hạn.
+- **[ADR-0007](docs/decisions/0007-release-directories.md):** Mỗi lần Triển khai một Thư mục Phát hành (`releases/<TAG>`) để Quay lui Nguyên tử cả Ảnh lẫn Cấu hình.
 
 ---
 
-## 2. Hướng dẫn cài đặt
+## 2. Bảng Số liệu Kỹ thuật Chính (Key Engineering Metrics)
 
-Người dùng có thể cài đặt trực tiếp từ bản phát hành đóng gói sẵn:
+Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/CASE-STUDY.md](docs/CASE-STUDY.md)**.
 
-1. Truy cập mục **[Releases](https://github.com/Datkewww123/Adfilter/releases)** của repository.
-2. Tải về file `adfilter-chromium-v0.2.0.zip` và file kiểm tra `SHA256SUMS.txt`.
-3. (Tùy chọn) Kiểm tra tính toàn vẹn của file zip bằng PowerShell:
+| Chỉ số | Giá trị đạt được | Nguồn bằng chứng |
+| :--- | :---: | :--- |
+| **Precision & Recall trên tập Fixtures (`n = 17`)** | **Precision = 100.0% (`1.000`)**<br>**Recall = 100.0% (`1.000`)** (`0 FP`, `0 FN`) | [`docs/notes/eval-baseline.md`](docs/notes/eval-baseline.md) & `pnpm eval` |
+| **Phiên dùng thực tế (`n = 53` quảng cáo)** | **Xác minh đạt: 96.2% (51/53)**<br>**Video chính bị kẹt: `0` (0.0%)** | [`docs/notes/week9-metrics.md`](docs/notes/week9-metrics.md) |
+| **Quy mô Kiểm thử Tự động** | **34 Unit Test suites (`253 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**7 kịch bản Playwright E2E (`35/35` stress runs)** | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
+| **Thời gian phát hiện sự cố (MTTD — 2 Chaos Drills)** | **Drill 01 (Hỏng DOM): `~45 giây`**<br>**Drill 02 (Ngắt mạch hàng loạt): `~40 giây`** | [`docs/notes/chaos-drill-01.md`](docs/notes/chaos-drill-01.md) & [`docs/notes/chaos-drill-02.md`](docs/notes/chaos-drill-02.md) |
+| **Thời gian Quay lui ( Tự động & Thủ công )** | **`~45 – 60 giây`** (cả Docker image lẫn cấu hình) | [`docs/notes/deploy-runbook.md`](docs/notes/deploy-runbook.md) |
+| **Thời gian Khôi phục Hạ tầng từ Số 0 (RTO)** | **`6 phút 30 giây` (6.5 phút)** | [`docs/notes/rebuild-from-zero.md`](docs/notes/rebuild-from-zero.md) |
+
+---
+
+## 3. Hướng dẫn Cài đặt & Sử dụng An toàn
+
+### Cài đặt trên Google Chrome / Chromium:
+1. Tải gói `adfilter-chromium-v1.0.0.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` để tạo thư mục `dist/chromium/`).
+2. Kiểm tra tính toàn vẹn SHA-256:
    ```powershell
-   Get-FileHash adfilter-chromium-v0.2.0.zip -Algorithm SHA256
+   Get-FileHash adfilter-chromium-v1.0.0.zip -Algorithm SHA256
    ```
-4. Giải nén file zip vào một thư mục cố định trên máy.
-5. Mở Google Chrome, truy cập `chrome://extensions/`.
-6. Bật công tắc **Developer mode** (Chế độ dành cho nhà phát triển) ở góc trên bên phải.
-7. Bấm **Load unpacked** (Tải tiện ích đã giải nén) và chọn thư mục vừa giải nén.
+3. Mở `chrome://extensions/`, bật **Developer mode**, bấm **Load unpacked** và chọn thư mục đã giải nén (`dist/chromium/`).
+
+### Cài đặt trên Mozilla Firefox:
+- Chạy `pnpm build:firefox` để đóng gói vào `dist/firefox/` và xem hướng dẫn nạp tiện ích tại [`docs/notes/firefox-install.md`](docs/notes/firefox-install.md).
+
+### Cơ chế An toàn khi Sử dụng:
+- **Chế độ Chạy thử (`Dry-run`):** Có thể bật ngay trong Popup để quan sát nhật ký nhận diện mà không can thiệp vào trình phát.
+- **Khôi phục Tự động:** Luôn khôi phục 100% âm lượng và tốc độ phát ban đầu của người dùng ngay khi quảng cáo kết thúc.
+- **Phím tắt Khẩn cấp (`Alt + Shift + K`):** Tắt/bật tức thời tiện ích trên tab hiện tại và trả trình phát về trạng thái gốc.
+- **Bộ Ngắt mạch (`Circuit Breaker`):** Tự động ngừng can thiệp nếu phát hiện cảnh báo chống chặn quảng cáo từ trang.
 
 ---
 
-## 3. Hướng dẫn sử dụng & Cơ chế an toàn
-
-- **Stealth Mode 3 Lớp:** Mặc định hoạt động tự động, triệt tiêu 100% quảng cáo pre-roll, mid-roll, popup và Shorts mà YouTube không hề hay biết.
-- **Tự động dọn dẹp hộp thoại cảnh báo:** Tự động loại bỏ popup thông báo gián đoạn hoặc cảnh báo tắt ad-block mà không làm dừng video.
-- **Phím tắt khẩn cấp (Kill Switch):** Nhấn tổ hợp phím **`Alt + Shift + K`** bất kỳ lúc nào để bật/tắt tức thời extension trên tab hiện tại.
-- **Khôi phục âm lượng & tốc độ:** Khi quảng cáo bắt đầu, extension giảm âm lượng / tua quảng cáo; ngay khi quảng cáo kết thúc, âm lượng và tốc độ ban đầu của người dùng được khôi phục 100%.
-- **Bảo vệ video người dùng:** Tuyệt đối không can thiệp nếu video chính không có nhãn quảng cáo, đảm bảo không bao giờ tua nhầm nội dung người dùng muốn xem.
-
----
-
-## 4. Lệnh dành cho nhà phát triển
-
-Dự án sử dụng **pnpm** làm trình quản lý gói:
+## 4. Lệnh Dành cho Nhà Phát triển
 
 ```bash
-# Cài đặt toàn bộ thư viện phụ thuộc
+# Cài đặt toàn bộ phụ thuộc
 pnpm install
 
-# Kiểm tra lỗi cú pháp và kiểu TypeScript
-pnpm lint
-pnpm typecheck
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 253 Unit Tests + Quality Gate Eval + Multi-target Build)
+pnpm verify:all
 
-# Chạy toàn bộ bộ Unit Test
-pnpm test
-
-# Đánh giá độ chính xác nhận diện trên tập dataset thực tế
-pnpm eval
-
-# Quét kiểm tra lỗ hổng bảo mật gói phụ thuộc
-pnpm audit --prod
-
-# Đóng gói bản phát hành Production (Chromium & Firefox)
-pnpm build
-pnpm build:firefox
-
-# Đóng gói bản dev và chạy kiểm thử E2E Playwright trên Chromium giả lập
+# Đóng gói bản Dev và chạy 7 kịch bản kiểm thử đầu cuối Playwright E2E
 pnpm build:dev
 pnpm e2e
+
+# Chạy kiểm tra kiểu và bộ test của Telemetry & Canary API Server
+pnpm --dir server typecheck
+pnpm --dir server test
 ```
 
 ---
 
-## 5. Số liệu chất lượng kiểm thử (Evaluation Baseline)
+## 5. Tài liệu Vận hành, Nghiệm thu & Trình diễn
 
-Độ chính xác của thuật toán nhận diện được đánh giá định kỳ trên tập fixtures thực tế thu thập từ YouTube:
-
-| Chỉ số | Kết quả đạt được | Mục tiêu tối thiểu (Quality Gate) |
-|---|:---:|:---:|
-| **Precision** (Độ chuẩn xác) | **100.0%** (1.000) | $\ge 90.0\%$ |
-| **Recall** (Độ bao phủ) | **100.0%** (1.000) | $\ge 90.0\%$ |
-| **F1-Score** | **1.000** | $\ge 0.900$ |
-| **False Positives (Báo nhầm)** | **0** | 0 |
-| **False Negatives (Bỏ sót)** | **0** | 0 |
-| **Unit Test Coverage** | **34 suites / 253 tests pass 100%** | 100% pass |
-| **E2E Tests (Playwright)** | **7 scenarios pass 100%** | 100% pass |
-| **Hiệu năng Purge** | **< 5ms (sub-5ms execution)** | Đạt chuẩn hiệu năng cao |
+- **Kiến trúc hệ thống:** **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
+- **Sổ tay xử lý sự cố tổng hợp & Xoay mật khẩu:** **[docs/RUNBOOK.md](docs/RUNBOOK.md)**
+- **Sổ tay triển khai CD & Quay lui trên AWS:** **[docs/notes/deploy-runbook.md](docs/notes/deploy-runbook.md)**
+- **Tiêu chuẩn hoàn thành & Bằng chứng nghiệm thu (DoD):** **[docs/DONE.md](docs/DONE.md)**
+- **Nghiên cứu tình huống kỹ thuật (Case Study):** **[docs/CASE-STUDY.md](docs/CASE-STUDY.md)**
+- **Kịch bản trình diễn 3 phút (Demo Script):** **[docs/DEMO.md](docs/DEMO.md)**
+- **Cẩm nang chuẩn bị phỏng vấn & CV:** **[docs/notes/interview-prep.md](docs/notes/interview-prep.md)**
 
 ---
 
-## 6. Triển khai & Hạ tầng Đám mây (AWS Terraform & OIDC Continuous Deployment)
+## 6. Trạng thái Dự án (Project Status)
 
-Hạ tầng máy chủ thu thập Telemetry, giám sát Canary và cảnh báo Grafana được quản lý hoàn toàn bằng **Terraform (`infra/`)** và triển khai tự động qua **GitHub Actions**:
-
-- **Hạ tầng bảo mật không mở cổng (Zero-Inbound Security Group):** Máy chủ EC2 chạy trong VPC với Security Group đóng toàn bộ cổng chiều vào (không mở cổng 22 SSH). Mọi thao tác quản trị, triển khai và chuyển cổng (`localhost:3000`) đều thực hiện qua **AWS Systems Manager (SSM)**.
-- **Xác thực OIDC không khóa dài hạn:** GitHub Actions sử dụng OpenID Connect (`aws_iam_openid_connect_provider`) với hai vai trò tách biệt theo nguyên tắc đặc quyền tối thiểu:
-  - `adfilter-gha-plan`: Quyền chỉ đọc (`ReadOnlyAccess`) tự động chạy `terraform plan` trên mỗi Pull Request sửa đổi `infra/**` (`.github/workflows/infra-plan.yml`).
-  - `adfilter-gha-deploy`: Chỉ cho phép kích hoạt từ môi trường `production` để đẩy ảnh Docker gắn thẻ bất biến (`IMMUTABLE`) lên ECR, tải gói cấu hình lên S3 và phát lệnh triển khai qua SSM (`.github/workflows/deploy.yml`).
-- **Tự động quay lui toàn diện (Atomic Release Directories Rollback):** Script [`deploy/deploy.sh`](deploy/deploy.sh) giải nén từng phiên bản vào `/opt/adfilter/releases/<SHA>` và kiểm tra sức khỏe `/health`. Nếu bản mới không đạt, hệ thống tự động quay lui đồng thời cả Docker image lẫn cấu hình về bản `/opt/adfilter/current` trước đó.
-- Xem hướng dẫn vận hành và quay lui chi tiết tại **[docs/notes/deploy-runbook.md](docs/notes/deploy-runbook.md)**.
+- **Phiên bản hiện tại:** **`v1.0.0`** (Phát hành ngày `2026-11-06`).
+- **Trạng thái chương trình 20 tuần:** **Đã hoàn thành trọn vẹn 20/20 tuần** (từ Phase 0 đến Phase 9).
+- **Hướng phát triển tiếp theo (Tùy chọn):**
+  1. Thiết lập sao lưu tự động PostgreSQL (`pg_dump`) lên S3 theo lịch định kỳ.
+  2. Tích hợp chạy Playwright E2E tự động cho bản build Firefox trên GitHub Actions.
+  3. Phân tích phát hiện bất thường thống kê trên dữ liệu telemetry dài hạn.
 
 ---
 
-## 7. Quyền hạn & Bảo mật dữ liệu
-
-AdFilter tuân thủ nguyên tắc quyền tối thiểu (**Least Privilege**):
-
-| Quyền xin cấp | Mục đích sử dụng | Phạm vi giới hạn |
-|---|---|---|
-| `storage` | Lưu trữ cấu hình người dùng, bộ ngắt mạch và nhật ký hành động cục bộ | Chỉ lưu trong bộ nhớ máy tính người dùng |
-| `*://*.youtube.com/*`<br>`*://youtube.com/*`<br>`*://m.youtube.com/*` | Cho phép Content Script quan sát DOM trên trang YouTube Desktop & Mobile | Không dùng `<all_urls>`, không chạy trên bất kỳ website nào khác |
-
-- **Bảo mật dữ liệu:** Mặc định không gửi bất kỳ dữ liệu nào ra ngoài máy người dùng; tính năng Telemetry chỉ kích hoạt khi người dùng chủ động bật trong trang Options để gửi số liệu ẩn danh về máy chủ cá nhân.
-- Chi tiết xem tại [permissions-review.md](docs/notes/permissions-review.md) và [SECURITY.md](SECURITY.md).
-
----
-
-## 8. Giấy phép mã nguồn
+## 7. Giấy phép Mã nguồn
 
 Dự án được phân phối dưới giấy phép mã nguồn mở **MIT License**. Xem chi tiết tại file [LICENSE](LICENSE).
