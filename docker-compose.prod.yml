@@ -1,0 +1,3 @@
+services:
+  api:
+    image: ${REGISTRY}/adfilter-api:${IMAGE_TAG}

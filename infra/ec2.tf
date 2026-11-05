@@ -42,6 +42,21 @@ resource "aws_iam_role_policy" "read_params" {
   policy = data.aws_iam_policy_document.read_params.json
 }
 
+data "aws_iam_policy_document" "read_artifacts" {
+  statement {
+    actions = ["s3:GetObject"]
+    resources = [
+      "${aws_s3_bucket.artifacts.arn}/deploy/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "read_artifacts" {
+  name   = "read-artifacts"
+  role   = aws_iam_role.app.id
+  policy = data.aws_iam_policy_document.read_artifacts.json
+}
+
 resource "aws_iam_instance_profile" "app" {
   name = "${var.name}-ec2"
   role = aws_iam_role.app.name
