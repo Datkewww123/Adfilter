@@ -3,7 +3,3 @@ plugin "aws" {
   version = "0.38.0"
   source  = "github.com/terraform-linters/tflint-ruleset-aws"
 }
-
-config {
-  module = true
-}
