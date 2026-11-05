@@ -34,12 +34,13 @@ jobs:
       - name: Chạy Unit Tests
         run: pnpm test
 
-      - name: Đóng gói bản Production
-        run: pnpm build
+      - name: Đóng gói bản Production (Chromium & Firefox)
+        run: pnpm build && pnpm build:firefox
 
       - name: Nén zip và tính checksum SHA-256
         run: |
           (cd dist/chromium && zip -qr ../../adfilter-chromium-$GITHUB_REF_NAME.zip .)
+          (cd dist/firefox && zip -qr ../../adfilter-firefox-$GITHUB_REF_NAME.zip .)
           sha256sum adfilter-*.zip > SHA256SUMS.txt
 
       - name: Tạo GitHub Release

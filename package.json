@@ -1,7 +1,7 @@
 {
   "name": "adfilter",
-  "version": "0.2.0",
-  "description": "",
+  "version": "1.0.0",
+  "description": "YouTube Ad Filter Extension (Manifest V3) with Pure Core, Observability & Terraform Cloud CD",
   "main": "index.js",
   "scripts": {
     "build": "tsx scripts/build.ts --target=chromium",
@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "tsc --noEmit",
+    "verify:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm eval --min-precision=0.9 --min-recall=0.9 && pnpm build && pnpm build:firefox",
     "pull": "node scripts/pull-fixtures.mjs",
     "fixtures:pull": "node scripts/pull-fixtures.mjs",
     "fixtures:check": "tsx scripts/check-fixtures.ts",
@@ -22,7 +23,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
