@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   inspectLiveEdge,
   isLivePlayback,
+  isYouTubeLivePlayer,
   seekToLiveEdge,
   shouldAttemptAutoplay,
   shouldCorrectLiveRewind,
@@ -62,12 +63,8 @@ describe('shouldAttemptAutoplay', () => {
   });
 
   it('chỉ tự phát livestream khi đã ở sát live edge', () => {
-    expect(
-      shouldAttemptAutoplay({ ...base, isLive: true, atLiveEdge: false }),
-    ).toBe(false);
-    expect(
-      shouldAttemptAutoplay({ ...base, isLive: true, atLiveEdge: true }),
-    ).toBe(true);
+    expect(shouldAttemptAutoplay({ ...base, isLive: true, atLiveEdge: false })).toBe(false);
+    expect(shouldAttemptAutoplay({ ...base, isLive: true, atLiveEdge: true })).toBe(true);
   });
 });
 
@@ -121,7 +118,7 @@ describe('shouldCorrectLiveRewind', () => {
   });
 });
 
-describe('isLivePlayback', () => {
+describe('isLivePlayback & isYouTubeLivePlayer', () => {
   it('không coi video thường chưa nạp duration là livestream', () => {
     expect(isLivePlayback({ duration: 0 })).toBe(false);
     expect(isLivePlayback({ duration: Number.NaN })).toBe(false);
@@ -131,8 +128,28 @@ describe('isLivePlayback', () => {
     expect(isLivePlayback({ duration: 600 })).toBe(false);
   });
 
-  it('nhận diện livestream qua duration Infinity', () => {
+  it('nhận diện livestream qua duration Infinity hoặc cờ isLiveDom', () => {
     expect(isLivePlayback({ duration: Infinity })).toBe(true);
+    expect(isLivePlayback({ duration: 3600, isLiveDom: true })).toBe(true);
+  });
+
+  it('nhận diện livestream qua class ytp-live hoặc API getVideoData().isLive', () => {
+    const liveClassPlayer = {
+      classList: { contains: (cls: string) => cls === 'ytp-live' },
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(liveClassPlayer)).toBe(true);
+
+    const apiLivePlayer = {
+      classList: { contains: () => false },
+      getVideoData: () => ({ isLive: true }),
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(apiLivePlayer)).toBe(true);
+
+    const vodPlayer = {
+      classList: { contains: () => false },
+      getVideoData: () => ({ isLive: false }),
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(vodPlayer)).toBe(false);
   });
 });
 
@@ -158,10 +175,16 @@ describe('live edge helpers', () => {
     expect(seekToLiveEdge(video)).toBe(false);
   });
 
-  it('tuyệt đối không tua video VOD có duration hữu hạn', () => {
+  it('tuyệt đối không tua video VOD có duration hữu hạn khi không có cờ forceLive', () => {
     const video = { ...liveVideo(0, 100), duration: 100 };
     expect(seekToLiveEdge(video)).toBe(false);
     expect(video.currentTime).toBe(0);
+  });
+
+  it('cho phép tua Livestream có DVR (duration hữu hạn) tới live edge khi forceLive = true', () => {
+    const dvrLiveVideo = { ...liveVideo(0, 7200), duration: 7200 };
+    expect(seekToLiveEdge(dvrLiveVideo, true)).toBe(true);
+    expect(dvrLiveVideo.currentTime).toBe(7199.5);
   });
 
   it('không tua video chưa rõ duration (0/NaN) vì có thể là VOD đang load', () => {

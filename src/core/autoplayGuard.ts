@@ -116,10 +116,11 @@ export function inspectLiveEdge(video: LiveVideoLike): LiveEdgeInfo {
   };
 }
 
-export function seekToLiveEdge(video: LiveVideoLike): boolean {
-  // Chốt an toàn cuối cùng: chỉ tua video có duration = Infinity (livestream).
-  // Mọi duration hữu hạn — kể cả 0/NaN — đều bị chặn để không tua nhầm VOD.
-  if (video.duration !== undefined && video.duration !== Infinity) {
+export function seekToLiveEdge(video: LiveVideoLike, forceLive = false): boolean {
+  // Chốt an toàn cuối cùng: chỉ tua video có duration = Infinity (livestream)
+  // hoặc khi DOM/Player API đã xác nhận chắc chắn đây là Livestream (forceLive = true).
+  // Mọi duration hữu hạn của VOD — kể cả 0/NaN — đều bị chặn để không tua nhầm VOD.
+  if (!forceLive && video.duration !== undefined && video.duration !== Infinity) {
     return false;
   }
 
@@ -130,9 +131,36 @@ export function seekToLiveEdge(video: LiveVideoLike): boolean {
   return true;
 }
 
-export function isLivePlayback(video: { duration: number }): boolean {
-  // Chỉ duration = Infinity mới là dấu hiệu livestream đáng tin cậy.
+export function isLivePlayback(video: { duration: number; isLiveDom?: boolean }): boolean {
+  // Nếu DOM/API của YouTube Player đã xác nhận là Livestream (ytp-live / getVideoData().isLive)
+  // hoặc duration = Infinity thì đây chắc chắn là livestream.
   // duration = 0/NaN chỉ là metadata chưa nạp xong, có thể là video thường —
-  // nếu coi đó là live, extension sẽ tua nhầm video thường tới cuối.
+  // nếu coi đó là live khi chưa có tín hiệu DOM, extension sẽ tua nhầm video thường tới cuối.
+  if (video.isLiveDom === true) return true;
   return video.duration === Infinity;
+}
+
+/**
+ * Kiểm tra chính xác xem trình phát YouTube hiện tại có đang phát Livestream hay không
+ * (hỗ trợ cả Livestream có DVR với duration hữu hạn lẫn Livestream không DVR).
+ */
+export function isYouTubeLivePlayer(player: Element | null | undefined): boolean {
+  if (!player) return false;
+  if (player.classList?.contains('ytp-live')) return true;
+
+  const pAny = player as any;
+  try {
+    if (typeof pAny.getVideoData === 'function' && pAny.getVideoData()?.isLive === true) {
+      return true;
+    }
+    if (
+      typeof pAny.getPlayerResponse === 'function' &&
+      (pAny.getPlayerResponse()?.videoDetails?.isLiveContent === true ||
+        pAny.getPlayerResponse()?.videoDetails?.isLive === true)
+    ) {
+      return true;
+    }
+  } catch {}
+
+  return false;
 }
