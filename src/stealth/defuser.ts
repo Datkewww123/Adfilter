@@ -6,18 +6,15 @@
  * Bảo toàn cấu trúc playerResponse (gán mảng rỗng [] cho adPlacements/playerAds/adSlots,
  * không xóa bkaEnforcementMessageViewModel) để tuyệt đối không kích hoạt lỗi 282054944
  * ("Something went wrong. Please try again later.").
+ * Phát/tua video: TUYỆT ĐỐI không gọi video.play()/video.pause() hay gán video.currentTime
+ * trực tiếp (làm lệch trạng thái nội bộ của YouTube Player → kẹt nút Play/Pause, live trôi
+ * sai vị trí). Mọi lệnh đều đi qua API của player: playVideo(), seekToLiveHead().
  */
 import './interceptor';
 import { disguise } from './anti-detect';
 import { releaseScrollLockIfSafe } from './scrollLock';
-import { installPauseGuard } from './pauseGuard';
-import {
-  MIN_READY_STATE,
-  inspectLiveEdge,
-  isLivePlayback,
-  isYouTubeLivePlayer,
-  seekToLiveEdge,
-} from '../core/autoplayGuard';
+import { installPauseGuard, isRecentUserPauseGesture } from './pauseGuard';
+import { isYouTubeLivePlayer } from '../core/autoplayGuard';
 
 // Chỉ kích hoạt trên môi trường YouTube thật, không chạy trên fake-youtube của E2E test
 const isLocalTest =
@@ -25,7 +22,7 @@ const isLocalTest =
   (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
 if (!isLocalTest) {
-  // ─── Bẫy 0: Khóa lệnh pause ngầm của YouTube trong lúc nạp video ───────────────
+  // ─── Bẫy 0: Theo dõi cử chỉ Play/Pause thật của người dùng (không can thiệp pause()) ───
   installPauseGuard(window);
 
   const AD_KEYS = [
@@ -298,14 +295,9 @@ if (!isLocalTest) {
         text.includes('trình chặn')
       ) {
         el.remove();
-        const player = document.querySelector('#movie_player, .html5-video-player');
-        const v = document.querySelector<HTMLVideoElement>('video');
-        if (v && v.paused && !v.ended && v.readyState >= MIN_READY_STATE) {
-          if (isYouTubeLivePlayer(player) || isLivePlayback(v)) {
-            const edge = inspectLiveEdge(v);
-            if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v, true);
-          }
-          void v.play().catch(() => undefined);
+        const v = document.querySelector<HTMLVideoElement>('#movie_player video, video');
+        if (v && v.paused && !v.ended && v.readyState >= 3) {
+          playViaPlayer(getPlayer(v), v, 'after-popup');
         }
       }
     }
@@ -354,184 +346,197 @@ if (!isLocalTest) {
     });
   }
 
-  // ─── Bẫy 7: Auto-Resume & Live Edge Guard (Chỉ chạy khi video đã sẵn sàng canplay) ───
-  let _lastUserPauseGestureAt = 0;
-  let _navStartedAt = Date.now();
-  let _userScrubbedTimeline = false;
-  const USER_PAUSE_WINDOW_MS = 1000;
-  const INITIAL_LIVE_WINDOW_MS = 10_000;
+  // ─── Bẫy 7: Startup Autoplay (1 lần) + Live Head + phục hồi pause ngầm giữa video ───
+  // Nguyên tắc: chỉ ra lệnh qua API của YouTube Player để nút Play/Pause luôn khớp trạng thái thật.
+  const STARTUP_WINDOW_MS = 10_000;
+  const MID_RESUME_COOLDOWN_MS = 5_000;
+  let _cycleStartedAt = Date.now();
+  let _startupDone = false;
+  let _liveHeadDone = false;
+  let _userScrubbed = false;
+  let _lastMidResumeAt = 0;
 
-  function markUserAction(): void {
-    _lastUserPauseGestureAt = Date.now();
+  function getPlayer(video?: HTMLVideoElement | null): any {
+    return (
+      (video && typeof video.closest === 'function'
+        ? video.closest('#movie_player, .html5-video-player')
+        : null) ||
+      document.querySelector('#movie_player') ||
+      document.querySelector('.html5-video-player')
+    );
   }
 
-  function resetNavigationState(): void {
-    _lastUserPauseGestureAt = 0;
-    _navStartedAt = Date.now();
-    _userScrubbedTimeline = false;
+  function isAdShowing(player: any): boolean {
+    return (
+      !!player &&
+      (player.classList?.contains('ad-showing') || player.classList?.contains('ad-interrupting'))
+    );
+  }
+
+  /** Log chẩn đoán — mở F12 → Console, lọc "[AdFilter debug]". */
+  function dbg(event: string, video?: HTMLVideoElement | null, extra?: Record<string, unknown>): void {
+    try {
+      const player = getPlayer(video);
+      const seekableEnd =
+        video && video.seekable && video.seekable.length > 0
+          ? Number(video.seekable.end(video.seekable.length - 1).toFixed(1))
+          : null;
+      console.log('[AdFilter debug]', event, {
+        tMs: Date.now() - _cycleStartedAt,
+        playerState:
+          player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : null,
+        paused: video?.paused,
+        readyState: video?.readyState,
+        currentTime: video ? Number(video.currentTime.toFixed(1)) : null,
+        seekableEnd,
+        live: isYouTubeLivePlayer(player),
+        atLiveHead:
+          player && typeof player.isAtLiveHead === 'function' ? player.isAtLiveHead() : null,
+        ad: isAdShowing(player),
+        ...extra,
+      });
+    } catch {}
+  }
+
+  function playViaPlayer(player: any, video: HTMLVideoElement, reason: string): void {
+    if (player && typeof player.playVideo === 'function') {
+      try {
+        player.playVideo();
+        dbg('playVideo()', video, { reason });
+        return;
+      } catch {}
+    }
+    // Chỉ dùng khi player không có API (trường hợp hiếm)
+    void video.play().catch(() => undefined);
+    dbg('video.play() fallback', video, { reason });
+  }
+
+  function resetCycle(reason: string): void {
+    _cycleStartedAt = Date.now();
+    _startupDone = false;
+    _liveHeadDone = false;
+    _userScrubbed = false;
+    dbg('reset: ' + reason);
+  }
+
+  /** Video vừa nạp xong mà vẫn đứng ở trạng thái dừng (không do người dùng) → phát đúng 1 lần. */
+  function tryStartupAutoplay(video: HTMLVideoElement): void {
+    if (_startupDone || video.ended) return;
+    if (Date.now() - _cycleStartedAt > STARTUP_WINDOW_MS) {
+      _startupDone = true;
+      return;
+    }
+    const player = getPlayer(video);
+    if (isAdShowing(player)) return;
+    if (!video.paused) {
+      _startupDone = true; // YouTube đã tự phát, không cần làm gì
+      return;
+    }
+    if (isRecentUserPauseGesture(STARTUP_WINDOW_MS)) {
+      _startupDone = true; // Người dùng đã tự bấm → tôn trọng
+      return;
+    }
+    if (video.readyState < 3) return; // Chờ đủ dữ liệu, tránh gọi phát khi player chưa sẵn sàng
+    _startupDone = true;
+    playViaPlayer(player, video, 'startup');
+  }
+
+  /**
+   * Livestream: YouTube tự đưa tới thời điểm đang phát. Chỉ can thiệp 1 lần khi player
+   * báo rõ là KHÔNG ở live head, và chỉ qua API chính thức seekToLiveHead() nếu có.
+   * Không bao giờ tự gán video.currentTime.
+   */
+  function tryLiveHead(video: HTMLVideoElement): void {
+    if (_liveHeadDone || _userScrubbed) return;
+    if (Date.now() - _cycleStartedAt > STARTUP_WINDOW_MS) {
+      _liveHeadDone = true;
+      return;
+    }
+    const player = getPlayer(video);
+    if (!isYouTubeLivePlayer(player) || isAdShowing(player)) return;
+    _liveHeadDone = true;
+    if (typeof player.isAtLiveHead !== 'function' || typeof player.seekToLiveHead !== 'function') {
+      dbg('live: player không có isAtLiveHead/seekToLiveHead, để YouTube tự xử lý', video);
+      return;
+    }
+    if (player.isAtLiveHead() === false) {
+      try {
+        player.seekToLiveHead();
+        dbg('seekToLiveHead()', video);
+      } catch {}
+    }
   }
 
   if (typeof window !== 'undefined') {
-    const onUserPointer = (e: MouseEvent | PointerEvent) => {
+    const onScrubPointer = (e: MouseEvent | PointerEvent) => {
       if (!e.isTrusted) return;
       const target = e.target as HTMLElement | null;
-      if (!target || typeof target.closest !== 'function') return;
-
-      if (target.closest('.ytp-progress-bar, .ytp-scrubber-container')) {
-        _userScrubbedTimeline = true;
-        markUserAction();
-        return;
-      }
-
-      if (target.closest('.ytp-play-button')) {
-        markUserAction();
-        return;
-      }
-
-      const playerContainer = target.closest('#movie_player, .html5-video-player');
-      if (playerContainer || target.tagName === 'VIDEO') {
-        const vid =
-          target.tagName === 'VIDEO'
-            ? (target as HTMLVideoElement)
-            : playerContainer?.querySelector<HTMLVideoElement>('video');
-        if (vid && !vid.paused && vid.currentTime > 0.2) {
-          markUserAction();
-        }
+      if (target && typeof target.closest === 'function' &&
+        target.closest('.ytp-progress-bar, .ytp-scrubber-container, .ytp-live-badge')) {
+        _userScrubbed = true;
       }
     };
-
-    const onUserKey = (e: KeyboardEvent) => {
+    const onScrubKey = (e: KeyboardEvent) => {
       if (!e.isTrusted) return;
-      if (
-        e.code === 'Space' ||
-        e.key === ' ' ||
-        e.code === 'KeyK' ||
-        e.key === 'k' ||
-        e.key === 'K'
-      ) {
-        const active = document.activeElement;
-        if (
-          active &&
-          (active.tagName === 'INPUT' ||
-            active.tagName === 'TEXTAREA' ||
-            active.getAttribute('contenteditable') === 'true')
-        ) {
-          return;
-        }
-        markUserAction();
-      }
-      if (
-        e.code === 'ArrowLeft' ||
-        e.code === 'ArrowRight' ||
-        e.code === 'KeyJ' ||
-        e.code === 'KeyL'
-      ) {
-        _userScrubbedTimeline = true;
+      if (['ArrowLeft', 'ArrowRight', 'KeyJ', 'KeyL', 'Home', 'End'].includes(e.code) ||
+        /^Digit\d$/.test(e.code)) {
+        _userScrubbed = true;
       }
     };
 
     try {
-      window.addEventListener('pointerdown', onUserPointer, { capture: true, passive: true });
-      window.addEventListener('keydown', onUserKey, { capture: true, passive: true });
-      window.addEventListener('yt-navigate-start', resetNavigationState, {
-        capture: true,
-        passive: true,
-      });
-      window.addEventListener('yt-navigate-finish', resetNavigationState, {
+      window.addEventListener('pointerdown', onScrubPointer, { capture: true, passive: true });
+      window.addEventListener('keydown', onScrubKey, { capture: true, passive: true });
+      window.addEventListener('yt-navigate-start', () => resetCycle('yt-navigate-start'), {
         capture: true,
         passive: true,
       });
     } catch {}
 
-    function attachAutoResume(video: HTMLVideoElement): void {
-      if ((video as any)._hasAutoResumeAttached) return;
-      (video as any)._hasAutoResumeAttached = true;
+    function attachPlaybackGuard(video: HTMLVideoElement): void {
+      if ((video as any)._adfPlaybackGuard) return;
+      (video as any)._adfPlaybackGuard = true;
 
-      video.addEventListener('loadstart', () => {
-        resetNavigationState();
-      });
-
-      // Khi video đã thực sự nạp đủ khung hình để phát (canplay / readyState >= 3):
+      video.addEventListener('loadstart', () => resetCycle('loadstart'));
       video.addEventListener('canplay', () => {
-        if (video.ended) return;
-        const player = (video.closest('#movie_player, .html5-video-player') ||
-          document.querySelector('#movie_player') ||
-          document.querySelector('.html5-video-player')) as any;
-        if (
-          player &&
-          (player.classList?.contains('ad-showing') ||
-            player.classList?.contains('ad-interrupting'))
-        ) {
-          return;
-        }
-
-        // 1. Nếu là Livestream lúc mới mở và bị kẹt ở đầu DVR (currentTime < 5s):
-        // Tua tới sát mép phát trực tiếp (Live Edge)
-        const isLive = isYouTubeLivePlayer(player) || isLivePlayback(video);
-        if (
-          isLive &&
-          Date.now() - _navStartedAt <= INITIAL_LIVE_WINDOW_MS &&
-          !_userScrubbedTimeline
-        ) {
-          const edge = inspectLiveEdge(video);
-          if (edge.canSeek && !edge.atLiveEdge && video.currentTime < 5) {
-            seekToLiveEdge(video, true);
-          }
-        }
-
-        // 2. Nếu lúc mới nạp xong mà video vẫn bị giữ ở trạng thái Pause (không do người dùng bấm):
-        if (
-          video.paused &&
-          video.currentTime < 3 &&
-          Date.now() - _lastUserPauseGestureAt >= USER_PAUSE_WINDOW_MS
-        ) {
-          void video.play().catch(() => {});
-        }
+        dbg('canplay', video);
+        tryStartupAutoplay(video);
+      });
+      video.addEventListener('canplaythrough', () => tryStartupAutoplay(video));
+      video.addEventListener('playing', () => {
+        dbg('playing', video);
+        _startupDone = true;
+        tryLiveHead(video);
       });
 
+      // Pause ngầm giữa video (ví dụ do ad-break bị chặn): phục hồi qua playVideo(),
+      // tối đa 1 lần / 5 giây để không bao giờ giành giật với người dùng.
       video.addEventListener('pause', () => {
-        // Nếu người dùng vừa chủ động tương tác trong 1s qua -> Tôn trọng tuyệt đối
-        if (Date.now() - _lastUserPauseGestureAt < USER_PAUSE_WINDOW_MS) return;
-        if (video.ended) return;
-
-        const player = (video.closest('#movie_player, .html5-video-player') ||
-          document.querySelector('#movie_player') ||
-          document.querySelector('.html5-video-player')) as any;
-        if (
-          player &&
-          (player.classList?.contains('ad-showing') ||
-            player.classList?.contains('ad-interrupting'))
-        ) {
-          return;
-        }
-
-        // Chỉ khôi phục khi media đã có dữ liệu sẵn sàng (readyState >= 3) để không làm lỗi player
+        dbg('pause', video, { userGesture: isRecentUserPauseGesture() });
+        if (video.ended || video.currentTime < 3) return; // Giai đoạn đầu do tryStartupAutoplay lo
+        if (isRecentUserPauseGesture()) return;
+        if (Date.now() - _lastMidResumeAt < MID_RESUME_COOLDOWN_MS) return;
         window.setTimeout(() => {
-          if (Date.now() - _lastUserPauseGestureAt < USER_PAUSE_WINDOW_MS) return;
+          const player = getPlayer(video);
           if (!video.paused || video.ended || video.readyState < 3) return;
-
-          if (player && typeof player.playVideo === 'function') {
-            try {
-              player.playVideo();
-            } catch {
-              void video.play().catch(() => {});
-            }
-          } else {
-            void video.play().catch(() => {});
-          }
-        }, 50);
+          if (isAdShowing(player) || isRecentUserPauseGesture()) return;
+          _lastMidResumeAt = Date.now();
+          playViaPlayer(player, video, 'mid-video');
+        }, 300);
       });
+
+      // Video đã nạp sẵn từ trước khi gắn listener
+      if (video.readyState >= 3) tryStartupAutoplay(video);
     }
 
-    // Gắn cho các video hiện có và video mới
-    document.querySelectorAll<HTMLVideoElement>('video').forEach(attachAutoResume);
+    document.querySelectorAll<HTMLVideoElement>('video').forEach(attachPlaybackGuard);
     const videoWatcher = new MutationObserver((mutations) => {
       for (const m of mutations) {
         for (const n of m.addedNodes) {
-          if (n instanceof HTMLVideoElement) attachAutoResume(n);
+          if (n instanceof HTMLVideoElement) attachPlaybackGuard(n);
           else if (n instanceof HTMLElement) {
             const v = n.querySelector('video');
-            if (v) attachAutoResume(v);
+            if (v) attachPlaybackGuard(v);
           }
         }
       }

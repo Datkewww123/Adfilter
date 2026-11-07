@@ -25,13 +25,7 @@ import {
 } from '../core/classifier';
 import { removeMask } from '../stealth/visual-mask';
 import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/pipeline';
-import {
-  MIN_READY_STATE,
-  inspectLiveEdge,
-  isLivePlayback,
-  isYouTubeLivePlayer,
-  seekToLiveEdge,
-} from '../core/autoplayGuard';
+import { MIN_READY_STATE } from '../core/autoplayGuard';
 
 let obs: AdObservation | null = null;
 
@@ -113,72 +107,10 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Initial Autoplay Helper
-// Cứu video lúc mới nạp trang nếu YouTube cố tình kìm hãm ở trạng thái pause,
-// đồng thời đảm bảo Livestream luôn nhảy tới Live Edge trước khi phát.
+// Lưu ý: việc tự phát video lúc mới nạp và đưa livestream tới live head
+// được xử lý DUY NHẤT ở src/stealth/defuser.ts (MAIN world) qua API của player.
+// Content script không gọi play() lúc nạp trang nữa để tránh giành quyền điều khiển.
 // ---------------------------------------------------------------------------
-function attachInitialAutoplay(video: HTMLVideoElement): void {
-  if (video.ended) return;
-
-  const onCanPlay = () => {
-    const player = document.querySelector(SEL.player);
-    const isAd =
-      player &&
-      (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-    if (isAd || video.ended) return;
-
-    const isLive = isYouTubeLivePlayer(player) || isLivePlayback(video);
-    if (isLive) {
-      // Với Livestream: phải tua tới Live Edge trước, tuyệt đối không ép play() ở mốc 0:00!
-      const edge = inspectLiveEdge(video);
-      if (edge.canSeek && !edge.atLiveEdge) {
-        seekToLiveEdge(video, true);
-      }
-      const liveBadge = player?.querySelector<HTMLButtonElement>('.ytp-live-badge:not([disabled])');
-      if (liveBadge && liveBadge.offsetParent !== null) {
-        liveBadge.click();
-      }
-      if (video.paused && video.readyState >= MIN_READY_STATE) {
-        void video.play().catch(() => {});
-      }
-      return;
-    }
-
-    if (video.paused && video.currentTime < 3) {
-      void video.play().catch(() => {});
-    }
-  };
-
-  if (video.readyState >= 2) {
-    onCanPlay();
-  } else {
-    video.addEventListener('canplay', onCanPlay, { once: true });
-    video.addEventListener('loadeddata', onCanPlay, { once: true });
-  }
-}
-
-// Lắng nghe các thẻ video mới được thêm vào DOM
-const videoObserver = new MutationObserver((mutations) => {
-  for (const m of mutations) {
-    for (const n of m.addedNodes) {
-      if (n instanceof HTMLVideoElement) {
-        attachInitialAutoplay(n);
-      } else if (n instanceof HTMLElement) {
-        const v = n.querySelector('video');
-        if (v) attachInitialAutoplay(v);
-      }
-    }
-  }
-});
-videoObserver.observe(document.documentElement, { childList: true, subtree: true });
-
-// Áp dụng cho các video hiện có
-document.querySelectorAll<HTMLVideoElement>('video').forEach((v) => attachInitialAutoplay(v));
-
-document.addEventListener('yt-navigate-finish', () => {
-  const v = getActiveVideo(document);
-  if (v) attachInitialAutoplay(v);
-});
 
 let _ctxDead = false;
 function teardown(): void {
@@ -186,7 +118,6 @@ function teardown(): void {
   _ctxDead = true;
   actuator.restore();
   observer.stop();
-  videoObserver.disconnect();
   log.info('extension context invalidated - content script stopped');
 }
 
@@ -210,16 +141,9 @@ function send(msg: Msg): void {
 
 function resumePlay(): void {
   const v = getActiveVideo(document);
-  // Chỉ gọi play() khi media đã đủ dữ liệu phát mượt — gọi quá sớm dễ làm lệch trạng thái player.
+  // Chỉ dùng sau khi quảng cáo kết thúc. Không tua livestream ở đây:
+  // gán currentTime trực tiếp làm player YouTube trôi sai vị trí.
   if (!v || !v.paused || v.ended || v.readyState < MIN_READY_STATE) return;
-
-  const player = document.querySelector(SEL.player);
-  // Livestream đang ở đầu DVR sau quảng cáo: tua tới live edge trước khi play.
-  if (isYouTubeLivePlayer(player) || isLivePlayback(v)) {
-    const edge = inspectLiveEdge(v);
-    if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v, true);
-  }
-
   void v.play().catch(() => undefined);
 }
 
