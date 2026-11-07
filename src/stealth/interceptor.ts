@@ -9,7 +9,7 @@ const AD_KEYS = [
   'adBreaks',
 ];
 
-// ─── Danh sách URL patterns của Google Ad Network cần hủy ngay 0ms ───
+// ─── Danh sách URL patterns của Google Ad Network cần block ngay ───
 const AD_NETWORK_BLOCK_PATTERNS = [
   'doubleclick.net',
   'googlesyndication.com',
@@ -31,27 +31,16 @@ function isAdNetworkUrl(url: string): boolean {
 function purge(obj: unknown): void {
   if (obj == null || typeof obj !== 'object') return;
   const record = obj as Record<string, unknown>;
-
-  // Xóa hẳn (delete) toàn bộ các trường quảng cáo thay vì gán mảng rỗng []
-  // để YouTube Player nhận biết ngay lập tức video không có kịch bản quảng cáo,
-  // bỏ qua hoàn toàn bộ đếm chờ quảng cáo 4-5s (Pre-roll Ad Wait Timer).
   for (const key of AD_KEYS) {
     if (key in record) {
-      delete record[key];
+      if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+        record[key] = [];
+      } else {
+        delete record[key];
+      }
     }
   }
-
-  // Xóa cấu hình cảnh báo / delay chống adblock trong auxiliaryUi
-  if (record.auxiliaryUi && typeof record.auxiliaryUi === 'object') {
-    const aux = record.auxiliaryUi as Record<string, unknown>;
-    if (aux.messageRenderers && typeof aux.messageRenderers === 'object') {
-      const renderers = aux.messageRenderers as Record<string, unknown>;
-      delete renderers['bkaEnforcementMessageViewModel'];
-      delete renderers['enforcementMessageViewModel'];
-    }
-  }
-
-  // Triệt tiêu cả entries quảng cáo trong response của Shorts
+  // Triệt tiêu cả entries trong response của Shorts
   if (Array.isArray(record.entries)) {
     record.entries = record.entries.filter(
       (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
@@ -59,28 +48,15 @@ function purge(obj: unknown): void {
   }
 }
 
-function emptyNoContentResponse(): Response {
-  return new Response(null, {
-    status: 204,
-    statusText: 'No Content',
+function emptySuccessResponse(): Response {
+  return new Response('{}', {
+    status: 200,
+    statusText: 'OK',
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
-// ─── 1. Bẫy Response.prototype.json() & fetch() có ngụy trang ──────────────────
-const origResponseJson = Response.prototype.json;
-function patchedResponseJson(this: Response): Promise<any> {
-  return origResponseJson.call(this).then((data) => {
-    if (data && typeof data === 'object') {
-      purge(data);
-      if (data.playerResponse && typeof data.playerResponse === 'object') {
-        purge(data.playerResponse);
-      }
-    }
-    return data;
-  });
-}
-Response.prototype.json = disguise(patchedResponseJson, origResponseJson);
-
+// ─── 1. Bẫy fetch() có ngụy trang ──────────────────────────────────────────
 const originalFetch = window.fetch.bind(window);
 
 async function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -91,9 +67,9 @@ async function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promi
         ? input.href
         : (input as Request).url;
 
-  // Hủy ngay ad network request với 204 No Content (0ms, không kích hoạt VAST XML retry delay)
+  // Chặn ngay ad network request và trả về 200 OK '{}' hợp lệ để không gây SyntaxError
   if (isAdNetworkUrl(url)) {
-    return emptyNoContentResponse();
+    return emptySuccessResponse();
   }
 
   const res = await originalFetch(input, init);
@@ -141,7 +117,7 @@ class PatchedXHR extends OrigXHR {
 
   send(body?: Document | XMLHttpRequestBodyInit | null): void {
     if (this._blocked) {
-      // Giả lập hoàn tất 204 ngay lập tức trong 0ms để không tạo traffic thật hay chờ timeout
+      // Giả lập hoàn tất thành công ngay lập tức để không tạo traffic thật
       try {
         Object.defineProperty(this, 'readyState', { value: 4, configurable: true });
         Object.defineProperty(this, 'status', { value: 204, configurable: true });
@@ -156,7 +132,7 @@ class PatchedXHR extends OrigXHR {
   }
 
   get responseText(): string {
-    if (this._blocked) return '';
+    if (this._blocked) return '{}';
     const text = super.responseText;
     if (this._url.includes('/youtubei/v1/player') || this._url.includes('/youtubei/v1/next')) {
       try {
@@ -174,7 +150,7 @@ class PatchedXHR extends OrigXHR {
   }
 
   get response(): any {
-    if (this._blocked) return '';
+    if (this._blocked) return '{}';
     if (this.responseType === '' || this.responseType === 'text') {
       return this.responseText;
     }
@@ -184,4 +160,4 @@ class PatchedXHR extends OrigXHR {
 
 window.XMLHttpRequest = PatchedXHR as unknown as typeof XMLHttpRequest;
 
-console.log('[AdFilter Stealth] Interceptor đã bọc fetch() & XHR với Anti-Detection + 0ms Ad Block');
+console.log('[AdFilter Stealth] Interceptor đã bọc fetch() & XHR với Anti-Detection + Ad Network Block');
