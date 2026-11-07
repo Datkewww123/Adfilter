@@ -148,16 +148,11 @@ export function isYouTubeLivePlayer(player: Element | null | undefined): boolean
   if (!player) return false;
   if (player.classList?.contains('ytp-live')) return true;
 
+  // Lưu ý: KHÔNG dùng videoDetails.isLiveContent — cờ này cũng bật với bản ghi
+  // của buổi live đã kết thúc (replay), khiến video thường bị coi nhầm là live.
   const pAny = player as any;
   try {
     if (typeof pAny.getVideoData === 'function' && pAny.getVideoData()?.isLive === true) {
-      return true;
-    }
-    if (
-      typeof pAny.getPlayerResponse === 'function' &&
-      (pAny.getPlayerResponse()?.videoDetails?.isLiveContent === true ||
-        pAny.getPlayerResponse()?.videoDetails?.isLive === true)
-    ) {
       return true;
     }
   } catch {}

@@ -151,6 +151,15 @@ describe('isLivePlayback & isYouTubeLivePlayer', () => {
     } as unknown as Element;
     expect(isYouTubeLivePlayer(vodPlayer)).toBe(false);
   });
+
+  it('không coi bản ghi live đã kết thúc (isLiveContent) là livestream', () => {
+    const replayPlayer = {
+      classList: { contains: () => false },
+      getVideoData: () => ({ isLive: false }),
+      getPlayerResponse: () => ({ videoDetails: { isLiveContent: true } }),
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(replayPlayer)).toBe(false);
+  });
 });
 
 describe('live edge helpers', () => {
