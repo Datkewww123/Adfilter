@@ -23,18 +23,14 @@ import {
   observeAd,
   type AdObservation,
 } from '../core/classifier';
-import { applyMask, removeMask } from '../stealth/visual-mask';
+import { removeMask } from '../stealth/visual-mask';
 import { onAdStart, onAdEnd, onSeekExecuted, runHealthCheck } from '../stealth/pipeline';
 import {
-  AUTOPLAY_SETTLE_MS,
-  AUTOPLAY_WINDOW_MS,
   MIN_READY_STATE,
   inspectLiveEdge,
   isLivePlayback,
+  isYouTubeLivePlayer,
   seekToLiveEdge,
-  shouldAttemptAutoplay,
-  shouldCorrectLiveRewind,
-  shouldSeekToLiveEdge,
 } from '../core/autoplayGuard';
 
 let obs: AdObservation | null = null;
@@ -87,10 +83,12 @@ const actuator = new Actuator({
 
 const clock = (t: number): string => new Date(t).toISOString().slice(11, 19);
 
-void loadConfig().then((c) => {
-  cfg = c;
-  log.info('config', cfg);
-}).catch(() => undefined);
+void loadConfig()
+  .then((c) => {
+    cfg = c;
+    log.info('config', cfg);
+  })
+  .catch(() => undefined);
 
 breaker = emptyBreaker();
 void saveBreaker(breaker).catch(() => undefined);
@@ -116,7 +114,8 @@ window.addEventListener('keydown', (e) => {
 
 // ---------------------------------------------------------------------------
 // Initial Autoplay Helper
-// Cứu video lúc mới nạp trang nếu YouTube cố tình kìm hãm ở trạng thái pause
+// Cứu video lúc mới nạp trang nếu YouTube cố tình kìm hãm ở trạng thái pause,
+// đồng thời đảm bảo Livestream luôn nhảy tới Live Edge trước khi phát.
 // ---------------------------------------------------------------------------
 function attachInitialAutoplay(video: HTMLVideoElement): void {
   if (video.ended) return;
@@ -124,8 +123,28 @@ function attachInitialAutoplay(video: HTMLVideoElement): void {
   const onCanPlay = () => {
     const player = document.querySelector(SEL.player);
     const isAd =
-      player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-    if (!isAd && video.paused && !video.ended && video.currentTime < 3) {
+      player &&
+      (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+    if (isAd || video.ended) return;
+
+    const isLive = isYouTubeLivePlayer(player) || isLivePlayback(video);
+    if (isLive) {
+      // Với Livestream: phải tua tới Live Edge trước, tuyệt đối không ép play() ở mốc 0:00!
+      const edge = inspectLiveEdge(video);
+      if (edge.canSeek && !edge.atLiveEdge) {
+        seekToLiveEdge(video, true);
+      }
+      const liveBadge = player?.querySelector<HTMLButtonElement>('.ytp-live-badge:not([disabled])');
+      if (liveBadge && liveBadge.offsetParent !== null) {
+        liveBadge.click();
+      }
+      if (video.paused && video.readyState >= MIN_READY_STATE) {
+        void video.play().catch(() => {});
+      }
+      return;
+    }
+
+    if (video.paused && video.currentTime < 3) {
       void video.play().catch(() => {});
     }
   };
@@ -194,10 +213,11 @@ function resumePlay(): void {
   // Chỉ gọi play() khi media đã đủ dữ liệu phát mượt — gọi quá sớm dễ làm lệch trạng thái player.
   if (!v || !v.paused || v.ended || v.readyState < MIN_READY_STATE) return;
 
+  const player = document.querySelector(SEL.player);
   // Livestream đang ở đầu DVR sau quảng cáo: tua tới live edge trước khi play.
-  if (isLivePlayback(v)) {
+  if (isYouTubeLivePlayer(player) || isLivePlayback(v)) {
     const edge = inspectLiveEdge(v);
-    if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v);
+    if (edge.canSeek && !edge.atLiveEdge) seekToLiveEdge(v, true);
   }
 
   void v.play().catch(() => undefined);
@@ -287,7 +307,8 @@ function watchPlayback(): void {
 function execute(a: Action, s: Signals): void {
   const player = document.querySelector(SEL.player);
   const isAd =
-    player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+    player &&
+    (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
   if (!isAd) {
     log.warn('Không ở trong quảng cáo, hủy bỏ hành động để bảo vệ video người dùng', a.type);
     return;
@@ -350,10 +371,7 @@ function planStep(s: Signals): void {
 
   const msIntoAd = cfg.allowSeek ? Math.max(SEEK_AFTER_MS, s.t - adStartedAt) : s.t - adStartedAt;
 
-  const actions = plan(
-    { inAd: true, msIntoAd, skipVisible: s.skipVisible, done },
-    cfg,
-  );
+  const actions = plan({ inAd: true, msIntoAd, skipVisible: s.skipVisible, done }, cfg);
   for (const a of actions) {
     done = [...done, a.type];
     if (cfg.dryRun) {
@@ -390,7 +408,6 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
-      // onAdStart() đã gọi applyMask() bên trong — không gọi lại ở đây để tránh double-mask
       onAdStart();
       adStartedAt = e.at;
       done = [];
@@ -398,10 +415,9 @@ function handle(s: Signals): void {
       lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
-      
+
       if (cfg.enabled && !cfg.dryRun) instantIntervene();
 
-      // Fallback an toàn: nếu sau 1.5s không còn .ad-showing thì tháo mask
       window.setTimeout(() => {
         const player = document.querySelector(SEL.player);
         if (!player || !player.classList.contains('ad-showing')) {
@@ -434,7 +450,8 @@ function handle(s: Signals): void {
       const resumeWatcher = window.setInterval(() => {
         checks++;
         const p = document.querySelector(SEL.player);
-        const inAd = p && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'));
+        const inAd =
+          p && (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting'));
         if (!inAd) {
           resumePlay();
         }
@@ -484,14 +501,8 @@ const observer = new PlayerObserver(handle, {
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });
 
-// Helper to detect live streams (duration is Infinity or 0)
-function isLiveVideo(v: HTMLVideoElement | null): boolean {
-  return !!v && (!Number.isFinite(v.duration) || v.duration === 0);
-}
-
 // Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {
-  // Dung watchdog neu context extension da bi invalidated
   if (_ctxDead) return;
   const report = runHealthCheck();
   if (!report.healthy) {
