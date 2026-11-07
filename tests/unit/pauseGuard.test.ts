@@ -24,6 +24,7 @@ describe('PauseGuard', () => {
       ended: false,
       readyState: 4,
       play: vi.fn().mockResolvedValue(undefined),
+      addEventListener: vi.fn(),
     };
 
     fakeWindow = {
@@ -50,6 +51,39 @@ describe('PauseGuard', () => {
 
     expect(origPauseMock).not.toHaveBeenCalled();
     expect(fakeVideo.play).toHaveBeenCalled();
+  });
+
+  it('đăng ký listener loadeddata/canplay để tự phát khi YouTube gọi pause lúc readyState < 2', () => {
+    installPauseGuard(fakeWindow);
+    const patchedPause = fakeWindow.HTMLMediaElement.prototype.pause;
+
+    fakeVideo.readyState = 1;
+    patchedPause.call(fakeVideo);
+
+    expect(origPauseMock).not.toHaveBeenCalled();
+    expect(fakeVideo.addEventListener).toHaveBeenCalledWith(
+      'loadeddata',
+      expect.any(Function),
+      { once: true },
+    );
+    expect(fakeVideo.addEventListener).toHaveBeenCalledWith(
+      'canplay',
+      expect.any(Function),
+      { once: true },
+    );
+  });
+
+  it('không ép play ở mốc 0:00 trên Livestream (.ytp-live) để trình phát tự nhảy tới Live Edge', () => {
+    installPauseGuard(fakeWindow);
+    const patchedPause = fakeWindow.HTMLMediaElement.prototype.pause;
+
+    fakeVideo.closest = () => ({
+      classList: { contains: (cls: string) => cls === 'ytp-live' },
+    });
+    patchedPause.call(fakeVideo);
+
+    expect(origPauseMock).toHaveBeenCalled();
+    expect(fakeVideo.play).not.toHaveBeenCalled();
   });
 
   it('cho phép lệnh pause khi có tương tác người dùng thật', () => {
