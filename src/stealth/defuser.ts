@@ -348,6 +348,8 @@ if (!isLocalTest) {
 
   // ─── Bẫy 7: Auto-Resume thông minh qua API của YouTube Player ───
   let _cycleStartedAt = Date.now();
+  let _liveHeadDone = false;
+  let _userScrubbed = false;
 
   function getPlayer(video?: HTMLVideoElement | null): any {
     return (
@@ -398,7 +400,53 @@ if (!isLocalTest) {
 
   function resetCycle(reason: string): void {
     _cycleStartedAt = Date.now();
+    _liveHeadDone = false;
+    _userScrubbed = false;
     dbg('reset: ' + reason);
+  }
+
+  /**
+   * Livestream: Tự động đưa tới thời điểm đang phát trực tiếp (Live Head).
+   * Tuyệt đối tôn trọng cử chỉ tua của người dùng (_userScrubbed).
+   */
+  function tryLiveHead(video: HTMLVideoElement): void {
+    if (_liveHeadDone || _userScrubbed) return;
+    const player = getPlayer(video);
+    if (!isYouTubeLivePlayer(player) || isAdShowing(player)) return;
+
+    // 1. Thử qua API chính thức seekToLiveHead() của YouTube Player
+    if (typeof player.isAtLiveHead === 'function' && typeof player.seekToLiveHead === 'function') {
+      try {
+        if (player.isAtLiveHead() === false) {
+          player.seekToLiveHead();
+          _liveHeadDone = true;
+          dbg('seekToLiveHead()', video);
+          return;
+        }
+      } catch {}
+    }
+
+    // 2. Thử qua seekToStreamTime nếu có
+    if (typeof player.seekToStreamTime === 'function') {
+      try {
+        player.seekToStreamTime();
+        _liveHeadDone = true;
+        dbg('seekToStreamTime()', video);
+        return;
+      } catch {}
+    }
+
+    // 3. Fallback: Nếu video bị kẹt ở mốc 0:00 của DVR mà mép live đã cách xa > 3s -> tua thẳng tới mép live
+    try {
+      if (video.seekable && video.seekable.length > 0) {
+        const edge = video.seekable.end(video.seekable.length - 1);
+        if (Number.isFinite(edge) && edge > 0 && edge - video.currentTime > 3) {
+          video.currentTime = Math.max(0, edge - 0.5);
+          _liveHeadDone = true;
+          dbg('seekToLiveEdge fallback', video, { edge, currentTime: video.currentTime });
+        }
+      }
+    } catch {}
   }
 
   /** Khi video đã nạp khung hình mà vẫn đứng ở trạng thái dừng (không do người dùng) → phát ngay. */
@@ -406,14 +454,44 @@ if (!isLocalTest) {
     if (video.ended) return;
     const player = getPlayer(video);
     if (isAdShowing(player)) return;
-    if (!video.paused) return;
+    if (!video.paused) {
+      if (isYouTubeLivePlayer(player)) tryLiveHead(video);
+      return;
+    }
     if (isRecentUserPauseGesture(1200)) return;
     if (video.readyState < 2) return;
+
+    if (isYouTubeLivePlayer(player)) {
+      tryLiveHead(video);
+    }
     playViaPlayer(player, video, 'startup');
   }
 
   if (typeof window !== 'undefined') {
+    const onScrubPointer = (e: MouseEvent | PointerEvent) => {
+      if (!e.isTrusted) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('.ytp-progress-bar, .ytp-scrubber-container')
+      ) {
+        _userScrubbed = true;
+      }
+    };
+    const onScrubKey = (e: KeyboardEvent) => {
+      if (!e.isTrusted) return;
+      if (
+        ['ArrowLeft', 'ArrowRight', 'KeyJ', 'KeyL', 'Home', 'End'].includes(e.code) ||
+        /^Digit\d$/.test(e.code)
+      ) {
+        _userScrubbed = true;
+      }
+    };
+
     try {
+      window.addEventListener('pointerdown', onScrubPointer, { capture: true, passive: true });
+      window.addEventListener('keydown', onScrubKey, { capture: true, passive: true });
       window.addEventListener('yt-navigate-start', () => resetCycle('yt-navigate-start'), {
         capture: true,
         passive: true,
@@ -428,11 +506,13 @@ if (!isLocalTest) {
       video.addEventListener('loadeddata', () => tryStartupAutoplay(video));
       video.addEventListener('canplay', () => {
         dbg('canplay', video);
+        if (isYouTubeLivePlayer(getPlayer(video))) tryLiveHead(video);
         tryStartupAutoplay(video);
       });
       video.addEventListener('canplaythrough', () => tryStartupAutoplay(video));
       video.addEventListener('playing', () => {
         dbg('playing', video);
+        if (isYouTubeLivePlayer(getPlayer(video))) tryLiveHead(video);
       });
 
       // Pause ngầm (do YouTube tự dừng lúc load, do buffer, hoặc do ad break):
