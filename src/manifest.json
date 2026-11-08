@@ -2,13 +2,26 @@
   "manifest_version": 3,
   "name": "AdFilter",
   "version": "1.0.0",
-  "description": "YouTube Ad Filter Extension",
-  "permissions": ["storage"],
+  "description": "Lọc quảng cáo YouTube, Web đọc truyện và Web phim thông minh",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest"
+  ],
   "host_permissions": [
     "*://*.youtube.com/*",
     "*://youtube.com/*",
-    "*://m.youtube.com/*"
+    "*://m.youtube.com/*",
+    "<all_urls>"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_adnetworks",
+        "enabled": true,
+        "path": "rules/rules_adnetworks.json"
+      }
+    ]
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"

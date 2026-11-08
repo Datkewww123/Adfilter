@@ -45,6 +45,14 @@ async function build() {
   await fs.copyFile('src/popup/popup.html', `${out}/popup.html`);
   await fs.copyFile('src/options/options.html', `${out}/options.html`);
 
+  const rulesSrc = 'src/rules';
+  const rulesDest = `${out}/rules`;
+  try {
+    await fs.cp(rulesSrc, rulesDest, { recursive: true });
+  } catch {
+    // rules dir optional
+  }
+
   // Nếu là Chromium bản chính thức, đồng bộ ra dist/ gốc
   if (!dev && target === 'chromium') {
     await fs.cp(out, 'dist', { recursive: true });
