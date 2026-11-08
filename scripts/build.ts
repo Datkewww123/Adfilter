@@ -19,6 +19,7 @@ async function build() {
       popup: 'src/popup/popup.ts',
       options: 'src/options/options.ts',
       defuser: 'src/stealth/defuser.ts',
+      universalDefuser: 'src/stealth/universalDefuser.ts',
     },
     bundle: true,
     outdir: out,
