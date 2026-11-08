@@ -1,4 +1,5 @@
 import { installAntiPopup } from './antiPopup';
+import { installAntiRedirect } from './antiRedirect';
 
 (function initUniversalDefuser() {
   try {
@@ -12,7 +13,9 @@ import { installAntiPopup } from './antiPopup';
         window.postMessage({ type: 'ADFILTER_POPUP_BLOCKED', url }, '*');
       },
     });
+
+    installAntiRedirect(window);
   } catch {
-    // Im lặng để không gây ảnh hưởng website
+    // Im lặng để không làm gián đoạn trang web
   }
 })();
