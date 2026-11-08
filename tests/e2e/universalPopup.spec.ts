@@ -1,9 +1,8 @@
-import { test, expect } from '@playwright/test';
-import path from 'node:path';
+import { expect, test } from './fixtures';
 
-test('không bị bật popup hay mở tab mới khi click vào web truyện có mã độc clickjacking', async ({ page, context }) => {
-  const filePath = 'file://' + path.resolve(__dirname, 'fixtures/manga-with-ads.html');
-  await page.goto(filePath);
+test('không bị bật popup hay mở tab mới khi click vào web truyện có mã độc clickjacking', async ({ context }) => {
+  const page = await context.newPage();
+  await page.goto('http://localhost:4173/manga-with-ads.html');
 
   let popupOpened = false;
   context.on('page', () => {
