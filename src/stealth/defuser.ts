@@ -443,12 +443,19 @@ if (!isLocalTest) {
         if (video.ended) return;
         if (isUserPause) return; // Người dùng chủ động pause -> Tôn trọng tuyệt đối
 
-        window.setTimeout(() => {
+        const resumeNow = () => {
           const player = getPlayer(video);
           if (!video.paused || video.ended) return;
           if (isAdShowing(player) || isRecentUserPauseGesture(1200)) return;
-          playViaPlayer(player, video, 'auto-resume');
-        }, 120);
+          playViaPlayer(player, video, 'auto-resume-0ms');
+        };
+        if (typeof queueMicrotask === 'function') {
+          queueMicrotask(resumeNow);
+        }
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(resumeNow);
+        }
+        window.setTimeout(resumeNow, 0);
       });
 
       // Video đã nạp sẵn từ trước khi gắn listener

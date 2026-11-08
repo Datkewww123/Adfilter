@@ -68,7 +68,8 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||doubleclick.net^",
-      "resourceTypes": ["script", "xmlhttprequest", "sub_frame"]
+      "resourceTypes": ["script", "xmlhttprequest", "sub_frame"],
+      "excludedInitiatorDomains": ["youtube.com"]
     }
   },
   {
@@ -77,7 +78,8 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||googleads.g.doubleclick.net^",
-      "resourceTypes": ["script", "sub_frame"]
+      "resourceTypes": ["script", "sub_frame"],
+      "excludedInitiatorDomains": ["youtube.com"]
     }
   },
   {
@@ -86,7 +88,8 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||googlesyndication.com^",
-      "resourceTypes": ["script", "sub_frame"]
+      "resourceTypes": ["script", "sub_frame"],
+      "excludedInitiatorDomains": ["youtube.com"]
     }
   }
 ]
