@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Manga Test Page with Popup</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #222; color: #fff; text-align: center; }
+    .manga-page { width: 600px; margin: 20px auto; background: #333; padding: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Đọc Truyện Tranh Online</h1>
+  <div class="manga-page">
+    <p>Trang 1: Chào mừng tới chapter 1</p>
+  </div>
+
+  <!-- Lớp phủ tàng hình clickjacking mô phỏng web truyện -->
+  <div id="fake-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;opacity:0;"></div>
+
+  <script>
+    document.getElementById('fake-overlay').addEventListener('click', function() {
+      window.open('https://shopee.vn/fake-casino', '_blank');
+    });
+  </script>
+</body>
+</html>

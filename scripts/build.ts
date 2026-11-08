@@ -19,6 +19,8 @@ async function build() {
       popup: 'src/popup/popup.ts',
       options: 'src/options/options.ts',
       defuser: 'src/stealth/defuser.ts',
+      universalDefuser: 'src/stealth/universalDefuser.ts',
+      universalContent: 'src/content/universalContent.ts',
     },
     bundle: true,
     outdir: out,
@@ -44,6 +46,14 @@ async function build() {
   await fs.copyFile('src/stealth/cosmetic.css', `${out}/cosmetic.css`);
   await fs.copyFile('src/popup/popup.html', `${out}/popup.html`);
   await fs.copyFile('src/options/options.html', `${out}/options.html`);
+
+  const rulesSrc = 'src/rules';
+  const rulesDest = `${out}/rules`;
+  try {
+    await fs.cp(rulesSrc, rulesDest, { recursive: true });
+  } catch {
+    // rules dir optional
+  }
 
   // Nếu là Chromium bản chính thức, đồng bộ ra dist/ gốc
   if (!dev && target === 'chromium') {
