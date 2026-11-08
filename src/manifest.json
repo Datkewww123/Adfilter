@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AdFilter",
   "version": "1.0.0",
-  "description": "Lọc quảng cáo YouTube, Web đọc truyện và Web phim thông minh",
+  "description": "Smart Ad Filter for YouTube, Manga and Streaming websites",
   "permissions": [
     "storage",
     "declarativeNetRequest"

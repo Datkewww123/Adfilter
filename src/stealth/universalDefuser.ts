@@ -3,8 +3,9 @@ import { installAntiRedirect } from './antiRedirect';
 
 (function initUniversalDefuser() {
   try {
+    const host = window.location.hostname;
     // Không can thiệp YouTube vì YouTube đã có defuser.ts riêng
-    if (window.location.hostname.includes('youtube.com')) {
+    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
       return;
     }
 

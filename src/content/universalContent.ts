@@ -1,7 +1,8 @@
 import { installClickHijackGuard } from '../core/clickHijackGuard';
 
 (function initUniversalContent() {
-  if (window.location.hostname.includes('youtube.com')) {
+  const host = window.location.hostname;
+  if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
     return; // Đã có content/index.ts cho YouTube
   }
 
