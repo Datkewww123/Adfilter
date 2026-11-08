@@ -52,6 +52,11 @@
       "js": ["content.js"],
       "css": ["cosmetic.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["universalContent.js"],
+      "run_at": "document_start"
     }
   ],
   "action": {

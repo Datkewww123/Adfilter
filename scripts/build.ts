@@ -20,6 +20,7 @@ async function build() {
       options: 'src/options/options.ts',
       defuser: 'src/stealth/defuser.ts',
       universalDefuser: 'src/stealth/universalDefuser.ts',
+      universalContent: 'src/content/universalContent.ts',
     },
     bundle: true,
     outdir: out,
