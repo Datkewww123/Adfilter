@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runCosmeticSweep, injectCosmeticStyle, BUILTIN_COSMETIC_RULES } from '../../src/content/universalContent';
+import { runCosmeticSweep, injectCosmeticStyle, initUniversalContent, BUILTIN_COSMETIC_RULES } from '../../src/content/universalContent';
 import type { CosmeticRule } from '../../src/cosmetic/cosmeticEngine';
 
 describe('UniversalCosmeticIntegration', () => {
@@ -45,5 +45,22 @@ describe('UniversalCosmeticIntegration', () => {
     expect(BUILTIN_COSMETIC_RULES.length).toBeGreaterThan(5);
     const hasAdBanner = BUILTIN_COSMETIC_RULES.some((r: CosmeticRule) => r.selector === '.ad-banner');
     expect(hasAdBanner).toBe(true);
+  });
+
+  it('ngăn chặn tiêm style trùng lặp khi injectCosmeticStyle được gọi nhiều lần', () => {
+    const first = injectCosmeticStyle(document);
+    expect(first).not.toBeNull();
+    const second = injectCosmeticStyle(document);
+    expect(second).toBeNull();
+    const allStyles = document.querySelectorAll('#adfilter-cosmetic-styles');
+    expect(allStyles.length).toBe(1);
+  });
+
+  it('cơ chế cleanup ngắt kết nối MutationObserver để chống rò rỉ bộ nhớ (Memory Leak)', () => {
+    const instance = initUniversalContent(document);
+    expect(instance).not.toBeNull();
+    expect(typeof instance?.cleanup).toBe('function');
+    // Thực thi dọn dẹp
+    instance?.cleanup();
   });
 });

@@ -26,11 +26,15 @@ export const BUILTIN_COSMETIC_RULES: CosmeticRule[] = COMMON_COSMETIC_RULES_RAW
   .filter((r): r is CosmeticRule => r !== null);
 
 /**
- * Tiêm chuỗi CSS ẩn quảng cáo vào thẻ <head> của trang web
+ * Tiêm chuỗi CSS ẩn quảng cáo vào thẻ <head> hoặc <documentElement> của trang web (Zero FOUC)
  */
-export function injectCosmeticStyle(doc: Document = document): void {
+export function injectCosmeticStyle(doc: Document = document): HTMLStyleElement | null {
+  if (doc.getElementById('adfilter-cosmetic-styles')) {
+    return null; // Đã tiêm rồi, không tiêm trùng lặp
+  }
+
   const css = generateInjectedCss(BUILTIN_COSMETIC_RULES, window.location.hostname);
-  if (!css) return;
+  if (!css) return null;
 
   const styleEl = doc.createElement('style');
   styleEl.id = 'adfilter-cosmetic-styles';
@@ -40,6 +44,7 @@ export function injectCosmeticStyle(doc: Document = document): void {
   if (target) {
     target.appendChild(styleEl);
   }
+  return styleEl;
 }
 
 /**
@@ -54,16 +59,16 @@ export function runCosmeticSweep(doc: Document = document): void {
 /**
  * Khởi động toàn bộ Universal Content Engine
  */
-export function initUniversalContent(doc: Document = document): void {
+export function initUniversalContent(doc: Document = document): { cleanup: () => void; observer: MutationObserver } | null {
   const host = window.location.hostname;
   if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
-    return; // Đã có src/content/index.ts chuyên dụng cho YouTube
+    return null; // Đã có src/content/index.ts chuyên dụng cho YouTube
   }
 
   // 1. Chống Click Hijacking & Lớp phủ tàng hình
   installClickHijackGuard(doc);
 
-  // 2. Tiêm CSS ẩn quảng cáo tức thì
+  // 2. Tiêm CSS ẩn quảng cáo tức thì tại document_start (Zero FOUC)
   injectCosmeticStyle(doc);
 
   // 3. Quét dọn ban đầu
@@ -92,6 +97,20 @@ export function initUniversalContent(doc: Document = document): void {
       subtree: true,
     });
   }
+
+  // 6. Cơ chế dọn dẹp chống rò rỉ bộ nhớ (Memory Leak Protection) khi người dùng đổi trang / đọc chapter mới
+  const cleanup = () => {
+    if (sweepTimer) {
+      clearTimeout(sweepTimer);
+      sweepTimer = null;
+    }
+    observer.disconnect();
+  };
+
+  window.addEventListener('pagehide', cleanup, { once: true });
+  window.addEventListener('beforeunload', cleanup, { once: true });
+
+  return { cleanup, observer };
 }
 
 // Tự động kích hoạt khi nạp content script
