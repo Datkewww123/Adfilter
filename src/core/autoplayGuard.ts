@@ -147,6 +147,7 @@ export function isLivePlayback(video: { duration: number; isLiveDom?: boolean })
 export function isYouTubeLivePlayer(player: Element | null | undefined): boolean {
   if (!player) return false;
   if (player.classList?.contains('ytp-live')) return true;
+  if (typeof (player as any).querySelector === 'function' && (player as any).querySelector('.ytp-live-badge')) return true;
 
   // Lưu ý: KHÔNG dùng videoDetails.isLiveContent — cờ này cũng bật với bản ghi
   // của buổi live đã kết thúc (replay), khiến video thường bị coi nhầm là live.
