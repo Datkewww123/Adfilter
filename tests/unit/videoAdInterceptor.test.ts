@@ -19,6 +19,11 @@ describe('VideoAdInterceptor (Web Phim VAST/VPAID)', () => {
     expect(isVastAdUrl('https://cdn.movie.com/movies/full-hd.mp4')).toBe(false);
     expect(isVastAdUrl('https://www.youtube.com/watch?v=12345')).toBe(false);
     expect(isVastAdUrl('https://rr1---sn-xxx.googlevideo.com/videoplayback')).toBe(false);
+
+    // Kiểm tra bảo mật chống giả mạo tên miền (CodeQL Incomplete URL Substring Sanitization)
+    expect(isVastAdUrl('https://evil-youtube.com/vast/ad.xml')).toBe(true);
+    expect(isVastAdUrl('https://googlevideo.com.attacker.org/vast/preroll')).toBe(true);
+    expect(isVastAdUrl('https://bad-site.com/adserver?target=youtube.com')).toBe(true);
   });
 
   it('hàm cleanVastXml trả về VAST rỗng khi phát hiện thẻ quảng cáo', () => {

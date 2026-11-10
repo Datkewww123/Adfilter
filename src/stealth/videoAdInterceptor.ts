@@ -9,9 +9,28 @@ const MEDIA_STREAM_PATTERN = /\.(?:m3u8|mp4|ts|m4s|mpd|webm|mkv|aac|mp3)(?:\?|$)
  */
 export function isVastAdUrl(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  if (url.includes('youtube.com') || url.includes('googlevideo.com')) {
-    return false;
+
+  try {
+    const base =
+      typeof window !== 'undefined' && window.location?.href && !window.location.href.startsWith('about:')
+        ? window.location.href
+        : 'https://localhost';
+    const parsed = new URL(url, base);
+    const host = parsed.hostname.toLowerCase();
+
+    // Loại trừ an toàn YouTube và Google Video dựa trên hostname tuyệt đối (CodeQL CWE-20)
+    if (
+      host === 'youtube.com' ||
+      host.endsWith('.youtube.com') ||
+      host === 'googlevideo.com' ||
+      host.endsWith('.googlevideo.com')
+    ) {
+      return false;
+    }
+  } catch {
+    // Bỏ qua nếu URL không thể phân giải
   }
+
   if (MEDIA_STREAM_PATTERN.test(url)) {
     return false;
   }
