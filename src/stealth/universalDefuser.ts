@@ -10,7 +10,7 @@ import { installVastInterceptor } from './videoAdInterceptor';
     const isYouTube =
       host === 'youtube.com' ||
       host.endsWith('.youtube.com') ||
-      (typeof window !== 'undefined' && window.location.pathname.includes('watch.html'));
+      Boolean(typeof window !== 'undefined' && window.location.pathname?.includes('watch.html'));
 
     // Không can thiệp YouTube vì YouTube đã có defuser.ts riêng
     if (isYouTube) {

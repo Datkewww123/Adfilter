@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-11
+
+### Added
+- **AdFilter Universal Edition — Chặn quảng cáo toàn diện Web Đọc Truyện & Web Phim:**
+  - **Mạng lưới DeclarativeNetRequest (DNR):** Hơn 200 quy tắc chặn domain mạng quảng cáo rác, pop-up, cờ bạc, 18+ (Adsterra, PropellerAds, PopAds, ExoClick, MGID...).
+  - **Anti-Popup & Anti-Redirect Engine:** Bẫy `window.open`, `location.assign`, `location.replace` trong `MAIN` world, triệt tiêu 100% tình trạng click bị nhảy tab hoặc chuyển hướng trang ngoài ý muốn.
+  - **Click Hijacking Guard:** Quét dọn các lớp phủ tàng hình (`opacity: 0`, `z-index: 999999`) bẫy click chuột của người dùng.
+  - **Bộ lọc mỹ phẩm Heuristic & Sập khoảng trắng:** Nhận diện banner theo kích thước chuẩn IAB, xóa sạch banner cố định (Floating/Sticky ads) và tự động co rút khoảng trắng thừa về 0px (Zero-Height Collapsing).
+  - **Bẻ khóa Anti-Adblock & Tối ưu đọc truyện:** Vô hiệu hóa thư viện FuckAdBlock/BlockAdBlock qua fake `canRunAds` & kích thước mồi; gỡ bỏ modal làm mờ trang; mở khóa chuột phải, sao chép văn bản và bảo vệ cơ chế nạp ảnh lười (`data-src`).
+  - **Chặn quảng cáo video Web Phim (VAST/VPAID):** Bẫy các yêu cầu XML VAST/VPAID trả về response rỗng để bỏ qua toàn bộ quảng cáo đệm (preroll ads) trên các player (JWPlayer, Video.js...), đồng thời tự động đóng các overlay quảng cáo giữa phim.
+  - **Bật/Tắt theo từng website (Per-Site Whitelist):** Giao diện Popup cho phép người dùng tạm dừng bảo vệ trên các website cá nhân, ngân hàng hoặc trang tin tưởng.
+  - **Công cụ chọn phần tử trực quan (Element Zapper):** Cho phép người dùng click trực tiếp vào bất kỳ phần tử nào trên trang web để xóa vĩnh viễn và lưu vào danh sách chặn cá nhân.
+  - **Đóng gói phát hành tự động:** Tự động build và đóng gói phân phối định dạng `.zip` sẵn sàng tải lên Chrome Web Store và Firefox Add-ons (`pnpm package`).
+
 ## [1.0.0] - 2026-11-06
 
 ### Added

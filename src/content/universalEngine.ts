@@ -93,7 +93,7 @@ export function initUniversalContent(
   const isYouTube =
     host === 'youtube.com' ||
     host.endsWith('.youtube.com') ||
-    (typeof window !== 'undefined' && window.location.pathname.includes('watch.html'));
+    Boolean(typeof window !== 'undefined' && window.location.pathname?.includes('watch.html'));
 
   if (isYouTube) {
     return null; // Đã có src/content/index.ts chuyên dụng cho YouTube
