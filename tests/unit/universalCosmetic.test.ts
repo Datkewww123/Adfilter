@@ -18,7 +18,7 @@ describe('UniversalCosmeticIntegration', () => {
     expect(styleEl?.textContent).toContain('display: none !important;');
   });
 
-  it('runCosmeticSweep quét sạch banner dính và co rút khung quảng cáo rỗng trên trang truyện', () => {
+  it('runCosmeticSweep quét sạch banner dính, co rút khung quảng cáo rỗng, gỡ modal và nạp ảnh lười', () => {
     // 1. Tạo một banner sticky chân trang
     const bottomAd = document.createElement('div');
     bottomAd.className = 'ad-banner';
@@ -32,13 +32,25 @@ describe('UniversalCosmeticIntegration', () => {
     emptySlot.style.height = '250px';
     document.body.appendChild(emptySlot);
 
-    // Thực thi quét dọn
+    // 3. Tạo một modal cảnh báo adblock
+    const modal = document.createElement('div');
+    modal.className = 'adblock-modal';
+    document.body.appendChild(modal);
+
+    // 4. Tạo một ảnh lười chưa nạp src
+    const img = document.createElement('img');
+    img.setAttribute('data-src', 'https://cdn.manga.org/ch1/p1.jpg');
+    document.body.appendChild(img);
+
+    // Thực thi quét dọn toàn diện
     runCosmeticSweep(document);
 
     // Xác minh kết quả
     expect(bottomAd.style.display).toBe('none');
     expect(emptySlot.style.display).toBe('none');
     expect(emptySlot.style.height).toBe('0px');
+    expect(document.querySelector('.adblock-modal')).toBeNull();
+    expect(img.src).toBe('https://cdn.manga.org/ch1/p1.jpg');
   });
 
   it('đảm bảo danh sách BUILTIN_COSMETIC_RULES đã được phân tích hợp lệ', () => {

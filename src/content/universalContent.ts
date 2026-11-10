@@ -3,6 +3,8 @@ import { parseCosmeticRule, generateInjectedCss, type CosmeticRule } from '../co
 import { scanAndHideHeuristicAds } from '../cosmetic/heuristicAdDetector';
 import { purgeFloatingAds } from '../cosmetic/floatingBannerGuard';
 import { collapseEmptyAdSlots } from '../cosmetic/elementCollapsing';
+import { bypassAdblockModals } from '../core/adblockModalBypass';
+import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
 
 // Danh sách các quy tắc CSS ẩn quảng cáo phổ biến trên web đọc truyện & web phim
 export const COMMON_COSMETIC_RULES_RAW = [
@@ -48,12 +50,14 @@ export function injectCosmeticStyle(doc: Document = document): HTMLStyleElement 
 }
 
 /**
- * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing
+ * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images
  */
 export function runCosmeticSweep(doc: Document = document): void {
   scanAndHideHeuristicAds(doc);
   purgeFloatingAds(doc);
   collapseEmptyAdSlots(doc);
+  bypassAdblockModals(doc);
+  resolveLazyImages(doc);
 }
 
 /**
@@ -80,7 +84,10 @@ export function initUniversalContent(doc: Document = document): { cleanup: () =>
   }
   window.addEventListener('load', () => runCosmeticSweep(doc), { once: true });
 
-  // 5. Thiết lập MutationObserver để bắt kịp các quảng cáo nạp ngầm (lazy-load) khi đọc truyện
+  // 5. Khởi động bộ bảo vệ tải ảnh lười cho truyện tranh
+  const stopLazyLoad = startLazyLoadProtector(doc);
+
+  // 6. Thiết lập MutationObserver để bắt kịp các quảng cáo nạp ngầm (lazy-load) khi đọc truyện
   let sweepTimer: any = null;
   const observer = new MutationObserver(() => {
     if (sweepTimer) return;
@@ -98,13 +105,14 @@ export function initUniversalContent(doc: Document = document): { cleanup: () =>
     });
   }
 
-  // 6. Cơ chế dọn dẹp chống rò rỉ bộ nhớ (Memory Leak Protection) khi người dùng đổi trang / đọc chapter mới
+  // 7. Cơ chế dọn dẹp chống rò rỉ bộ nhớ (Memory Leak Protection) khi người dùng đổi trang / đọc chapter mới
   const cleanup = () => {
     if (sweepTimer) {
       clearTimeout(sweepTimer);
       sweepTimer = null;
     }
     observer.disconnect();
+    stopLazyLoad();
   };
 
   window.addEventListener('pagehide', cleanup, { once: true });

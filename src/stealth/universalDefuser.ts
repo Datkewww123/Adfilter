@@ -1,6 +1,7 @@
 import { installAntiPopup } from './antiPopup';
 import { installAntiRedirect } from './antiRedirect';
 import { installAntiAdblockDefuser } from './antiAdblockDefuser';
+import { unlockContextMenu } from './antiContextMenuTrap';
 
 (function initUniversalDefuser() {
   try {
@@ -13,14 +14,17 @@ import { installAntiAdblockDefuser } from './antiAdblockDefuser';
     // 1. Chống bẫy Anti-Adblock trong MAIN world
     installAntiAdblockDefuser(window);
 
-    // 2. Chống Popup & Pop-under
+    // 2. Mở khóa chuột phải & copy tranh truyện
+    unlockContextMenu(window);
+
+    // 3. Chống Popup & Pop-under
     installAntiPopup(window, {
       onBlocked: (url) => {
         window.postMessage({ type: 'ADFILTER_POPUP_BLOCKED', url }, '*');
       },
     });
 
-    // 3. Chống tự động chuyển hướng
+    // 4. Chống tự động chuyển hướng
     installAntiRedirect(window);
   } catch {
     // Im lặng để không làm gián đoạn trang web
