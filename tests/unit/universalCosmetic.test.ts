@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runCosmeticSweep, injectCosmeticStyle, initUniversalContent, BUILTIN_COSMETIC_RULES } from '../../src/content/universalContent';
+import { runCosmeticSweep, injectCosmeticStyle, initUniversalContent, BUILTIN_COSMETIC_RULES } from '../../src/content/universalEngine';
 import type { CosmeticRule } from '../../src/cosmetic/cosmeticEngine';
 
 describe('UniversalCosmeticIntegration', () => {

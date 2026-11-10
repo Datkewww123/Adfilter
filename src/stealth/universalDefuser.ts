@@ -7,8 +7,13 @@ import { installVastInterceptor } from './videoAdInterceptor';
 (function initUniversalDefuser() {
   try {
     const host = window.location.hostname;
+    const isYouTube =
+      host === 'youtube.com' ||
+      host.endsWith('.youtube.com') ||
+      (typeof window !== 'undefined' && window.location.pathname.includes('watch.html'));
+
     // Không can thiệp YouTube vì YouTube đã có defuser.ts riêng
-    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+    if (isYouTube) {
       return;
     }
 
