@@ -6,6 +6,7 @@ import { collapseEmptyAdSlots } from '../cosmetic/elementCollapsing';
 import { bypassAdblockModals } from '../core/adblockModalBypass';
 import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
 import { autoCloseMovieOverlays, purgeMoviePlayerAdOverlays } from '../core/videoOverlayCloser';
+import { isDomainWhitelisted } from '../core/siteWhitelist';
 
 // Danh sách các quy tắc CSS ẩn quảng cáo phổ biến trên web đọc truyện & web phim
 export const COMMON_COSMETIC_RULES_RAW = [
@@ -66,10 +67,18 @@ export function runCosmeticSweep(doc: Document = document): void {
 /**
  * Khởi động toàn bộ Universal Content Engine
  */
-export function initUniversalContent(doc: Document = document): { cleanup: () => void; observer: MutationObserver } | null {
+export function initUniversalContent(
+  doc: Document = document,
+  whitelist: string[] = []
+): { cleanup: () => void; observer: MutationObserver } | null {
   const host = window.location.hostname;
   if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
     return null; // Đã có src/content/index.ts chuyên dụng cho YouTube
+  }
+
+  // 0. Bỏ qua nếu website nằm trong danh sách ngoại lệ (Per-Site Whitelist)
+  if (isDomainWhitelisted(host, whitelist)) {
+    return null;
   }
 
   // 1. Chống Click Hijacking & Lớp phủ tàng hình
@@ -116,7 +125,23 @@ export function initUniversalContent(doc: Document = document): { cleanup: () =>
     }
     observer.disconnect();
     stopLazyLoad();
+    const styleEl = doc.getElementById('adfilter-cosmetic-styles');
+    if (styleEl) styleEl.remove();
   };
+
+  // 8. Đồng bộ với chrome.storage.local nếu có whitelist được cập nhật ngầm
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    try {
+      chrome.storage.local.get(['whitelist_domains'], (data: { [key: string]: any }) => {
+        const stored: string[] = Array.isArray(data?.whitelist_domains) ? data.whitelist_domains : [];
+        if (isDomainWhitelisted(host, stored)) {
+          cleanup();
+        }
+      });
+    } catch {
+      // Bỏ qua nếu storage chưa sẵn sàng
+    }
+  }
 
   window.addEventListener('pagehide', cleanup, { once: true });
   window.addEventListener('beforeunload', cleanup, { once: true });

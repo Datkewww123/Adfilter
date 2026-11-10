@@ -43,6 +43,46 @@
         margin-bottom: 12px;
         line-height: 1.5;
       }
+      .site-card {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .site-domain {
+        font-size: 12px;
+        font-weight: 600;
+        color: #1f2937;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .site-status {
+        font-size: 11px;
+        color: #059669;
+        font-weight: 500;
+      }
+      .site-status.disabled {
+        color: #dc2626;
+      }
+      .toggle-btn {
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .toggle-btn:hover {
+        background: #f3f4f6;
+      }
       .btn-row {
         display: flex;
         gap: 8px;
@@ -67,7 +107,15 @@
   <body>
     <div class="header">
       <div class="title">🛡️ AdFilter</div>
-      <div class="badge-stealth">Stealth Bật</div>
+      <div class="badge-stealth" id="stealthBadge">Stealth Bật</div>
+    </div>
+
+    <div class="site-card" id="siteCard">
+      <div>
+        <div class="site-domain" id="siteDomain">Trang web hiện tại</div>
+        <div class="site-status" id="siteStatus">Đang bảo vệ</div>
+      </div>
+      <button class="toggle-btn" id="siteToggleBtn">Tạm dừng</button>
     </div>
 
     <div class="status-box" id="status">Đang theo dõi luồng phát...</div>
