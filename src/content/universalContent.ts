@@ -7,6 +7,7 @@ import { bypassAdblockModals } from '../core/adblockModalBypass';
 import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
 import { autoCloseMovieOverlays, purgeMoviePlayerAdOverlays } from '../core/videoOverlayCloser';
 import { isDomainWhitelisted } from '../core/siteWhitelist';
+import { startElementPicker } from './elementPicker';
 
 // Danh sách các quy tắc CSS ẩn quảng cáo phổ biến trên web đọc truyện & web phim
 export const COMMON_COSMETIC_RULES_RAW = [
@@ -52,9 +53,25 @@ export function injectCosmeticStyle(doc: Document = document): HTMLStyleElement 
 }
 
 /**
+ * Ẩn các phần tử do người dùng tự chọn bằng công cụ Element Zapper
+ */
+export function applyUserBlockedSelectors(doc: Document = document, selectors: string[] = []): void {
+  if (!selectors.length) return;
+  try {
+    const combined = selectors.join(', ');
+    const elements = doc.querySelectorAll(combined);
+    elements.forEach((el) => {
+      (el as HTMLElement).style.setProperty('display', 'none', 'important');
+    });
+  } catch {
+    // Bỏ qua nếu selector có lỗi cú pháp
+  }
+}
+
+/**
  * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images + Movie Video Overlays
  */
-export function runCosmeticSweep(doc: Document = document): void {
+export function runCosmeticSweep(doc: Document = document, userSelectors: string[] = []): void {
   scanAndHideHeuristicAds(doc);
   purgeFloatingAds(doc);
   collapseEmptyAdSlots(doc);
@@ -62,6 +79,7 @@ export function runCosmeticSweep(doc: Document = document): void {
   resolveLazyImages(doc);
   autoCloseMovieOverlays(doc);
   purgeMoviePlayerAdOverlays(doc);
+  applyUserBlockedSelectors(doc, userSelectors);
 }
 
 /**
@@ -140,6 +158,29 @@ export function initUniversalContent(
       });
     } catch {
       // Bỏ qua nếu storage chưa sẵn sàng
+    }
+  }
+
+  // 9. Lắng nghe yêu cầu kích hoạt công cụ chọn phần tử (Element Zapper) từ popup
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    try {
+      chrome.runtime.onMessage.addListener((msg: any) => {
+        if (msg?.kind === 'START_ELEMENT_PICKER') {
+          startElementPicker(doc, (selector) => {
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+              chrome.storage.local.get(['user_blocked_selectors'], (res: { [key: string]: any }) => {
+                const currentList: string[] = Array.isArray(res?.user_blocked_selectors) ? res.user_blocked_selectors : [];
+                if (!currentList.includes(selector)) {
+                  currentList.push(selector);
+                  chrome.storage.local.set({ user_blocked_selectors: currentList });
+                }
+              });
+            }
+          });
+        }
+      });
+    } catch {
+      // Bỏ qua nếu môi trường test không có chrome.runtime
     }
   }
 

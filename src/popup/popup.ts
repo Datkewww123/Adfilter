@@ -6,6 +6,7 @@ import { isDomainWhitelisted, toggleDomainWhitelist } from '../core/siteWhitelis
 
 const statusEl = document.getElementById('status');
 const exportBtn = document.getElementById('exportLogs');
+const elementPickerBtn = document.getElementById('elementPickerBtn');
 const siteDomainEl = document.getElementById('siteDomain');
 const siteStatusEl = document.getElementById('siteStatus');
 const siteToggleBtn = document.getElementById('siteToggleBtn') as HTMLButtonElement | null;
@@ -70,6 +71,18 @@ async function refresh(): Promise<void> {
     show(['Đang bảo vệ duyệt web và xem phim.']);
   }
 }
+
+elementPickerBtn?.addEventListener('click', async () => {
+  const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id !== undefined) {
+    try {
+      await ext.tabs.sendMessage(tab.id, { kind: 'START_ELEMENT_PICKER' });
+      window.close();
+    } catch (e) {
+      log.warn('cannot start element picker', e);
+    }
+  }
+});
 
 exportBtn?.addEventListener('click', async () => {
   const data = await ext.storage.local.get(['actions', 'config', 'breaker', 'whitelist_domains']);
