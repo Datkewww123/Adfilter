@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Manga Test Page with Anti-Adblock Detection</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #1a1a1a; color: #fff; text-align: center; }
+    .adsbox { position: absolute; left: -9999px; }
+    #adblock-detected { display: none; background: red; padding: 20px; }
+    #adblock-passed { display: none; background: green; padding: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Manga Chapter 1 - Anti-Adblock Shield Test</h1>
+  <div class="adsbox pub_300x250" id="test-ad"></div>
+
+  <div id="adblock-detected" class="adblock-modal">
+    <h2>Phát hiện Adblock!</h2>
+    <p>Vui lòng tắt phần mềm chặn quảng cáo để đọc truyện.</p>
+  </div>
+
+  <div id="adblock-passed">
+    <h2>Chào mừng bạn đến với trang đọc truyện!</h2>
+    <p>Nội dung truyện tranh hiển thị đầy đủ.</p>
+  </div>
+
+  <script>
+    // Giả lập thư viện FuckAdBlock / BlockAdBlock
+    setTimeout(function() {
+      var bait = document.getElementById('test-ad');
+      var height = bait ? bait.offsetHeight : 0;
+      var canRun = window.canRunAds;
+
+      if (!canRun || height === 0) {
+        document.getElementById('adblock-detected').style.display = 'block';
+        document.body.classList.add('modal-open');
+      } else {
+        document.getElementById('adblock-passed').style.display = 'block';
+      }
+    }, 150);
+  </script>
+</body>
+</html>
