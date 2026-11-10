@@ -5,6 +5,7 @@ import { purgeFloatingAds } from '../cosmetic/floatingBannerGuard';
 import { collapseEmptyAdSlots } from '../cosmetic/elementCollapsing';
 import { bypassAdblockModals } from '../core/adblockModalBypass';
 import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
+import { autoCloseMovieOverlays, purgeMoviePlayerAdOverlays } from '../core/videoOverlayCloser';
 
 // Danh sách các quy tắc CSS ẩn quảng cáo phổ biến trên web đọc truyện & web phim
 export const COMMON_COSMETIC_RULES_RAW = [
@@ -50,7 +51,7 @@ export function injectCosmeticStyle(doc: Document = document): HTMLStyleElement 
 }
 
 /**
- * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images
+ * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images + Movie Video Overlays
  */
 export function runCosmeticSweep(doc: Document = document): void {
   scanAndHideHeuristicAds(doc);
@@ -58,6 +59,8 @@ export function runCosmeticSweep(doc: Document = document): void {
   collapseEmptyAdSlots(doc);
   bypassAdblockModals(doc);
   resolveLazyImages(doc);
+  autoCloseMovieOverlays(doc);
+  purgeMoviePlayerAdOverlays(doc);
 }
 
 /**
