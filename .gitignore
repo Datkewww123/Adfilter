@@ -10,6 +10,8 @@ Thumbs.db
 tmp/
 playwright-report/
 test-results/
+release/
+*.zip
 
 # Terraform
 *.tfstate
