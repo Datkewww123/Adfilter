@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Phim Mới Full HD</title>
+    <style>
+      #player-container {
+        width: 640px;
+        height: 360px;
+        background: #000;
+        color: #fff;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .jw-ad-ui {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        right: 20px;
+        bottom: 20px;
+        background: rgba(255, 0, 0, 0.8);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .jw-ad-close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        background: #fff;
+        color: #000;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Xem Phim Không Quảng Cáo</h1>
+    <div id="player-container">
+      <div id="movie-status">Đang tải phim...</div>
+      <div class="jw-ad-ui video-ad-overlay" id="ad-overlay">
+        <span>Quảng cáo nhà tài trợ</span>
+        <button class="jw-ad-close" id="close-ad-btn" onclick="document.getElementById('ad-overlay').remove()">X</button>
+      </div>
+    </div>
+
+    <script>
+      (async function () {
+        try {
+          const res = await fetch('http://localhost:4173/vast/preroll.xml');
+          const text = await res.text();
+          if (text.includes('<VAST version="3.0"></VAST>')) {
+            document.getElementById('movie-status').textContent = 'Phim chính đang phát mượt mà (VAST bypassed)';
+          }
+        } catch (e) {
+          document.getElementById('movie-status').textContent = 'Lỗi nạp';
+        }
+      })();
+    </script>
+  </body>
+</html>

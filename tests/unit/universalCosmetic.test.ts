@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runCosmeticSweep, injectCosmeticStyle, initUniversalContent, BUILTIN_COSMETIC_RULES } from '../../src/content/universalContent';
+import { runCosmeticSweep, injectCosmeticStyle, initUniversalContent, BUILTIN_COSMETIC_RULES } from '../../src/content/universalEngine';
 import type { CosmeticRule } from '../../src/cosmetic/cosmeticEngine';
 
 describe('UniversalCosmeticIntegration', () => {
@@ -74,5 +74,26 @@ describe('UniversalCosmeticIntegration', () => {
     expect(typeof instance?.cleanup).toBe('function');
     // Thực thi dọn dẹp
     instance?.cleanup();
+  });
+
+  it('bỏ qua can thiệp khi hostname nằm trong danh sách ngoại lệ (Per-Site Whitelist)', () => {
+    // Giả lập hostname trong window.location
+    const originalHost = window.location.hostname;
+    try {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'trusted-bank.com' },
+        configurable: true,
+      });
+
+      const instance = initUniversalContent(document, ['trusted-bank.com']);
+      expect(instance).toBeNull();
+      // Không có style nào được tiêm
+      expect(document.getElementById('adfilter-cosmetic-styles')).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: originalHost },
+        configurable: true,
+      });
+    }
   });
 });

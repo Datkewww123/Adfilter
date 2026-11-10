@@ -1,6 +1,6 @@
 {
   "name": "adfilter",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "YouTube Ad Filter Extension (Manifest V3) with Pure Core, Observability & Terraform Cloud CD",
   "main": "index.js",
   "scripts": {
@@ -19,6 +19,7 @@
     "sweep": "tsx scripts/sweep.ts",
     "summarize": "tsx scripts/summarize-actions.ts",
     "canary": "tsx canary/check.ts",
+    "package": "tsx scripts/package.ts",
     "e2e": "playwright test"
   },
   "keywords": [],
