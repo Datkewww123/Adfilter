@@ -27,7 +27,7 @@ jobs:
       TAG: ${{ inputs.tag || github.sha }}
       REGION: ap-southeast-1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.sha }}
       - if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
