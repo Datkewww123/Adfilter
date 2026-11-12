@@ -44,10 +44,10 @@ describe('DeclarativeNetRequest Rules', () => {
     const rules = JSON.parse(fs.readFileSync(rulesPath, 'utf-8'));
     const filters = rules.map((r: { condition: { urlFilter: string } }) => r.condition.urlFilter);
 
-    expect(filters.some((f: string) => f.includes('mplmncb.com'))).toBe(true);
-    expect(filters.some((f: string) => f.includes('clickadu.com'))).toBe(true);
-    expect(filters.some((f: string) => f.includes('big88.services'))).toBe(true);
-    expect(filters.some((f: string) => f.includes('sunwinchinhhang.com'))).toBe(true);
-    expect(filters.some((f: string) => f.includes('gemwinchinhhang.com'))).toBe(true);
+    expect(filters).toContain('||mplmncb.com^');
+    expect(filters).toContain('||clickadu.com^');
+    expect(filters).toContain('||big88.services^');
+    expect(filters).toContain('||sunwinchinhhang.com^');
+    expect(filters).toContain('||gemwinchinhhang.com^');
   });
 });
