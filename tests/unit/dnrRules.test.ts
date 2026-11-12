@@ -39,4 +39,15 @@ describe('DeclarativeNetRequest Rules', () => {
     expect(filters.some((f: string) => f.includes('popads'))).toBe(true);
     expect(filters.some((f: string) => f.includes('exoclick'))).toBe(true);
   });
+
+  it('chặn đứng các máy chủ quảng cáo & popunder web truyện Việt Nam (mplmncb, clickadu, big88, sunwin)', () => {
+    const rules = JSON.parse(fs.readFileSync(rulesPath, 'utf-8'));
+    const filters = rules.map((r: { condition: { urlFilter: string } }) => r.condition.urlFilter);
+
+    expect(filters.some((f: string) => f.includes('mplmncb.com'))).toBe(true);
+    expect(filters.some((f: string) => f.includes('clickadu.com'))).toBe(true);
+    expect(filters.some((f: string) => f.includes('big88.services'))).toBe(true);
+    expect(filters.some((f: string) => f.includes('sunwinchinhhang.com'))).toBe(true);
+    expect(filters.some((f: string) => f.includes('gemwinchinhhang.com'))).toBe(true);
+  });
 });
