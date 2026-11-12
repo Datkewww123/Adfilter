@@ -1,6 +1,6 @@
 {
   "name": "adfilter",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "YouTube Ad Filter Extension (Manifest V3) with Pure Core, Observability & Terraform Cloud CD",
   "main": "index.js",
   "scripts": {

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-11-12
+
+### Added
+- **Vietnamese Manga & Streaming Ad Shield (Week 25):**
+  - **Chặn mạng máy chủ quảng cáo Việt Nam (DNR Rules):** Chặn đứng các domain phân phối quảng cáo, popup và popunder đặc thù (`mplmncb.com`, `clickadu.com`, `big88.services`, `sunwinchinhhang.com`, `gemwinchinhhang.com`, `rikvipchinhhang.com`, `win79chinhhang.com`, `debet.com`) ngay tại tầng mạng trình duyệt.
+  - **Nâng cấp Anti-Popunder & Click Redirect Guard:** Bẫy `window.open()` và chặn đứng mọi chuyển hướng ngầm tới trang cá cược (`utm_source=clickadu`, `utm_medium=popunder`) ngay cả sau khi người dùng tương tác chuột trên thẻ `<a>`.
+  - **Triệt tiêu Banner hai bên sườn & Chân trang (Catfish / Flank Banners):** Tự động phát hiện và ẩn sạch banner dính hai bên mép màn hình (`floatLeft`, `floatRight`, `floating-left`, `floating-right`), banner đỉnh trang (`top-banner-*`), banner chân trang (`catfish-banner-*`) và popup modal cờ bạc (DEBET, SUNWIN).
+  - **Kiểm thử tự động E2E:** Bổ sung kịch bản mô phỏng toàn diện cấu trúc web truyện Việt Nam (`tests/e2e/mangaVietnam.spec.ts`).
+
 ## [2.0.0] - 2026-11-11
 
 ### Added
