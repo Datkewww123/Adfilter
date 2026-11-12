@@ -1,3 +1,17 @@
+const BETTING_AD_SELECTOR = [
+  'a[href*="sunwin"]',
+  'a[href*="gemwin"]',
+  'a[href*="zowin"]',
+  'a[href*="nhatvip"]',
+  'a[href*="five88"]',
+  'a[href*="red88"]',
+  'a[href*="rikvip"]',
+  'a[href*="win79"]',
+  'a[href*="debet"]',
+  'a[href*="big88"]',
+  'img[src*="mplmncb.com"]',
+].join(', ');
+
 /**
  * Quét và xóa bỏ các banner dính cố định (fixed/sticky) ở chân trang hoặc hai bên sườn
  * và mở khóa cuộn trang nếu bị website đọc truyện khóa overflow.
@@ -14,19 +28,29 @@ export function purgeFloatingAds(doc: Document = document): number {
 
     const position = style.position || htmlEl.style.position;
     if (position === 'fixed' || position === 'sticky') {
-      const bottom = style.bottom || htmlEl.style.bottom;
-      const isBottomSticky = parseInt(bottom, 10) === 0 || bottom === '0px';
+      const bottomVal = parseInt(style.bottom || htmlEl.style.bottom, 10);
+      const isBottomSticky = !isNaN(bottomVal) && bottomVal >= 0 && bottomVal <= 50;
 
-      const left = style.left || htmlEl.style.left;
-      const right = style.right || htmlEl.style.right;
+      const leftVal = parseInt(style.left || htmlEl.style.left, 10);
+      const rightVal = parseInt(style.right || htmlEl.style.right, 10);
+      const widthVal = parseInt(style.width || htmlEl.style.width, 10);
       const isSideSticky =
-        (parseInt(left, 10) === 0 || left === '0px' || parseInt(right, 10) === 0 || right === '0px') &&
-        (parseInt(style.width, 10) <= 250 || parseInt(htmlEl.style.width, 10) <= 250);
+        ((!isNaN(leftVal) && leftVal >= 0 && leftVal <= 50) ||
+          (!isNaN(rightVal) && rightVal >= 0 && rightVal <= 50)) &&
+        (isNaN(widthVal) || widthVal <= 300);
 
       const identifier = `${htmlEl.className} ${htmlEl.id}`;
-      const hasAdKeyword = /ad|banner|qc|quangcao|floating|sticky-bottom/i.test(identifier);
+      const hasAdKeyword = /ad|banner|qc|quangcao|floating|sticky-bottom|catfish|float[-_]?(left|right)/i.test(
+        identifier
+      );
+      const isExplicitFloatFlank = /float[-_]?(left|right)|floating[-_]?(left|right)|catfish/i.test(identifier);
+      const containsBettingAd = Boolean(htmlEl.querySelector(BETTING_AD_SELECTOR));
 
-      if ((isBottomSticky || isSideSticky) && hasAdKeyword) {
+      if (
+        isExplicitFloatFlank ||
+        containsBettingAd ||
+        ((isBottomSticky || isSideSticky) && hasAdKeyword)
+      ) {
         htmlEl.style.setProperty('display', 'none', 'important');
         htmlEl.style.setProperty('height', '0px', 'important');
         htmlEl.style.setProperty('visibility', 'hidden', 'important');

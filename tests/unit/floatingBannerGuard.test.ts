@@ -51,4 +51,30 @@ describe('FloatingBannerGuard', () => {
     purgeFloatingAds(document);
     expect(document.body.style.overflow).toBe('auto');
   });
+
+  it('quét và ẩn các banner nổi hai bên sườn kiểu TruyenQQ (floatLeft, floatRight, catfish) và container chứa link nhà cái', () => {
+    const leftFlank = document.createElement('div');
+    leftFlank.id = 'floating-left-container';
+    leftFlank.style.position = 'fixed';
+    leftFlank.style.left = '15px';
+    document.body.appendChild(leftFlank);
+
+    const rightFlank = document.createElement('div');
+    rightFlank.id = 'floatRight';
+    rightFlank.style.position = 'fixed';
+    rightFlank.style.right = '15px';
+    document.body.appendChild(rightFlank);
+
+    const catfishModal = document.createElement('div');
+    catfishModal.style.position = 'fixed';
+    catfishModal.style.bottom = '20px';
+    catfishModal.innerHTML = '<a href="https://five88.com/promo"><img src="https://mplmncb.com/banners-web/five88.gif"></a>';
+    document.body.appendChild(catfishModal);
+
+    const count = purgeFloatingAds(document);
+    expect(count).toBe(3);
+    expect(leftFlank.style.display).toBe('none');
+    expect(rightFlank.style.display).toBe('none');
+    expect(catfishModal.style.display).toBe('none');
+  });
 });

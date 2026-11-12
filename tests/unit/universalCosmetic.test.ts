@@ -96,4 +96,27 @@ describe('UniversalCosmeticIntegration', () => {
       });
     }
   });
+
+  it('runCosmeticSweep ẩn triệt để các banner đặc thù web truyện Việt Nam (catfish, top banner, popup DEBET/SUNWIN)', () => {
+    const topBanner = document.createElement('div');
+    topBanner.id = 'top-banner-info-container';
+    topBanner.innerHTML = '<a href="https://rikvipchinhhang.com/top"><img src="https://mplmncb.com/banners-web/rik.gif"></a>';
+    document.body.appendChild(topBanner);
+
+    const catfishBanner = document.createElement('div');
+    catfishBanner.id = 'catfish-banner-info-container';
+    catfishBanner.innerHTML = '<a href="https://sunwinchinhhang.com/catfish"><img src="https://mplmncb.com/banners-web/sun.gif"></a>';
+    document.body.appendChild(catfishBanner);
+
+    const debetModal = document.createElement('div');
+    debetModal.id = 'popup-debet-modal';
+    debetModal.innerHTML = '<a href="https://debet.com/promo"><img src="https://mplmncb.com/banners-web/debet.gif"></a>';
+    document.body.appendChild(debetModal);
+
+    runCosmeticSweep(document);
+
+    expect(topBanner.style.display).toBe('none');
+    expect(catfishBanner.style.display).toBe('none');
+    expect(debetModal.style.display).toBe('none');
+  });
 });
