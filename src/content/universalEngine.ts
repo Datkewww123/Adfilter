@@ -17,13 +17,38 @@ export const COMMON_COSMETIC_RULES_RAW = [
   '##.ads-holder',
   '##.ad-container',
   '##.ad-wrapper',
+  '##.ads-container',
+  '##.box-advertisement',
   '##[id^="ad_"]',
   '##[id^="ads_"]',
   '##[class*="ad-slot"]',
+  '##[class*="advertising"]',
   '##.floating-banner',
   '##.qc-sticky',
   '##.qc-left-side',
   '##.qc-right-side',
+  // Bộ lọc đặc thù Web Truyện & Phim Việt Nam (TruyenQQ, NetTruyen...)
+  '##div[id*="catfish-banner"]',
+  '##div[id*="top-banner-"]',
+  '##div[id*="bottom-banner-"]',
+  '##div[id*="mid-banner-"]',
+  '##div[id*="floatLeft"]',
+  '##div[id*="floatRight"]',
+  '##div[id*="floating-left"]',
+  '##div[id*="floating-right"]',
+  '##div[class*="float-left-banner"]',
+  '##div[class*="float-right-banner"]',
+  '##a[href*="sunwin"]',
+  '##a[href*="gemwin"]',
+  '##a[href*="debet"]',
+  '##a[href*="rikvip"]',
+  '##a[href*="win79"]',
+  '##a[href*="zowin"]',
+  '##a[href*="nhatvip"]',
+  '##a[href*="five88"]',
+  '##a[href*="red88"]',
+  '##a[href*="big88"]',
+  '##img[src*="mplmncb.com"]',
 ];
 
 export const BUILTIN_COSMETIC_RULES: CosmeticRule[] = COMMON_COSMETIC_RULES_RAW
@@ -68,12 +93,70 @@ export function applyUserBlockedSelectors(doc: Document = document, selectors: s
   }
 }
 
+const VN_AD_CONTAINER_SELECTOR = [
+  'div[id*="catfish-banner"]',
+  'div[id*="top-banner-"]',
+  'div[id*="bottom-banner-"]',
+  'div[id*="mid-banner-"]',
+  'div[id*="floatLeft"]',
+  'div[id*="floatRight"]',
+  'div[id*="floating-left"]',
+  'div[id*="floating-right"]',
+  '.box-advertisement',
+  '.ads-container',
+].join(', ');
+
+const VN_BETTING_MEDIA_SELECTOR = [
+  'a[href*="sunwin"]',
+  'a[href*="gemwin"]',
+  'a[href*="debet"]',
+  'a[href*="rikvip"]',
+  'a[href*="win79"]',
+  'a[href*="zowin"]',
+  'a[href*="nhatvip"]',
+  'a[href*="five88"]',
+  'a[href*="red88"]',
+  'a[href*="big88"]',
+  'img[src*="mplmncb.com"]',
+].join(', ');
+
+function hideElementCompletely(el: HTMLElement): void {
+  el.style.setProperty('display', 'none', 'important');
+  el.style.setProperty('height', '0px', 'important');
+  el.style.setProperty('visibility', 'hidden', 'important');
+}
+
 /**
- * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images + Movie Video Overlays
+ * Quét và ẩn các cụm banner/popup cờ bạc đặc thù trên web đọc truyện & xem phim Việt Nam
+ */
+export function purgeVietnameseAdBanners(doc: Document = document): number {
+  let count = 0;
+
+  doc.querySelectorAll<HTMLElement>(VN_AD_CONTAINER_SELECTOR).forEach((container) => {
+    hideElementCompletely(container);
+    count++;
+  });
+
+  doc.querySelectorAll<HTMLElement>(VN_BETTING_MEDIA_SELECTOR).forEach((el) => {
+    const adWrapper = el.closest<HTMLElement>(
+      '[id*="banner"], [id*="catfish"], [id*="popup"], [id*="float"], [class*="banner"], [class*="popup"], [class*="modal"], .ads, .qc'
+    );
+    const target =
+      adWrapper && adWrapper !== doc.body && adWrapper !== doc.documentElement ? adWrapper : el;
+    hideElementCompletely(target);
+    count++;
+  });
+
+  return count;
+}
+
+/**
+ * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images + Movie Video Overlays + VN Manga Ads
  */
 export function runCosmeticSweep(doc: Document = document, userSelectors: string[] = []): void {
   scanAndHideHeuristicAds(doc);
   purgeFloatingAds(doc);
+  purgeVietnameseAdBanners(doc);
   collapseEmptyAdSlots(doc);
   bypassAdblockModals(doc);
   resolveLazyImages(doc);
