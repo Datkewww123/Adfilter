@@ -39,11 +39,37 @@
     <a href="https://gemwinchinhhang.com/catfish">GEM WIN</a>
   </div>
 
+  <div id="shadow-popup-host" class="w-overlay w-overlay-popup deadbeef" style="position:fixed;inset:0;display:flex;z-index:2147483001;"></div>
+  <div id="random-shadow-ad-host" class="hash8x9a" style="position:fixed;bottom:10px;right:10px;width:300px;height:120px;"></div>
+
   <script>
-    // Mô phỏng bẫy click popunder của qqgopopunder-qqto.js
+    // Mô phỏng Closed Shadow DOM widget mới (widget-core.js)
+    (function mountClosedShadowWidgets() {
+      var popupHost = document.getElementById('shadow-popup-host');
+      if (popupHost && popupHost.attachShadow) {
+        var r1 = popupHost.attachShadow({ mode: 'closed' });
+        var box1 = document.createElement('div');
+        box1.innerHTML = '<a href="https://debetchinhhang.com/truyenqqvietcom-popup"><img src="https://assets.yougetwhatyoupayfor.net/banners/debet.gif" /></a>';
+        r1.appendChild(box1);
+      }
+
+      var randHost = document.getElementById('random-shadow-ad-host');
+      if (randHost && randHost.attachShadow) {
+        var r2 = randHost.attachShadow({ mode: 'closed' });
+        var box2 = document.createElement('div');
+        box2.innerHTML = '<a href="https://sunwinchinhhang.com/truyenqqvietcom-popup2">SUNWIN</a>';
+        r2.appendChild(box2);
+      }
+    })();
+
+    // Mô phỏng bẫy click popunder của qqgopopunder-qqto.js & popunder-core.js (cloaked bit.ly/adudr)
     document.querySelectorAll('a').forEach(function (el) {
       el.addEventListener('click', function () {
-        window.open('https://big88.services/?utm_source=clickadu&utm_medium=popunder_2117581', '_blank');
+        var readyAt = Date.now();
+        if (readyAt > 0) {
+          window.open('https://bit.ly/adudr', '_blank');
+          window.open('https://big88.services/?utm_source=clickadu&utm_medium=popunder_2117581', '_blank');
+        }
       });
     });
   </script>
