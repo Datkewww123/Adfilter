@@ -1,0 +1,58 @@
+[Adblock Plus 2.0]
+! Title: AdFilter Vietnam & Regional Shield (ABPVN + Self-Hosted Widget Style)
+! Description: Regional filters for Vietnamese manga, movie, news & self-hosted widget/popunder networks
+! Last modified: 2026-11-13
+
+! --- Self-Hosted First-Party Ad Widget & API Systems (e.g. TruyenQQ new stack) ---
+*/template/frontend/js/widget/*$script,xmlhttprequest
+*/api/widget/*$xmlhttprequest,script
+||assets.yougetwhatyoupayfor.net^$image,script,xmlhttprequest
+
+! --- Cloaked Popunder & Redirector Chains (Includes main_frame via $document) ---
+||bondeddarkenedswerve.com^$document,script,subdocument,xmlhttprequest,image,important
+||magiamgia.space^$document,script,subdocument,xmlhttprequest,image,important
+||bit.ly/adudr*$document,script,subdocument,xmlhttprequest,image,important
+
+! --- Vietnamese Ad Networks, Gambling Sponsors & Mirror Domains ---
+||mplmncb.com^$document,script,xmlhttprequest,subdocument,image
+||clickadu.com^$document,script,xmlhttprequest,subdocument
+||big88.services^$document,script,xmlhttprequest,subdocument,image
+||sunwinchinhhang.com^$script,subdocument,image
+||gemwinchinhhang.com^$script,subdocument,image
+||rikvipchinhhang.com^$script,subdocument,image
+||win79chinhhang.com^$script,subdocument,image
+||debetchinhhang.com^$script,subdocument,image
+||five88chinhhang.com^$script,subdocument,image
+||vin88chinhhang.com^$script,subdocument,image
+||hitclubchinhhang.com^$script,subdocument,image
+||xo88chinhhang.online^$script,subdocument,image
+||zbetchinhhang.com^$script,subdocument,image
+||debet.com^$script,subdocument,image
+
+! --- Regional Comic & Streaming Ad Selectors (Including Closed Shadow DOM Hosts) ---
+##div.w-overlay
+##div[class*="w-overlay-"]
+##[data-zone][data-zone-id]
+truyenqqko.com,truyenqqviet.com,truyenqqto.com,nettruyenviet.com,nettruyenco.com##[data-zone]
+##div[id*="catfish-banner"]
+##div[id*="top-banner-"]
+##div[id*="bottom-banner-"]
+##div[id*="mid-banner-"]
+##div[id*="floatLeft"]
+##div[id*="floatRight"]
+##.floating-banner
+##.qc-sticky
+##.qc-left-side
+##.qc-right-side
+##div.ads-responsive
+##div.banner_ads
+
+! --- Procedural Filters for Vietnamese Sponsored & Betting Labels ---
+##div:has-text(/Tài trợ|Nhà cái uy tín|Chơi ngay/i):upward(1)
+
+! --- Regional Scriptlets (Applied by Week 27 Scriptlet Engine) ---
+truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(set, __pcHold, true)
+truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(set, __PopConfig, {})
+truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(nowoif, bondeddarkenedswerve)
+truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(nowoif, bit.ly/adudr)
+truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(nowoif, magiamgia.space)
