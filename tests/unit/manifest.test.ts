@@ -26,6 +26,10 @@ describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
   it('có cấu hình declarative_net_request với rule_resources hợp lệ', () => {
     expect(manifest.declarative_net_request).toBeDefined();
     expect(Array.isArray(manifest.declarative_net_request?.rule_resources)).toBe(true);
-    expect(manifest.declarative_net_request?.rule_resources[0].id).toBe('ruleset_adnetworks');
+    const ids = manifest.declarative_net_request?.rule_resources.map((r) => r.id) ?? [];
+    expect(ids[0]).toBe('ruleset_adnetworks');
+    expect(ids).toContain('ruleset_global');
+    expect(ids).toContain('ruleset_vietnam');
+    expect(ids).toContain('ruleset_redirects');
   });
 });
