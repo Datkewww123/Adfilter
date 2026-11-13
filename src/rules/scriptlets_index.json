@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "global": [
+    {
+      "name": "set",
+      "args": [
+        "canRunAds",
+        "true"
+      ],
+      "raw": "+js(set, canRunAds, true)"
+    },
+    {
+      "name": "set",
+      "args": [
+        "isAdBlockActive",
+        "false"
+      ],
+      "raw": "+js(set, isAdBlockActive, false)"
+    },
+    {
+      "name": "nowoif",
+      "args": [
+        "popunder"
+      ],
+      "raw": "+js(nowoif, popunder)"
+    }
+  ],
+  "byDomain": {
+    "truyenqqko.com": [
+      {
+        "name": "set",
+        "args": [
+          "__pcHold",
+          "true"
+        ],
+        "raw": "+js(set, __pcHold, true)"
+      },
+      {
+        "name": "set",
+        "args": [
+          "__PopConfig",
+          "{}"
+        ],
+        "raw": "+js(set, __PopConfig, {})"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "bondeddarkenedswerve"
+        ],
+        "raw": "+js(nowoif, bondeddarkenedswerve)"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "bit.ly/adudr"
+        ],
+        "raw": "+js(nowoif, bit.ly/adudr)"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "magiamgia.space"
+        ],
+        "raw": "+js(nowoif, magiamgia.space)"
+      }
+    ],
+    "truyenqqviet.com": [
+      {
+        "name": "set",
+        "args": [
+          "__pcHold",
+          "true"
+        ],
+        "raw": "+js(set, __pcHold, true)"
+      },
+      {
+        "name": "set",
+        "args": [
+          "__PopConfig",
+          "{}"
+        ],
+        "raw": "+js(set, __PopConfig, {})"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "bondeddarkenedswerve"
+        ],
+        "raw": "+js(nowoif, bondeddarkenedswerve)"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "bit.ly/adudr"
+        ],
+        "raw": "+js(nowoif, bit.ly/adudr)"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "magiamgia.space"
+        ],
+        "raw": "+js(nowoif, magiamgia.space)"
+      }
+    ],
+    "truyenqqto.com": [
+      {
+        "name": "set",
+        "args": [
+          "__pcHold",
+          "true"
+        ],
+        "raw": "+js(set, __pcHold, true)"
+      },
+      {
+        "name": "set",
+        "args": [
+          "__PopConfig",
+          "{}"
+        ],
+        "raw": "+js(set, __PopConfig, {})"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "bondeddarkenedswerve"
+        ],
+        "raw": "+js(nowoif, bondeddarkenedswerve)"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "bit.ly/adudr"
+        ],
+        "raw": "+js(nowoif, bit.ly/adudr)"
+      },
+      {
+        "name": "nowoif",
+        "args": [
+          "magiamgia.space"
+        ],
+        "raw": "+js(nowoif, magiamgia.space)"
+      }
+    ]
+  }
+}

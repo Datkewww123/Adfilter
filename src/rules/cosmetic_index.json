@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "generic": [
+    ".adsbygoogle",
+    "ins.adsbygoogle",
+    "[id^=\"google_ads_iframe_\"]",
+    "[id^=\"div-gpt-ad\"]",
+    ".taboola-widget",
+    ".OUTBRAIN",
+    ".trc_rbox_outer",
+    ".mgbox",
+    ".sponsored-content",
+    ".ad-placeholder",
+    "[data-ad-slot]",
+    "[data-ad-unit]",
+    "div.w-overlay",
+    "div[class*=\"w-overlay-\"]",
+    "[data-zone][data-zone-id]",
+    "div[id*=\"catfish-banner\"]",
+    "div[id*=\"top-banner-\"]",
+    "div[id*=\"bottom-banner-\"]",
+    "div[id*=\"mid-banner-\"]",
+    "div[id*=\"floatLeft\"]",
+    "div[id*=\"floatRight\"]",
+    ".floating-banner",
+    ".qc-sticky",
+    ".qc-left-side",
+    ".qc-right-side",
+    "div.ads-responsive",
+    "div.banner_ads"
+  ],
+  "byDomain": {
+    "truyenqqko.com": [
+      "[data-zone]"
+    ],
+    "truyenqqviet.com": [
+      "[data-zone]"
+    ],
+    "truyenqqto.com": [
+      "[data-zone]"
+    ],
+    "nettruyenviet.com": [
+      "[data-zone]"
+    ],
+    "nettruyenco.com": [
+      "[data-zone]"
+    ]
+  },
+  "exceptionsByDomain": {},
+  "procedural": [
+    {
+      "domains": [],
+      "excludedDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ],
+      "raw": "div:has-text(/^Sponsored$/i):upward(2)"
+    },
+    {
+      "domains": [],
+      "excludedDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ],
+      "raw": "aside:has-text(/Advertisement/i)"
+    },
+    {
+      "domains": [],
+      "excludedDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ],
+      "raw": "div:has-text(/Tài trợ|Nhà cái uy tín|Chơi ngay/i):upward(1)"
+    }
+  ]
+}
