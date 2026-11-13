@@ -50,7 +50,9 @@ truyenqqko.com,truyenqqviet.com,truyenqqto.com,nettruyenviet.com,nettruyenco.com
 ! --- Procedural Filters for Vietnamese Sponsored & Betting Labels ---
 ##div:has-text(/Tài trợ|Nhà cái uy tín|Chơi ngay/i):upward(1)
 
-! --- Regional Scriptlets (Applied by Week 27 Scriptlet Engine) ---
+! --- Regional Scriptlets (Executed by Week 27 Scriptlet Engine at document_start) ---
+##+js(aeld, click, /readyAt|injectedAt|__pc_|__wcSpoofGate|qqgopopunder/)
+##+js(nowoif, /bondeddarkenedswerve|bit\.ly\/adudr|magiamgia\.space/)
 truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(set, __pcHold, true)
 truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(set, __PopConfig, {})
 truyenqqko.com,truyenqqviet.com,truyenqqto.com##+js(nowoif, bondeddarkenedswerve)

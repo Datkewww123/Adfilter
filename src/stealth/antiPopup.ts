@@ -1,40 +1,7 @@
 import { disguise } from './anti-detect';
+import { isSuspiciousUrl } from './urlBlockRegistry';
 
-// Danh sách các từ khóa cờ bạc, quảng cáo, tracking trong URL popup
-const SUSPICIOUS_URL_PATTERNS = [
-  /shopee\.vn/i,
-  /lazada\.vn/i,
-  /bet\d+/i,
-  /debet/i,
-  /kubet/i,
-  /big\d+/i,
-  /five\d+/i,
-  /red\d+/i,
-  /win\d+/i,
-  /88/i,
-  /casino/i,
-  /game.*bai/i,
-  /nohu/i,
-  /taixiu/i,
-  /sunwin/i,
-  /gemwin/i,
-  /rikvip/i,
-  /zowin/i,
-  /nhatvip/i,
-  /go88/i,
-  /hitclub/i,
-  /789club/i,
-  /b52/i,
-  /chinhhang/i,
-  /mplmncb/i,
-  /clickadu/i,
-  /popunder/i,
-  /ad.*click/i,
-  /pop.*cash/i,
-  /propeller/i,
-  /traffic/i,
-  /redirect/i,
-];
+export { isSuspiciousUrl };
 
 export interface AntiPopupOptions {
   onBlocked?: (url: string) => void;
@@ -61,9 +28,30 @@ export function isUserGestureRecent(thresholdMs: number = 1000): boolean {
   return Date.now() - lastUserClickTime <= thresholdMs;
 }
 
-export function isSuspiciousUrl(url: string): boolean {
-  if (!url || url === 'about:blank') return false;
-  return SUSPICIOUS_URL_PATTERNS.some((pattern) => pattern.test(url));
+function installSyntheticAnchorTrap(
+  targetWindow: Window,
+  options: AntiPopupOptions
+): void {
+  const anchorProto = (targetWindow as unknown as { HTMLAnchorElement?: typeof HTMLAnchorElement })
+    .HTMLAnchorElement?.prototype;
+  const originalAnchorClick = anchorProto?.click;
+  if (!anchorProto || !originalAnchorClick) return;
+
+  const patchedAnchorClick = function (this: HTMLAnchorElement): void {
+    const target = this.getAttribute('target') || this.target || '';
+    const href = this.href || this.getAttribute('href') || '';
+    if (target.toLowerCase() === '_blank' && (isSuspiciousUrl(href) || !isUserGestureRecent(1000))) {
+      options.onBlocked?.(href);
+      return;
+    }
+    return originalAnchorClick.call(this);
+  };
+
+  disguise(
+    patchedAnchorClick as (...args: unknown[]) => unknown,
+    originalAnchorClick as (...args: unknown[]) => unknown
+  );
+  anchorProto.click = patchedAnchorClick;
 }
 
 export function installAntiPopup(targetWindow: Window = window, options: AntiPopupOptions = {}): void {
@@ -71,6 +59,7 @@ export function installAntiPopup(targetWindow: Window = window, options: AntiPop
   if (!originalOpen) return;
 
   trackUserGesture(targetWindow);
+  installSyntheticAnchorTrap(targetWindow, options);
 
   function patchedOpen(
     this: Window,
@@ -86,7 +75,7 @@ export function installAntiPopup(targetWindow: Window = window, options: AntiPop
       return null;
     }
 
-    // 2. Nếu URL chứa từ khóa quảng cáo/cờ bạc -> Chặn
+    // 2. Nếu URL chứa từ khóa quảng cáo/cờ bạc/cloaked redirector -> Chặn
     if (isSuspiciousUrl(urlString)) {
       options.onBlocked?.(urlString);
       return null;
