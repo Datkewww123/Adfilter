@@ -19,9 +19,30 @@
         "id": "ruleset_adnetworks",
         "enabled": true,
         "path": "rules/rules_adnetworks.json"
+      },
+      {
+        "id": "ruleset_global",
+        "enabled": true,
+        "path": "rules/rules_global.json"
+      },
+      {
+        "id": "ruleset_vietnam",
+        "enabled": true,
+        "path": "rules/rules_vietnam.json"
+      },
+      {
+        "id": "ruleset_redirects",
+        "enabled": true,
+        "path": "rules/rules_redirects.json"
       }
     ]
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["resources/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

@@ -1,0 +1,66 @@
+[Adblock Plus 2.0]
+! Title: AdFilter Global Standard Ads & Trackers (EasyList / uBO Style)
+! Description: Global network, redirect, cosmetic, procedural & scriptlet rules (YouTube excluded automatically)
+! Last modified: 2026-11-13
+
+! --- Major Global Ad & Popunder Networks ---
+||taboola.com^$third-party
+||outbrain.com^$third-party
+||criteo.com^$third-party
+||criteo.net^$third-party
+||pubmatic.com^$third-party
+||rubiconproject.com^$third-party
+||openx.net^$third-party
+||casalemedia.com^$third-party
+||adnxs.com^$third-party
+||advertising.com^$third-party
+||media.net^$third-party
+||sharethrough.com^$third-party
+||teads.tv^$third-party
+||amazon-adsystem.com^$third-party
+||moatads.com^$third-party
+||quantserve.com^$third-party
+||scorecardresearch.com^$third-party
+||zedo.com^$third-party
+||revcontent.com^$third-party
+||trafficjunky.net^$third-party
+||juicyads.com^$third-party
+||popcash.net^$script,subdocument
+||onclkds.com^$script,subdocument
+||onclickads.net^$script,subdocument
+||a-ads.com^$script,subdocument,image
+||coinzilla.com^$script,subdocument,image
+||hilltopads.net^$script,subdocument
+||monetag.com^$script,subdocument
+||galaksion.com^$script,subdocument
+
+! --- Safe Noop Redirect Replacements (Defeat Anti-Adblock onerror checks) ---
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect=noopjs,important
+||googletagmanager.com/gtag/js$script,redirect=noopjs
+||google-analytics.com/analytics.js$script,redirect=noopjs
+||connect.facebook.net/*/fbevents.js$script,redirect=noopjs
+||imasdk.googleapis.com/js/sdkloader/ima3.js$script,redirect=noopjs
+||pixel.adsafeprotected.com^$image,redirect=1x1-transparent.gif
+
+! --- Generic Cosmetic Selectors (Zero-FOUC CSS) ---
+##.adsbygoogle
+##ins.adsbygoogle
+##[id^="google_ads_iframe_"]
+##[id^="div-gpt-ad"]
+##.taboola-widget
+##.OUTBRAIN
+##.trc_rbox_outer
+##.mgbox
+##.sponsored-content
+##.ad-placeholder
+##[data-ad-slot]
+##[data-ad-unit]
+
+! --- Generic Procedural Selectors ---
+##div:has-text(/^Sponsored$/i):upward(2)
+##aside:has-text(/Advertisement/i)
+
+! --- Generic Anti-Popunder & Anti-Adblock Scriptlets ---
+##+js(set, canRunAds, true)
+##+js(set, isAdBlockActive, false)
+##+js(nowoif, popunder)

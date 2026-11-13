@@ -1,5 +1,6 @@
 import * as esbuild from 'esbuild';
 import fs from 'node:fs/promises';
+import { compileFilterWorkspace } from './filterCompiler';
 import { transformManifest, type Target } from './transformManifest';
 
 async function build() {
@@ -10,6 +11,12 @@ async function build() {
 
   const out = dev ? `dist/${target}-dev` : `dist/${target}`;
   await fs.mkdir(out, { recursive: true });
+
+  // 0. Biên dịch bộ lọc chuẩn ABP/uBO -> DNR JSON + Cosmetic/Scriptlet index
+  const filterSummary = await compileFilterWorkspace(process.cwd());
+  console.log(
+    `🧩 Compiled filters -> global: ${filterSummary.globalRulesCount}, vietnam: ${filterSummary.vietnamRulesCount}, redirects: ${filterSummary.redirectRulesCount}`
+  );
 
   // 1. Biên dịch TypeScript
   await esbuild.build({
@@ -53,6 +60,14 @@ async function build() {
     await fs.cp(rulesSrc, rulesDest, { recursive: true });
   } catch {
     // rules dir optional
+  }
+
+  const resourcesSrc = 'src/resources';
+  const resourcesDest = `${out}/resources`;
+  try {
+    await fs.cp(resourcesSrc, resourcesDest, { recursive: true });
+  } catch {
+    // resources dir optional
   }
 
   // Nếu là Chromium bản chính thức, đồng bộ ra dist/ gốc

@@ -50,4 +50,34 @@ describe('DeclarativeNetRequest Rules', () => {
     expect(filters).toContain('||sunwinchinhhang.com^');
     expect(filters).toContain('||gemwinchinhhang.com^');
   });
+
+  it('các ruleset biên dịch mới (rules_global, rules_vietnam, rules_redirects) hợp lệ & cách ly YouTube', () => {
+    const rulesDir = path.resolve(__dirname, '../../src/rules');
+    for (const file of ['rules_global.json', 'rules_vietnam.json', 'rules_redirects.json']) {
+      const fullPath = path.join(rulesDir, file);
+      expect(fs.existsSync(fullPath)).toBe(true);
+      const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed.length).toBeGreaterThan(0);
+
+      const ids = new Set<number>();
+      for (const rule of parsed) {
+        expect(rule.id).toBeGreaterThan(0);
+        expect(ids.has(rule.id)).toBe(false);
+        ids.add(rule.id);
+        expect(rule.condition.excludedInitiatorDomains).toContain('youtube.com');
+      }
+    }
+
+    const vietnamRules = JSON.parse(
+      fs.readFileSync(path.join(rulesDir, 'rules_vietnam.json'), 'utf-8')
+    );
+    const vnFilters = vietnamRules.map(
+      (r: { condition: { urlFilter: string } }) => r.condition.urlFilter
+    );
+    expect(vnFilters).toContain('*/template/frontend/js/widget/*');
+    expect(vnFilters).toContain('*/api/widget/*');
+    expect(vnFilters).toContain('||bondeddarkenedswerve.com^');
+    expect(vnFilters).toContain('||assets.yougetwhatyoupayfor.net^');
+  });
 });
