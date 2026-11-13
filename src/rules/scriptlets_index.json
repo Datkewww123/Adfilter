@@ -23,6 +23,21 @@
         "popunder"
       ],
       "raw": "+js(nowoif, popunder)"
+    },
+    {
+      "name": "aeld",
+      "args": [
+        "click",
+        "/readyAt|injectedAt|__pc_|__wcSpoofGate|qqgopopunder/"
+      ],
+      "raw": "+js(aeld, click, /readyAt|injectedAt|__pc_|__wcSpoofGate|qqgopopunder/)"
+    },
+    {
+      "name": "nowoif",
+      "args": [
+        "/bondeddarkenedswerve|bit\\.ly\\/adudr|magiamgia\\.space/"
+      ],
+      "raw": "+js(nowoif, /bondeddarkenedswerve|bit\\.ly\\/adudr|magiamgia\\.space/)"
     }
   ],
   "byDomain": {

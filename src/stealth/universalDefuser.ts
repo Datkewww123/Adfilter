@@ -3,6 +3,8 @@ import { installAntiRedirect } from './antiRedirect';
 import { installAntiAdblockDefuser } from './antiAdblockDefuser';
 import { unlockContextMenu } from './antiContextMenuTrap';
 import { installVastInterceptor } from './videoAdInterceptor';
+import { installShadowShield } from './scriptlets/shadowShield';
+import { runCompiledScriptlets } from './scriptlets/runner';
 
 (function initUniversalDefuser() {
   try {
@@ -16,6 +18,10 @@ import { installVastInterceptor } from './videoAdInterceptor';
     if (isYouTube) {
       return;
     }
+
+    // 0. Chạy Scriptlet Engine (Brave/uBO +js) & attachShadow Shield ngay tại document_start
+    installShadowShield(window);
+    runCompiledScriptlets(window);
 
     // 1. Chống bẫy Anti-Adblock trong MAIN world
     installAntiAdblockDefuser(window);

@@ -20,7 +20,11 @@ test('chặn sạch 6 vị trí quảng cáo đặc thù web truyện Việt Nam
   // 4. Banner chân trang Catfish (SUNWIN / GEMWIN) bị ẩn
   await expect(page.locator('#catfish-banner-info-container')).not.toBeVisible();
 
-  // 5. Click vào link đọc chương KHÔNG bị nhảy tab popunder sang Big88
+  // 4b. Widget Closed Shadow DOM (.w-overlay-popup & host class ngẫu nhiên) bị attachShadow Shield ẩn triệt để
+  await expect(page.locator('#shadow-popup-host')).not.toBeVisible();
+  await expect(page.locator('#random-shadow-ad-host')).not.toBeVisible();
+
+  // 5. Click vào link đọc chương KHÔNG bị nhảy tab popunder sang Big88 hoặc bit.ly/adudr
   let popunderOpened = false;
   context.on('page', () => {
     popunderOpened = true;
