@@ -77,4 +77,27 @@ describe('FloatingBannerGuard', () => {
     expect(rightFlank.style.display).toBe('none');
     expect(catfishModal.style.display).toBe('none');
   });
+
+  it('ẩn host Closed Shadow DOM [data-adfilter-shadow-ad], .w-overlay và bảo toàn modal đăng nhập hợp lệ', () => {
+    const shadowHost = document.createElement('div');
+    shadowHost.setAttribute('data-adfilter-shadow-ad', '1');
+    document.body.appendChild(shadowHost);
+
+    const wOverlay = document.createElement('div');
+    wOverlay.className = 'w-overlay w-overlay-popup abc123';
+    document.body.appendChild(wOverlay);
+
+    const loginModal = document.createElement('div');
+    loginModal.id = 'login-modal';
+    loginModal.style.position = 'fixed';
+    loginModal.style.zIndex = '2147483005';
+    loginModal.innerHTML = '<form><input type="email" /><button>Đăng nhập</button></form>';
+    document.body.appendChild(loginModal);
+
+    const count = purgeFloatingAds(document);
+    expect(count).toBe(2);
+    expect(shadowHost.style.display).toBe('none');
+    expect(wOverlay.style.display).toBe('none');
+    expect(loginModal.style.display).not.toBe('none');
+  });
 });

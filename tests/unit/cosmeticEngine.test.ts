@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseCosmeticRule, generateInjectedCss } from '../../src/cosmetic/cosmeticEngine';
+import {
+  parseCosmeticRule,
+  generateInjectedCss,
+  collectCosmeticSelectorsForHost,
+  generateCosmeticCssFromIndex,
+  type CosmeticIndex,
+} from '../../src/cosmetic/cosmeticEngine';
 
 describe('CosmeticFilterEngine', () => {
   it('phân tích chính xác quy tắc toàn cục và theo domain', () => {
@@ -43,5 +49,30 @@ describe('CosmeticFilterEngine', () => {
     const rules = [{ domain: 'example.com', selector: '.ads' }];
     const css = generateInjectedCss(rules, 'nettruyen.com');
     expect(css).toBe('');
+  });
+
+  it('thu thập selector từ cosmetic_index theo domain/subdomain, xử lý ngoại lệ #@# và bỏ qua YouTube', () => {
+    const index: CosmeticIndex = {
+      version: 1,
+      generic: ['.adsbygoogle', '.generic-banner'],
+      byDomain: {
+        'truyenqqko.com': ['[data-zone]', 'div.w-overlay'],
+      },
+      exceptionsByDomain: {
+        'safe.example.com': ['.generic-banner'],
+      },
+      procedural: [],
+    };
+
+    const qqSelectors = collectCosmeticSelectorsForHost(index, 'm.truyenqqko.com');
+    expect(qqSelectors).toContain('.adsbygoogle');
+    expect(qqSelectors).toContain('[data-zone]');
+
+    const safeCss = generateCosmeticCssFromIndex(index, 'safe.example.com');
+    expect(safeCss).toContain('.adsbygoogle');
+    expect(safeCss).not.toContain('.generic-banner');
+
+    expect(collectCosmeticSelectorsForHost(index, 'www.youtube.com')).toEqual([]);
+    expect(generateCosmeticCssFromIndex(index, 'youtube.com')).toBe('');
   });
 });
