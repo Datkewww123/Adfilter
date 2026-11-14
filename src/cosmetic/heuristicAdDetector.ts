@@ -17,9 +17,17 @@ export function isIabBannerSize(width: number, height: number): boolean {
   );
 }
 
+const EXTERNAL_BANNER_IMAGE_REGEX = /mplmncb\.com|yougetwhatyoupayfor\.net/i;
+
+function hideAdContainer(container: HTMLElement): void {
+  container.style.setProperty('display', 'none', 'important');
+  container.style.setProperty('height', '0px', 'important');
+  container.style.setProperty('visibility', 'hidden', 'important');
+}
+
 /**
- * Quét toàn bộ thẻ iframe trong cây DOM, nếu phát hiện iframe có kích thước khớp với
- * banner IAB thì tự động ẩn thẻ iframe và container cha của nó với display: none !important.
+ * Quét toàn bộ thẻ iframe kích thước chuẩn IAB và banner GIF ngoài trong thẻ <a> quảng cáo
+ * (bảo vệ an toàn ảnh nội dung bài viết / trang truyện trong <main> / <article>).
  * @returns Số lượng phần tử quảng cáo đã được ẩn
  */
 export function scanAndHideHeuristicAds(root: Document | HTMLElement = document): number {
@@ -29,10 +37,24 @@ export function scanAndHideHeuristicAds(root: Document | HTMLElement = document)
   iframes.forEach((iframe) => {
     const rect = iframe.getBoundingClientRect();
     if (isIabBannerSize(rect.width, rect.height)) {
-      const container = iframe.closest('div') || iframe;
-      (container as HTMLElement).style.setProperty('display', 'none', 'important');
-      (container as HTMLElement).style.setProperty('height', '0px', 'important');
-      (container as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
+      const container = (iframe.closest('div') || iframe) as HTMLElement;
+      if (container.style.display !== 'none') {
+        hideAdContainer(container);
+        count++;
+      }
+    }
+  });
+
+  // Quét banner ảnh quảng cáo IAB bọc trong liên kết mở tab ngoài từ CDN quảng cáo
+  root.querySelectorAll<HTMLAnchorElement>('a[href] > img').forEach((imgEl) => {
+    const src = imgEl.getAttribute('src') || '';
+    if (!EXTERNAL_BANNER_IMAGE_REGEX.test(src)) return;
+
+    const anchor = imgEl.parentElement;
+    const container = (anchor?.closest('div, aside, section') || anchor || imgEl) as HTMLElement;
+    if (container.tagName === 'MAIN' || container.tagName === 'ARTICLE') return;
+    if (container.style.display !== 'none') {
+      hideAdContainer(container);
       count++;
     }
   });

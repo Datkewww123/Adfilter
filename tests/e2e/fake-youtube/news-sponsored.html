@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tech & Comics Portal - Universal Adblock E2E</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 20px; }
+    .qc-sticky { position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: #111; color: #fff; }
+    #login-modal { position: fixed; top: 20px; right: 20px; width: 220px; padding: 10px; z-index: 2147483005; background: #eee; }
+    .native-ad-card { border: 1px solid #ccc; padding: 12px; margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <div class="adsbygoogle" style="width: 728px; height: 90px; background: #fdd;">AdSense Slot</div>
+
+  <main id="news-main">
+    <article id="real-article">
+      <h1>Bản tin công nghệ hôm nay</h1>
+      <p>Đây là nội dung bài viết thật cần được giữ nguyên hiển thị cho người đọc.</p>
+    </article>
+
+    <div class="native-ad-card" id="sponsored-native-card">
+      <div class="meta">
+        <div class="label-row"><span>Sponsored</span></div>
+      </div>
+      <p>Ưu đãi tài chính độc quyền</p>
+    </div>
+
+    <div class="native-ad-card" id="vn-tai-tro-card">
+      <div>Tài trợ bởi đối tác game</div>
+    </div>
+  </main>
+
+  <div id="login-modal">
+    <form><button type="button">Đăng nhập</button></form>
+  </div>
+
+  <div class="qc-sticky" id="sticky-footer-ad">
+    <a href="https://assets.example/promo">Banner chân trang</a>
+  </div>
+</body>
+</html>
