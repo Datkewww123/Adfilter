@@ -1,5 +1,12 @@
 import { installClickHijackGuard } from '../core/clickHijackGuard';
-import { parseCosmeticRule, generateInjectedCss, type CosmeticRule } from '../cosmetic/cosmeticEngine';
+import {
+  parseCosmeticRule,
+  generateCosmeticCssFromIndex,
+  type CosmeticIndex,
+  type CosmeticRule,
+} from '../cosmetic/cosmeticEngine';
+import { applyProceduralCosmeticRules } from '../cosmetic/proceduralEngine';
+import compiledCosmeticIndexJson from '../rules/cosmetic_index.json';
 import { scanAndHideHeuristicAds } from '../cosmetic/heuristicAdDetector';
 import { purgeFloatingAds } from '../cosmetic/floatingBannerGuard';
 import { collapseEmptyAdSlots } from '../cosmetic/elementCollapsing';
@@ -49,7 +56,12 @@ export const COMMON_COSMETIC_RULES_RAW = [
   '##a[href*="red88"]',
   '##a[href*="big88"]',
   '##img[src*="mplmncb.com"]',
+  '##[data-adfilter-shadow-ad="1"]',
+  '##div.w-overlay',
+  '##div[class*="w-overlay-"]',
 ];
+
+const COMPILED_COSMETIC_INDEX = compiledCosmeticIndexJson as CosmeticIndex;
 
 export const BUILTIN_COSMETIC_RULES: CosmeticRule[] = COMMON_COSMETIC_RULES_RAW
   .map((line) => parseCosmeticRule(line))
@@ -63,7 +75,12 @@ export function injectCosmeticStyle(doc: Document = document): HTMLStyleElement 
     return null; // Đã tiêm rồi, không tiêm trùng lặp
   }
 
-  const css = generateInjectedCss(BUILTIN_COSMETIC_RULES, window.location.hostname);
+  const builtinSelectors = BUILTIN_COSMETIC_RULES.map((r) => r.selector);
+  const css = generateCosmeticCssFromIndex(
+    COMPILED_COSMETIC_INDEX,
+    window.location.hostname,
+    builtinSelectors
+  );
   if (!css) return null;
 
   const styleEl = doc.createElement('style');
@@ -154,9 +171,11 @@ export function purgeVietnameseAdBanners(doc: Document = document): number {
  * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images + Movie Video Overlays + VN Manga Ads
  */
 export function runCosmeticSweep(doc: Document = document, userSelectors: string[] = []): void {
+  const host = typeof window !== 'undefined' ? window.location?.hostname ?? '' : '';
   scanAndHideHeuristicAds(doc);
   purgeFloatingAds(doc);
   purgeVietnameseAdBanners(doc);
+  applyProceduralCosmeticRules(doc, COMPILED_COSMETIC_INDEX.procedural ?? [], host);
   collapseEmptyAdSlots(doc);
   bypassAdblockModals(doc);
   resolveLazyImages(doc);
@@ -205,10 +224,13 @@ export function initUniversalContent(
   // 5. Khởi động bộ bảo vệ tải ảnh lười cho truyện tranh
   const stopLazyLoad = startLazyLoadProtector(doc);
 
-  // 6. Thiết lập MutationObserver để bắt kịp các quảng cáo nạp ngầm (lazy-load) khi đọc truyện
+  // 6. Thiết lập MutationObserver tối ưu: chỉ quét lại khi có Element mới được chèn vào DOM
   let sweepTimer: any = null;
-  const observer = new MutationObserver(() => {
-    if (sweepTimer) return;
+  const observer = new MutationObserver((mutations) => {
+    const hasAddedElement = mutations.some((m) =>
+      Array.from(m.addedNodes).some((node) => node.nodeType === 1)
+    );
+    if (!hasAddedElement || sweepTimer) return;
     sweepTimer = setTimeout(() => {
       sweepTimer = null;
       runCosmeticSweep(doc);
