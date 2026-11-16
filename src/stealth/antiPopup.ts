@@ -10,9 +10,13 @@ export interface AntiPopupOptions {
 interface ClickIntentContext {
   timestamp: number;
   isPlayerInteraction: boolean;
+  clickedAnchorElement: Element | null;
   clickedAnchorHref: string | null;
   clickedAnchorTarget: string;
 }
+
+const PATCHED_OPEN_SYMBOL = Symbol.for('adfilter.openPatched');
+const IFRAME_HOOKED_SYMBOL = Symbol.for('adfilter.iframeHooked');
 
 let lastUserClickTime = 0;
 let lastClickIntent: ClickIntentContext | null = null;
@@ -47,6 +51,7 @@ export function trackUserGesture(targetWindow: Window = window): void {
         lastClickIntent = {
           timestamp: now,
           isPlayerInteraction: isPlayerControlTarget(target),
+          clickedAnchorElement: anchor,
           clickedAnchorHref: rawHref,
           clickedAnchorTarget: (anchor?.getAttribute?.('target') || '').toLowerCase(),
         };
@@ -71,8 +76,7 @@ function tryParseUrl(raw: string, base?: string): URL | null {
 }
 
 /**
- * Kiểm tra liệu lệnh mở popup/tab/redirect có đi ngược ý định click thật của người dùng hay không
- * (ví dụ: vừa bấm nút Play video hoặc bấm link nội bộ sang trang thông tin phim nhưng JS lại nhảy tab domain lạ).
+ * Kiểm tra liệu lệnh mở popup/tab/redirect có đi ngược ý định click thật của người dùng hay không.
  */
 export function isUnintendedPopupAttempt(
   urlString: string,
@@ -85,7 +89,6 @@ export function isUnintendedPopupAttempt(
     return false;
   }
 
-  // Bấm nút Play / khung video thì mọi popup mở tab ngoài đều là popunder
   if (lastClickIntent.isPlayerInteraction) {
     return true;
   }
@@ -97,7 +100,6 @@ export function isUnintendedPopupAttempt(
   const currentOrigin = targetWindow.location?.origin;
   const isCrossOriginDest = Boolean(currentOrigin && destParsed.origin !== currentOrigin);
 
-  // Người dùng bấm vào thẻ <a href="..."> (ví dụ trang chi tiết phim), nhưng JS mở URL cross-origin khác hẳn href gốc
   if (lastClickIntent.clickedAnchorHref) {
     const anchorParsed = tryParseUrl(lastClickIntent.clickedAnchorHref, baseHref);
     if (anchorParsed && isCrossOriginDest && anchorParsed.origin !== destParsed.origin) {
@@ -106,12 +108,74 @@ export function isUnintendedPopupAttempt(
     return false;
   }
 
-  // Người dùng bấm vào thẻ không phải <a> (div/span/button...) nhưng JS tự ý nhảy sang origin ngoài
   if (isCrossOriginDest) {
     return true;
   }
 
   return false;
+}
+
+function isHiddenTrapAnchor(anchor: HTMLElement, targetWindow: Window): boolean {
+  const style = targetWindow.getComputedStyle?.(anchor);
+  const pos = style?.position || anchor.style?.position;
+  if (pos !== 'fixed' && pos !== 'absolute') return false;
+
+  const opacity = parseFloat(style?.opacity || anchor.style?.opacity || '1');
+  if (!isNaN(opacity) && opacity < 0.1) return true;
+
+  const rect = anchor.getBoundingClientRect?.();
+  if (
+    rect &&
+    targetWindow.innerWidth > 0 &&
+    targetWindow.innerHeight > 0 &&
+    rect.width >= targetWindow.innerWidth * 0.65 &&
+    rect.height >= targetWindow.innerHeight * 0.65 &&
+    (anchor.textContent || '').trim().length === 0
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function installNativeAnchorClickTrap(
+  targetWindow: Window,
+  options: AntiPopupOptions
+): void {
+  const doc = (targetWindow as unknown as { document?: Document }).document;
+  if (!doc || typeof doc.addEventListener !== 'function') return;
+
+  doc.addEventListener(
+    'click',
+    (e: Event) => {
+      const target = (e.target as Element | null) ?? null;
+      const anchor = target?.closest?.('a[href]') as HTMLElement | null;
+      if (!anchor) return;
+
+      const rawHref = anchor.getAttribute('href') || (anchor as HTMLAnchorElement).href || '';
+      const fullHref = (anchor as HTMLAnchorElement).href || rawHref;
+      const targetAttr = (anchor.getAttribute('target') || '').toLowerCase();
+
+      const wasHrefSwapped =
+        Boolean(lastClickIntent) &&
+        lastClickIntent!.clickedAnchorElement === anchor &&
+        lastClickIntent!.clickedAnchorHref !== rawHref &&
+        lastClickIntent!.clickedAnchorHref !== fullHref;
+
+      const isSuspicious = isSuspiciousUrl(fullHref) || isSuspiciousUrl(rawHref);
+      const isHiddenTargetBlank =
+        targetAttr === '_blank' && isHiddenTrapAnchor(anchor, targetWindow);
+
+      if (isSuspicious || wasHrefSwapped || isHiddenTargetBlank) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (wasHrefSwapped && lastClickIntent?.clickedAnchorHref) {
+          anchor.setAttribute('href', lastClickIntent.clickedAnchorHref);
+        }
+        options.onBlocked?.(fullHref || rawHref);
+      }
+    },
+    { capture: true }
+  );
 }
 
 function installSyntheticAnchorTrap(
@@ -126,7 +190,10 @@ function installSyntheticAnchorTrap(
   const patchedAnchorClick = function (this: HTMLAnchorElement): void {
     const target = this.getAttribute('target') || this.target || '';
     const href = this.href || this.getAttribute('href') || '';
-    if (target.toLowerCase() === '_blank' && isUnintendedPopupAttempt(href, targetWindow)) {
+    if (
+      (target.toLowerCase() === '_blank' || isSuspiciousUrl(href)) &&
+      isUnintendedPopupAttempt(href, targetWindow)
+    ) {
       options.onBlocked?.(href);
       return;
     }
@@ -140,6 +207,90 @@ function installSyntheticAnchorTrap(
   anchorProto.click = patchedAnchorClick;
 }
 
+function installFormSubmitTrap(
+  targetWindow: Window,
+  options: AntiPopupOptions
+): void {
+  const doc = (targetWindow as unknown as { document?: Document }).document;
+  doc?.addEventListener?.(
+    'submit',
+    (e: Event) => {
+      const form = e.target as HTMLFormElement | null;
+      if (!form) return;
+      const target = (form.getAttribute('target') || form.target || '').toLowerCase();
+      const action = form.getAttribute('action') || form.action || '';
+      if (target === '_blank' && (isSuspiciousUrl(action) || isUnintendedPopupAttempt(action, targetWindow))) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        options.onBlocked?.(action);
+      }
+    },
+    { capture: true }
+  );
+
+  const formProto = (targetWindow as unknown as { HTMLFormElement?: typeof HTMLFormElement })
+    .HTMLFormElement?.prototype;
+  const origSubmit = formProto?.submit;
+  if (!formProto || !origSubmit) return;
+
+  const patchedSubmit = function (this: HTMLFormElement): void {
+    const target = (this.getAttribute('target') || this.target || '').toLowerCase();
+    const action = this.getAttribute('action') || this.action || '';
+    if (target === '_blank' && (isSuspiciousUrl(action) || isUnintendedPopupAttempt(action, targetWindow))) {
+      options.onBlocked?.(action);
+      return;
+    }
+    return origSubmit.call(this);
+  };
+
+  disguise(
+    patchedSubmit as (...args: unknown[]) => unknown,
+    origSubmit as (...args: unknown[]) => unknown
+  );
+  formProto.submit = patchedSubmit;
+}
+
+function installIframeContentWindowOpenGuard(
+  targetWindow: Window,
+  createOpenWrapper: (win: Window, orig: Window['open']) => Window['open']
+): void {
+  try {
+    const store = targetWindow as unknown as Record<symbol, unknown>;
+    if (store[IFRAME_HOOKED_SYMBOL]) return;
+
+    const iframeProto = (
+      targetWindow as unknown as { HTMLIFrameElement?: typeof HTMLIFrameElement }
+    ).HTMLIFrameElement?.prototype;
+    if (!iframeProto) return;
+
+    const desc = Object.getOwnPropertyDescriptor(iframeProto, 'contentWindow');
+    if (!desc?.get || desc.configurable === false) return;
+
+    const originalGet = desc.get;
+    Object.defineProperty(iframeProto, 'contentWindow', {
+      configurable: true,
+      get(this: HTMLIFrameElement) {
+        const childWin = originalGet.call(this);
+        try {
+          if (childWin && typeof childWin.open === 'function') {
+            const childStore = childWin as unknown as Record<symbol, unknown>;
+            if (!childStore[PATCHED_OPEN_SYMBOL]) {
+              childWin.open = createOpenWrapper(childWin, childWin.open);
+              childStore[PATCHED_OPEN_SYMBOL] = true;
+            }
+          }
+        } catch {
+          // Cross-origin iframe bảo mật — bỏ qua an toàn
+        }
+        return childWin;
+      },
+    });
+    store[IFRAME_HOOKED_SYMBOL] = true;
+  } catch {
+    // Môi trường không hỗ trợ override
+  }
+}
+
 export function installAntiPopup(targetWindow: Window = window, options: AntiPopupOptions = {}): void {
   const originalOpen = targetWindow.open;
   if (!originalOpen) return;
@@ -147,24 +298,45 @@ export function installAntiPopup(targetWindow: Window = window, options: AntiPop
   lastUserClickTime = 0;
   lastClickIntent = null;
   trackUserGesture(targetWindow);
+  installNativeAnchorClickTrap(targetWindow, options);
   installSyntheticAnchorTrap(targetWindow, options);
+  installFormSubmitTrap(targetWindow, options);
 
-  function patchedOpen(
-    this: Window,
-    url?: string | URL,
-    target?: string,
-    features?: string
-  ): WindowProxy | null {
-    const urlString = url ? String(url) : '';
+  const createOpenWrapper = (ownerWin: Window, origOpen: Window['open']): Window['open'] => {
+    function patchedOpen(
+      this: Window,
+      url?: string | URL,
+      target?: string,
+      features?: string
+    ): WindowProxy | null {
+      const urlString = url ? String(url) : '';
 
-    if (isUnintendedPopupAttempt(urlString, targetWindow)) {
-      options.onBlocked?.(urlString);
-      return null;
+      if (isUnintendedPopupAttempt(urlString, targetWindow)) {
+        options.onBlocked?.(urlString);
+        return null;
+      }
+
+      return origOpen.call(this || ownerWin, url, target, features);
     }
 
-    return originalOpen.call(this, url, target, features);
+    disguise(patchedOpen, origOpen);
+    return patchedOpen;
+  };
+
+  const mainPatchedOpen = createOpenWrapper(targetWindow, originalOpen);
+  targetWindow.open = mainPatchedOpen;
+  (targetWindow as unknown as Record<symbol, unknown>)[PATCHED_OPEN_SYMBOL] = true;
+
+  // Chặn chiêu `delete window.open` quay về Window.prototype.open
+  try {
+    const winProto = (targetWindow as unknown as { Window?: { prototype?: Window } }).Window
+      ?.prototype;
+    if (winProto && typeof winProto.open === 'function' && winProto.open !== mainPatchedOpen) {
+      winProto.open = createOpenWrapper(targetWindow, winProto.open);
+    }
+  } catch {
+    // Bỏ qua nếu Window.prototype bị đóng băng
   }
 
-  disguise(patchedOpen, originalOpen);
-  targetWindow.open = patchedOpen;
+  installIframeContentWindowOpenGuard(targetWindow, createOpenWrapper);
 }

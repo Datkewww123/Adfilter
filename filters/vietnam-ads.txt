@@ -11,6 +11,7 @@
 ! --- Cloaked Popunder & Redirector Chains (Includes main_frame via $document) ---
 ||bondeddarkenedswerve.com^$document,script,subdocument,xmlhttprequest,image,important
 ||magiamgia.space^$document,script,subdocument,xmlhttprequest,image,important
+||adqc.net^$document,script,subdocument,xmlhttprequest,image,important
 ||bit.ly/adudr*$document,script,subdocument,xmlhttprequest,image,important
 
 ! --- Vietnamese Ad Networks, Gambling Sponsors & Mirror Domains ---

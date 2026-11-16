@@ -23,8 +23,11 @@ test('bảo vệ toàn diện web xem phim: iframe Play popunder, card phim popu
   await expect(page.locator('#player-controls-bar')).toBeVisible();
   await expect(page.locator('#outer-pause-bom88-box')).not.toBeVisible();
 
-  // 2. Click vào thẻ phim chuyển trang thông tin KHÔNG bị nhảy tab popunder lạ
+  // 2. Link bẫy tĩnh bom88.adqc.net bị ẩn tự động; click card phim, link tráo href sang bom88.adqc.net và iframe about:blank KHÔNG mở tab mới
+  await expect(page.locator('#bom88-static-link')).not.toBeVisible();
   await page.click('#movie-card-link');
+  await page.click('#swapped-trap-link');
+  await page.click('#iframe-bypass-btn');
   await page.waitForTimeout(250);
   expect(unexpectedTabOpened).toBe(false);
 

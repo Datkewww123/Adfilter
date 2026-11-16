@@ -26,6 +26,7 @@ const BASE_SUSPICIOUS_URL_PATTERNS: RegExp[] = [
   /chinhhang/i,
   /vsbet/i,
   /bom88/i,
+  /adqc\.net/i,
   /yo88/i,
   /zo88/i,
   /hit\.?club/i,

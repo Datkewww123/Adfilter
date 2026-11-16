@@ -27,6 +27,7 @@ describe('AntiPopup Engine', () => {
     expect(isSuspiciousUrl('https://magiamgia.space/shopee')).toBe(true);
     expect(isSuspiciousUrl('https://vsbet.com/promo')).toBe(true);
     expect(isSuspiciousUrl('https://bom88.win/')).toBe(true);
+    expect(isSuspiciousUrl('https://bom88.adqc.net/cpd/animevietsubpopunder')).toBe(true);
     expect(isSuspiciousUrl('https://yo88.club/')).toBe(true);
     expect(isSuspiciousUrl('https://zo88.vip/')).toBe(true);
     expect(isSuspiciousUrl('https://hit.club/')).toBe(true);
@@ -138,5 +139,75 @@ describe('AntiPopup Engine', () => {
     // Nhưng cho phép link hợp lệ do người dùng mở
     fakeWindow.open('https://truyenqqto.com/chap-2', '_blank');
     expect(originalOpenMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('chặn native click tráo href lúc pointerdown và chặn <form target="_blank">.submit()', () => {
+    const clickHandlers: Array<(e: Event) => void> = [];
+    const pointerHandlers: Array<(e?: Event) => void> = [];
+    const submitHandlers: Array<(e: Event) => void> = [];
+
+    const origFormSubmit = vi.fn();
+    class FakeForm {
+      target = '_blank';
+      action = 'https://bom88.adqc.net/cpd/animevietsubpopunder';
+      getAttribute(k: string) {
+        return k === 'target' ? this.target : this.action;
+      }
+    }
+    (FakeForm.prototype as unknown as { submit: () => void }).submit = origFormSubmit;
+
+    const fakeDoc = {
+      addEventListener: vi.fn((type: string, cb: (e: Event) => void) => {
+        if (type === 'click') clickHandlers.push(cb);
+        if (type === 'submit') submitHandlers.push(cb);
+      }),
+    };
+    const win = {
+      open: vi.fn().mockReturnValue({}),
+      location: { href: 'https://animevietsub.bid/', origin: 'https://animevietsub.bid' },
+      document: fakeDoc,
+      HTMLFormElement: FakeForm,
+      addEventListener: vi.fn((type: string, cb: (e?: Event) => void) => {
+        if (type === 'pointerdown') pointerHandlers.push(cb);
+      }),
+    } as unknown as Window;
+
+    const onBlocked = vi.fn();
+    installAntiPopup(win, { onBlocked });
+
+    let currentHref = '#tap-1';
+    const fakeAnchor = {
+      tagName: 'A',
+      get href() {
+        return currentHref;
+      },
+      getAttribute: (k: string) => (k === 'href' ? currentHref : '_blank'),
+      setAttribute: (_k: string, val: string) => {
+        currentHref = val;
+      },
+      closest: (sel: string) => (sel === 'a[href]' ? fakeAnchor : null),
+    };
+
+    pointerHandlers.forEach((cb) => cb({ target: fakeAnchor } as unknown as Event));
+    currentHref = 'https://bom88.adqc.net/cpd/animevietsubpopunder';
+
+    const preventDefault = vi.fn();
+    const stopImmediatePropagation = vi.fn();
+    clickHandlers.forEach((cb) =>
+      cb({
+        target: fakeAnchor,
+        preventDefault,
+        stopImmediatePropagation,
+      } as unknown as Event)
+    );
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopImmediatePropagation).toHaveBeenCalled();
+    expect(currentHref).toBe('#tap-1');
+    expect(onBlocked).toHaveBeenCalledWith('https://bom88.adqc.net/cpd/animevietsubpopunder');
+
+    const fakeForm = new FakeForm() as unknown as HTMLFormElement;
+    fakeForm.submit();
+    expect(origFormSubmit).not.toHaveBeenCalled();
   });
 });
