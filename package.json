@@ -1,7 +1,7 @@
 {
   "name": "adfilter",
-  "version": "2.1.0",
-  "description": "YouTube Ad Filter Extension (Manifest V3) with Pure Core, Observability & Terraform Cloud CD",
+  "version": "3.0.0",
+  "description": "Brave-Style Universal AdFilter Extension (Manifest V3) for Web & YouTube",
   "main": "index.js",
   "scripts": {
     "build": "tsx scripts/build.ts --target=chromium",
