@@ -1,3 +1,8 @@
+import {
+  isCrossOriginUrl,
+  isGamblingMorphologyMatch,
+} from '../stealth/gamblingMorphology';
+
 // Các kích thước chuẩn của banner quảng cáo IAB (dung sai +/- 5px)
 export const IAB_SIZES = [
   { w: 300, h: 250 }, // Medium Rectangle (khung chữ nhật phổ biến trong bài đọc truyện)
@@ -8,6 +13,8 @@ export const IAB_SIZES = [
   { w: 970, h: 250 }, // Billboard (banner siêu lớn đỉnh trang)
 ];
 
+const EXTERNAL_BANNER_CDN_REGEX = /mplmncb\.com|yougetwhatyoupayfor\.net/i;
+
 /**
  * Kiểm tra xem kích thước phần tử có khớp với kích thước chuẩn IAB hay không (dung sai +/- 5px)
  */
@@ -17,24 +24,33 @@ export function isIabBannerSize(width: number, height: number): boolean {
   );
 }
 
-const EXTERNAL_BANNER_IMAGE_REGEX =
-  /mplmncb\.com|yougetwhatyoupayfor\.net|vsbet|bom88|yo88|zo88|hitclub|8xbet|shbet|jun88|789bet|new88|fb88|w88|fun88|sin88|sv88|ta88|uk88|lu88|f8bet|mb66|qq88/i;
-
 function hideAdContainer(container: HTMLElement): void {
   container.style.setProperty('display', 'none', 'important');
   container.style.setProperty('height', '0px', 'important');
   container.style.setProperty('visibility', 'hidden', 'important');
 }
 
+function isProtectedContentZone(el: HTMLElement): boolean {
+  if (el.tagName === 'MAIN' || el.tagName === 'ARTICLE' || el.tagName === 'HEADER' || el.tagName === 'NAV') {
+    return true;
+  }
+  if (el.querySelector('video, iframe, form, input, article, main')) return true;
+  return Boolean(el.closest('.movie-item, .film-item, .manga-item, #real-article, header, nav'));
+}
+
 /**
  * Quét toàn bộ thẻ iframe kích thước chuẩn IAB và banner quảng cáo ngoài trong thẻ <a>
- * (bảo vệ an toàn ảnh nội dung bài viết / trang truyện / poster phim).
- * @returns Số lượng phần tử quảng cáo đã được ẩn
+ * (kết hợp nhận diện hình thái brand + tỷ lệ hình học banner ngang/GIF trỏ cross-origin,
+ * bảo vệ an toàn ảnh nội dung bài viết / trang truyện / poster phim).
  */
 export function scanAndHideHeuristicAds(root: Document | HTMLElement = document): number {
   let count = 0;
-  const iframes = root.querySelectorAll('iframe');
+  const currentHost =
+    (root as Document).location?.hostname ||
+    root.ownerDocument?.location?.hostname ||
+    (typeof window !== 'undefined' ? window.location?.hostname || '' : '');
 
+  const iframes = root.querySelectorAll('iframe');
   iframes.forEach((iframe) => {
     const rect = iframe.getBoundingClientRect();
     if (isIabBannerSize(rect.width, rect.height)) {
@@ -46,27 +62,46 @@ export function scanAndHideHeuristicAds(root: Document | HTMLElement = document)
     }
   });
 
-  // Quét banner ảnh quảng cáo bọc trong liên kết (kiểm tra cả src, alt, title và tỷ lệ banner leaderboard trong dải QC)
+  // Quét banner ảnh quảng cáo bọc trong liên kết (hình thái + tỷ lệ ngang dẹt trỏ cross-origin)
   root.querySelectorAll<HTMLImageElement>('a[href] img').forEach((imgEl) => {
+    const anchor = imgEl.closest('a') as HTMLAnchorElement | null;
+    if (!anchor) return;
+    if (anchor.closest('.movie-item, .film-item, .manga-item, #real-article, header, nav')) {
+      return;
+    }
+
     const src = imgEl.getAttribute('src') || '';
     const alt = imgEl.getAttribute('alt') || '';
     const title = imgEl.getAttribute('title') || '';
-    const anchor = imgEl.closest('a');
-    const href = anchor?.getAttribute('href') || '';
+    const href = anchor.getAttribute('href') || anchor.href || '';
 
-    const matchedKeyword = EXTERNAL_BANNER_IMAGE_REGEX.test(`${src} ${alt} ${title} ${href}`);
-    if (!matchedKeyword) return;
+    const isCdnOrMorphology =
+      EXTERNAL_BANNER_CDN_REGEX.test(src) ||
+      isGamblingMorphologyMatch(href, src, alt, title, currentHost);
 
-    const container = (anchor?.closest('div, aside, section') || anchor || imgEl) as HTMLElement;
-    if (
-      container.tagName === 'MAIN' ||
-      container.tagName === 'ARTICLE' ||
-      Boolean(container.closest('.movie-item, .film-item, .manga-item, #real-article'))
-    ) {
-      return;
+    let isCrossOriginStripBanner = false;
+    if (!isCdnOrMorphology) {
+      const rect = imgEl.getBoundingClientRect?.();
+      const isLeaderboardShape = Boolean(
+        rect && rect.width >= 260 && rect.height >= 30 && rect.height <= 140 && rect.width / rect.height >= 2.5
+      );
+      const isExternalAnchor =
+        isCrossOriginUrl(href, currentHost) ||
+        anchor.getAttribute('target')?.toLowerCase() === '_blank';
+      const anchorTextLen = (anchor.textContent || '').trim().length;
+      if (isLeaderboardShape && isExternalAnchor && anchorTextLen <= 12) {
+        isCrossOriginStripBanner = true;
+      }
     }
-    if (container.style.display !== 'none') {
-      hideAdContainer(container);
+
+    if (!isCdnOrMorphology && !isCrossOriginStripBanner) return;
+
+    const candidate = (anchor.closest('div, aside, section') || anchor) as HTMLElement;
+    const target =
+      candidate !== anchor && !isProtectedContentZone(candidate) ? candidate : anchor;
+
+    if (target.style.display !== 'none') {
+      hideAdContainer(target);
       count++;
     }
   });
