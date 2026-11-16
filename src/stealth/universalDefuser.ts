@@ -4,6 +4,7 @@ import { installAntiAdblockDefuser } from './antiAdblockDefuser';
 import { unlockContextMenu } from './antiContextMenuTrap';
 import { installVastInterceptor } from './videoAdInterceptor';
 import { installShadowShield } from './scriptlets/shadowShield';
+import { installDomAppendShield } from './scriptlets/domShield';
 import { runCompiledScriptlets } from './scriptlets/runner';
 
 (function initUniversalDefuser() {
@@ -21,8 +22,9 @@ import { runCompiledScriptlets } from './scriptlets/runner';
       return;
     }
 
-    // 0. Chạy Scriptlet Engine (Brave/uBO +js) & attachShadow Shield ngay tại document_start
+    // 0. Chạy Scriptlet Engine (Brave/uBO +js), attachShadow Shield & Zero-Flash DOM Append Shield tại document_start
     installShadowShield(window);
+    installDomAppendShield(window);
     runCompiledScriptlets(window);
 
     // 1. Chống bẫy Anti-Adblock trong MAIN world

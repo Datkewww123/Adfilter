@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { purgeFloatingAds } from '../../src/cosmetic/floatingBannerGuard';
+import { purgeFloatingAds, purgeFloatingElementSubtree } from '../../src/cosmetic/floatingBannerGuard';
 
 describe('FloatingBannerGuard', () => {
   beforeEach(() => {
@@ -123,5 +123,21 @@ describe('FloatingBannerGuard', () => {
     expect(count).toBe(2);
     expect(dimmedModal.style.display).toBe('none');
     expect(vsbetBanner.style.display).toBe('none');
+  });
+
+  it('purgeFloatingElementSubtree ẩn ngay popup ở microtask 0ms không cần quét toàn document', () => {
+    const dynamicWrap = document.createElement('div');
+    const popup = document.createElement('div');
+    popup.style.position = 'fixed';
+    popup.style.inset = '0';
+    popup.style.zIndex = '5000';
+    popup.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    popup.innerHTML = '<button>×</button><a href="/go" target="_blank"><img src="x.gif" /></a>';
+    dynamicWrap.appendChild(popup);
+    document.body.appendChild(dynamicWrap);
+
+    const hidden = purgeFloatingElementSubtree(dynamicWrap, document);
+    expect(hidden).toBe(1);
+    expect(popup.style.display).toBe('none');
   });
 });

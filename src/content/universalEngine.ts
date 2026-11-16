@@ -10,7 +10,10 @@ import {
 import { applyProceduralCosmeticRules } from '../cosmetic/proceduralEngine';
 import compiledCosmeticIndexJson from '../rules/cosmetic_index.json';
 import { scanAndHideHeuristicAds } from '../cosmetic/heuristicAdDetector';
-import { purgeFloatingAds } from '../cosmetic/floatingBannerGuard';
+import {
+  purgeFloatingAds,
+  purgeFloatingElementSubtree,
+} from '../cosmetic/floatingBannerGuard';
 import { collapseEmptyAdSlots } from '../cosmetic/elementCollapsing';
 import { bypassAdblockModals } from '../core/adblockModalBypass';
 import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
@@ -59,8 +62,14 @@ export const COMMON_COSMETIC_RULES_RAW = [
   '##a[href*="big88"]',
   '##img[src*="mplmncb.com"]',
   '##[data-adfilter-shadow-ad="1"]',
+  '##[data-adfilter-preblocked="1"]',
   '##div.w-overlay',
   '##div[class*="w-overlay-"]',
+  // CSS :has() Zero-FOUC 0ms: ẩn trước khi vẽ đối với thanh fixed bottom/dimmed overlay chứa GIF/banner ngoài
+  '##div[style*="position: fixed" i][style*="bottom: 0" i]:not(:has(form, input, textarea, select, nav, video)):has(a[target="_blank"] img)',
+  '##div[style*="position:fixed" i][style*="bottom:0" i]:not(:has(form, input, textarea, select, nav, video)):has(a[target="_blank"] img)',
+  '##div[style*="position: fixed" i][style*="rgba(" i]:not(:has(form, input, textarea, select, nav, video)):has(a[target="_blank"] img)',
+  '##div[style*="position:fixed" i][style*="rgba(" i]:not(:has(form, input, textarea, select, nav, video)):has(a[target="_blank"] img)',
 ];
 
 const COMPILED_COSMETIC_INDEX = compiledCosmeticIndexJson as CosmeticIndex;
@@ -289,18 +298,34 @@ export function initUniversalContent(
   doc.addEventListener('pause', handleVideoPause, true);
 
   const observer = new MutationObserver((mutations) => {
-    const shouldSweep = mutations.some((m) => {
+    let shouldScheduleFallback = false;
+    let needsPauseSweep = false;
+
+    for (const m of mutations) {
       if (m.type === 'childList') {
-        return Array.from(m.addedNodes).some((node) => node.nodeType === 1);
-      }
-      if (m.type === 'attributes') {
+        for (const node of Array.from(m.addedNodes)) {
+          if (node.nodeType === 1) {
+            const el = node as HTMLElement;
+            // Xử lý đồng bộ 0ms trong microtask trước lần paint kế tiếp (Zero-Flash)
+            purgeFloatingElementSubtree(el, doc);
+            scanAndHideHeuristicAds(el);
+            shouldScheduleFallback = true;
+          }
+        }
+      } else if (m.type === 'attributes') {
         const el = m.target as HTMLElement;
-        if (!el || el === doc.body || el === doc.documentElement) return false;
-        return el.style?.display !== 'none';
+        if (el && el !== doc.body && el !== doc.documentElement && el.style?.display !== 'none') {
+          purgeFloatingElementSubtree(el, doc);
+          needsPauseSweep = true;
+          shouldScheduleFallback = true;
+        }
       }
-      return false;
-    });
-    if (shouldSweep) {
+    }
+
+    if (needsPauseSweep) {
+      purgeMoviePlayerAdOverlays(doc);
+    }
+    if (shouldScheduleFallback) {
       scheduleSweep(100);
     }
   });

@@ -175,6 +175,97 @@ function isDimmedAdModal(
   return hasAdTarget && hasCloseControl(el);
 }
 
+function checkAndHideFloatingElement(
+  htmlEl: HTMLElement,
+  doc: Document,
+  currentHost: string
+): boolean {
+  if (!htmlEl || htmlEl.style?.display === 'none') return false;
+  const tag = htmlEl.tagName;
+  if (tag !== 'DIV' && tag !== 'ASIDE' && tag !== 'SECTION') return false;
+  if (htmlEl.closest('header, nav') || htmlEl.querySelector('nav, form, input, video')) return false;
+
+  const view = doc.defaultView || window;
+  const style = view.getComputedStyle ? view.getComputedStyle(htmlEl) : htmlEl.style;
+  const position = style.position || htmlEl.style.position;
+  if (position !== 'fixed' && position !== 'sticky') return false;
+
+  const bottomVal = parseInt(style.bottom || htmlEl.style.bottom, 10);
+  const topVal = parseInt(style.top || htmlEl.style.top, 10);
+  const isBottomSticky = !isNaN(bottomVal) && bottomVal >= 0 && bottomVal <= 80;
+  const isTopSticky = !isNaN(topVal) && topVal >= 0 && topVal <= 80;
+
+  const leftVal = parseInt(style.left || htmlEl.style.left, 10);
+  const rightVal = parseInt(style.right || htmlEl.style.right, 10);
+  const widthVal = parseInt(style.width || htmlEl.style.width, 10);
+  const isSideSticky =
+    ((!isNaN(leftVal) && leftVal >= 0 && leftVal <= 80) ||
+      (!isNaN(rightVal) && rightVal >= 0 && rightVal <= 80)) &&
+    (isNaN(widthVal) || widthVal <= 300);
+
+  const identifier = `${htmlEl.className} ${htmlEl.id}`;
+  const hasAdKeyword = /ad|banner|qc|quangcao|floating|sticky-bottom|catfish|float[-_]?(left|right)/i.test(
+    identifier
+  );
+  const isExplicitFloatFlank = /float[-_]?(left|right)|floating[-_]?(left|right)|catfish/i.test(identifier);
+  const containsBettingAd = Boolean(htmlEl.querySelector(BETTING_AD_SELECTOR));
+
+  const zIndexRaw = parseInt(style.zIndex || htmlEl.style.zIndex || '0', 10);
+  const hasSuspiciousMedia = Boolean(
+    htmlEl.querySelector('a[target="_blank"] img[src*=".gif" i], iframe[src*="ad" i]')
+  );
+  const isExtremeAdOverlay =
+    !isNaN(zIndexRaw) &&
+    zIndexRaw >= 2_000_000_000 &&
+    !SAFE_MODAL_KEYWORDS.test(identifier) &&
+    (hasSuspiciousMedia || htmlEl.children.length <= 2);
+
+  const isEdgeStickyBar = (isBottomSticky || isTopSticky || isSideSticky) && !SAFE_MODAL_KEYWORDS.test(identifier);
+  const isBehaviorCatfish =
+    isEdgeStickyBar && hasMorphologicalOrCrossOriginAdMedia(htmlEl, currentHost, true);
+
+  const isBlurredPopupModal = isDimmedAdModal(htmlEl, style, identifier, doc, currentHost);
+
+  if (
+    isExplicitFloatFlank ||
+    containsBettingAd ||
+    isExtremeAdOverlay ||
+    isBehaviorCatfish ||
+    isBlurredPopupModal ||
+    ((isBottomSticky || isSideSticky) && hasAdKeyword)
+  ) {
+    hideFloatingElement(htmlEl);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Quét đồng bộ 0ms trên một cây con vừa được chèn vào DOM hoặc vừa thay đổi hiển thị
+ * để ẩn ngay trước khi trình duyệt kịp paint khung hình tiếp theo (Zero-Flash).
+ */
+export function purgeFloatingElementSubtree(root: HTMLElement, doc: Document = document): number {
+  let count = 0;
+  const currentHost = doc.location?.hostname || '';
+  if (
+    root.matches?.('[data-adfilter-shadow-ad="1"], div.w-overlay, div[class*="w-overlay-"]') &&
+    root.style.display !== 'none'
+  ) {
+    hideFloatingElement(root);
+    return 1;
+  }
+  if (checkAndHideFloatingElement(root, doc, currentHost)) {
+    count++;
+  }
+  root.querySelectorAll<HTMLElement>('div, aside, section').forEach((child) => {
+    if (checkAndHideFloatingElement(child, doc, currentHost)) {
+      count++;
+    }
+  });
+  return count;
+}
+
 /**
  * Quét và xóa bỏ các banner dính cố định (fixed/sticky) ở chân trang, đỉnh, hai bên sườn
  * (không phụ thuộc tên class/id hoặc tên nhà cái), popup làm mờ nền có nút X,
@@ -197,64 +288,9 @@ export function purgeFloatingAds(doc: Document = document): number {
     });
 
   const elements = doc.querySelectorAll('div, aside, section');
-
   elements.forEach((el) => {
-    const htmlEl = el as HTMLElement;
-    if (htmlEl.style.display === 'none') return;
-    if (htmlEl.closest('header, nav') || htmlEl.querySelector('nav, form, input, video')) return;
-
-    const view = doc.defaultView || window;
-    const style = view.getComputedStyle ? view.getComputedStyle(htmlEl) : htmlEl.style;
-
-    const position = style.position || htmlEl.style.position;
-    if (position === 'fixed' || position === 'sticky') {
-      const bottomVal = parseInt(style.bottom || htmlEl.style.bottom, 10);
-      const topVal = parseInt(style.top || htmlEl.style.top, 10);
-      const isBottomSticky = !isNaN(bottomVal) && bottomVal >= 0 && bottomVal <= 80;
-      const isTopSticky = !isNaN(topVal) && topVal >= 0 && topVal <= 80;
-
-      const leftVal = parseInt(style.left || htmlEl.style.left, 10);
-      const rightVal = parseInt(style.right || htmlEl.style.right, 10);
-      const widthVal = parseInt(style.width || htmlEl.style.width, 10);
-      const isSideSticky =
-        ((!isNaN(leftVal) && leftVal >= 0 && leftVal <= 80) ||
-          (!isNaN(rightVal) && rightVal >= 0 && rightVal <= 80)) &&
-        (isNaN(widthVal) || widthVal <= 300);
-
-      const identifier = `${htmlEl.className} ${htmlEl.id}`;
-      const hasAdKeyword = /ad|banner|qc|quangcao|floating|sticky-bottom|catfish|float[-_]?(left|right)/i.test(
-        identifier
-      );
-      const isExplicitFloatFlank = /float[-_]?(left|right)|floating[-_]?(left|right)|catfish/i.test(identifier);
-      const containsBettingAd = Boolean(htmlEl.querySelector(BETTING_AD_SELECTOR));
-
-      const zIndexRaw = parseInt(style.zIndex || htmlEl.style.zIndex || '0', 10);
-      const hasSuspiciousMedia = Boolean(
-        htmlEl.querySelector('a[target="_blank"] img[src*=".gif" i], iframe[src*="ad" i]')
-      );
-      const isExtremeAdOverlay =
-        !isNaN(zIndexRaw) &&
-        zIndexRaw >= 2_000_000_000 &&
-        !SAFE_MODAL_KEYWORDS.test(identifier) &&
-        (hasSuspiciousMedia || htmlEl.children.length <= 2);
-
-      const isEdgeStickyBar = (isBottomSticky || isTopSticky || isSideSticky) && !SAFE_MODAL_KEYWORDS.test(identifier);
-      const isBehaviorCatfish =
-        isEdgeStickyBar && hasMorphologicalOrCrossOriginAdMedia(htmlEl, currentHost, true);
-
-      const isBlurredPopupModal = isDimmedAdModal(htmlEl, style, identifier, doc, currentHost);
-
-      if (
-        isExplicitFloatFlank ||
-        containsBettingAd ||
-        isExtremeAdOverlay ||
-        isBehaviorCatfish ||
-        isBlurredPopupModal ||
-        ((isBottomSticky || isSideSticky) && hasAdKeyword)
-      ) {
-        hideFloatingElement(htmlEl);
-        count++;
-      }
+    if (checkAndHideFloatingElement(el as HTMLElement, doc, currentHost)) {
+      count++;
     }
   });
 
