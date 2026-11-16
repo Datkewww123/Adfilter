@@ -1,7 +1,7 @@
 {
   "name": "adfilter",
-  "version": "3.0.0",
-  "description": "Brave-Style Universal AdFilter Extension (Manifest V3) for Web & YouTube",
+  "version": "3.1.0",
+  "description": "Brave-Style Universal AdFilter Extension (Manifest V3) for Web, Movie Streaming & YouTube",
   "main": "index.js",
   "scripts": {
     "build": "tsx scripts/build.ts --target=chromium",
