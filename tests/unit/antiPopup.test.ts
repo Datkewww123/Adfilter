@@ -56,7 +56,7 @@ describe('AntiPopup Engine', () => {
     expect(fakeWindow.open('https://unknown-brand-new-ad.xyz/tab', '_blank')).toBeNull();
     expect(originalOpenMock).not.toHaveBeenCalled();
 
-    // 2. Giả lập click thẻ <a> phim nội bộ nhưng script mở kèm tab domain lạ
+    // 2. Giả lập click thẻ <a> phim nội bộ nhưng script mở kèm tab domain lạ hoặc tab rỗng about:blank
     const movieCardLink = {
       tagName: 'A',
       getAttribute: (k: string) => (k === 'href' ? '/anime/bo-1' : ''),
@@ -64,6 +64,8 @@ describe('AntiPopup Engine', () => {
     };
     pointerDownCb?.({ target: movieCardLink } as unknown as Event);
     expect(fakeWindow.open('https://totally-new-popunder.net/go', '_blank')).toBeNull();
+    expect(fakeWindow.open('', '_blank')).toBeNull();
+    expect(fakeWindow.open('about:blank', '_blank')).toBeNull();
     expect(originalOpenMock).not.toHaveBeenCalled();
 
     // 3. Click link ngoài chủ đích thì cho phép mở đúng link đó

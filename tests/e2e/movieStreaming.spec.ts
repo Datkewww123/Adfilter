@@ -42,4 +42,19 @@ test('bảo vệ toàn diện web xem phim: iframe Play popunder, card phim popu
   await frame.locator('#iframe-pause-btn').click();
   await page.waitForTimeout(300);
   await expect(frame.locator('#pause-bom88-overlay')).not.toBeVisible();
+
+  // 5. Khi script trang appendChild một popup mới sau khi tải trang, DOM Append Shield ẩn ở 0ms (data-adfilter-preblocked)
+  const preblockedAttr = await page.evaluate(() => {
+    const popup = document.createElement('div');
+    popup.id = 'late-injected-popup';
+    popup.setAttribute('style', 'position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999;');
+    popup.innerHTML = '<button>×</button><a href="https://king99.win/promo" target="_blank"><img src="ad.gif" /></a>';
+    document.body.appendChild(popup);
+    return {
+      preblocked: popup.getAttribute('data-adfilter-preblocked'),
+      display: popup.style.getPropertyValue('display'),
+    };
+  });
+  expect(preblockedAttr.preblocked).toBe('1');
+  expect(preblockedAttr.display).toBe('none');
 });
