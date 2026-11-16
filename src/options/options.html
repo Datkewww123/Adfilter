@@ -35,14 +35,73 @@
         border: 1px solid #d1d5db;
         border-radius: 4px;
       }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 96px;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        resize: vertical;
+        margin-top: 6px;
+      }
+      .btn-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+      .btn {
+        padding: 7px 14px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #f3f4f6;
+        color: #111827;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: #10b981;
+        border-color: #059669;
+        color: #fff;
+      }
+      .status-text { font-size: 12px; color: #059669; font-weight: 500; }
       .note { font-size: 12px; color: #6b7280; margin-top: 4px; }
     </style>
   </head>
   <body>
-    <h1>🛡️ Cài đặt AdFilter Stealth</h1>
+    <h1>🛡️ Cài đặt AdFilter v3.0</h1>
 
     <div class="card">
-      <div class="card-title">Cấu hình Tàng hình (Stealth Engine)</div>
+      <div class="card-title">Bộ lọc Toàn Cầu & Khu Vực (Brave-Style Engine)</div>
+      <div class="row">
+        <label for="filterGlobalEnabled">Bộ lọc Quốc tế (EasyList / uBO Style)</label>
+        <input type="checkbox" id="filterGlobalEnabled" />
+      </div>
+      <div class="row">
+        <label for="filterVietnamEnabled">Bộ lọc Việt Nam (ABPVN / Truyện & Phim)</label>
+        <input type="checkbox" id="filterVietnamEnabled" />
+      </div>
+      <div class="row">
+        <label for="filterRedirectsEnabled">Đánh tráo Noop Redirect (Chống Anti-Adblock)</label>
+        <input type="checkbox" id="filterRedirectsEnabled" />
+      </div>
+      <div style="margin-top: 12px;">
+        <label for="remoteFilterUrls">URL danh sách lọc từ xa (HTTPS, mỗi dòng 1 URL):</label>
+        <textarea id="remoteFilterUrls" placeholder="https://raw.githubusercontent.com/abpvn/abpvn/master/filter/abpvn.txt"></textarea>
+      </div>
+      <div style="margin-top: 12px;">
+        <label for="customFilterRules">Quy tắc tùy chỉnh (chuẩn ABP/uBO):</label>
+        <textarea id="customFilterRules" placeholder="||ads.example.com^$script&#10;site.vn##.banner-ad&#10;##div:has-text(/Tài trợ/i):upward(1)"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="saveCustomFiltersBtn" type="button">💾 Lưu & Áp dụng</button>
+        <button class="btn" id="updateRemoteFiltersBtn" type="button">🔄 Cập nhật ngay</button>
+        <span class="status-text" id="filterSyncStatus"></span>
+      </div>
+      <div class="note" id="lastUpdatedLabel">Chưa cập nhật danh sách lọc từ xa.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cấu hình Tàng hình YouTube (Stealth Engine)</div>
       <div class="row">
         <label for="defuserEnabled">Lớp 1: Defuser (Triệt gốc dữ liệu QC)</label>
         <input type="checkbox" id="defuserEnabled" />

@@ -8,6 +8,10 @@ describe('isMsg', () => {
   it('chấp nhận GET_STATUS có tabId là số', () => {
     expect(isMsg({ kind: 'GET_STATUS', tabId: 7 })).toBe(true);
   });
+  it('chấp nhận SYNC_FILTERS và UPDATE_REMOTE_FILTERS', () => {
+    expect(isMsg({ kind: 'SYNC_FILTERS' })).toBe(true);
+    expect(isMsg({ kind: 'UPDATE_REMOTE_FILTERS' })).toBe(true);
+  });
 
   it.each([
     null,

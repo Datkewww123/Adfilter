@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-11-16
+
+### Added
+- **Brave-Style Universal AdBlock Architecture (Weeks 26–29):**
+  - **ABP/uBO Filter Compiler & Multi-Ruleset DNR (Week 26):** Biên dịch tự động các bộ lọc `filters/global-ads.txt` & `filters/vietnam-ads.txt` sang 4 static DNR rulesets (`ruleset_adnetworks`, `ruleset_global`, `ruleset_vietnam`, `ruleset_redirects`) cùng tài nguyên giả rỗng `/resources/noop.*` (`1x1.gif`, `noop.js`, `noop.css`, `noop.html`) chống bẫy `onerror` anti-adblock.
+  - **Universal Scriptlet Engine & `attachShadow` Shield (Week 27):** Bộ thực thi `+js(...)` trong `MAIN` world (`set-constant`, `abort-on-property-read`, `abort-current-inline-script`, `addEventListener-defuser`, `nowoif`), chặn `_blank` anchor popunder trên mobile, và hook `Element.prototype.attachShadow` bắt triệt để Closed Shadow DOM quảng cáo (`.w-overlay`, `[data-zone]`, class hash ngẫu nhiên).
+  - **Domain-Scoped Cosmetic, Procedural (`:has-text`, `:upward`, `:matches-css`) & Site-Agnostic Heuristics (Week 28):** Nạp chỉ mục `cosmetic_index.json` Zero-FOUC với ngoại lệ `#@#`, xử lý native sponsored cards, extreme overlay và tối ưu `MutationObserver`.
+  - **Dynamic Filter Updater, Custom Rules & Remote Lists UI (Week 29):** Hỗ trợ bật/tắt ruleset, nhập custom rules chuẩn ABP/uBO và danh sách lọc HTTPS từ xa trong trang Options/Popup, đồng bộ qua `declarativeNetRequest.updateDynamicRules()` và tự động cập nhật định kỳ trong Service Worker.
+  - **Strict YouTube Lane Isolation:** Tự động loại trừ `youtube.com` / `youtu.be` / `googlevideo.com` / `ytimg.com` khỏi mọi rule mạng, scriptlet, cosmetic và dynamic rules để bảo toàn luồng phát & stealth YouTube.
+
 ## [2.1.0] - 2026-11-12
 
 ### Added
