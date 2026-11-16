@@ -1,10 +1,12 @@
 import { ext } from '../platform/api';
 import { isMsg, statusKey } from '../core/messages';
 import { getFilterListsConfig, syncDynamicFilters } from './dynamicFilters';
+import { installPopunderTabGuard } from './popunderTabGuard';
 
 const DAILY_REFRESH_MS = 24 * 60 * 60 * 1000;
 
 console.log('[AdFilter Background] 🚀 Service Worker đã nạp và bắt đầu lắng nghe!');
+installPopunderTabGuard();
 
 async function bootstrapFilters(forceRemote = false): Promise<void> {
   try {

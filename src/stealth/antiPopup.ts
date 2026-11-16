@@ -89,6 +89,11 @@ export function isUnintendedPopupAttempt(
     return false;
   }
 
+  // Chặn mở tab trống about:blank / '' để script popunder tự gán location sau đó
+  if (!urlString || urlString === 'about:blank') {
+    return true;
+  }
+
   if (lastClickIntent.isPlayerInteraction) {
     return true;
   }
