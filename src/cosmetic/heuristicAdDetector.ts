@@ -17,7 +17,8 @@ export function isIabBannerSize(width: number, height: number): boolean {
   );
 }
 
-const EXTERNAL_BANNER_IMAGE_REGEX = /mplmncb\.com|yougetwhatyoupayfor\.net/i;
+const EXTERNAL_BANNER_IMAGE_REGEX =
+  /mplmncb\.com|yougetwhatyoupayfor\.net|vsbet|bom88|yo88|zo88|hitclub|8xbet|shbet|jun88|789bet|new88|fb88|w88|fun88|sin88|sv88|ta88|uk88|lu88|f8bet|mb66|qq88/i;
 
 function hideAdContainer(container: HTMLElement): void {
   container.style.setProperty('display', 'none', 'important');
@@ -26,8 +27,8 @@ function hideAdContainer(container: HTMLElement): void {
 }
 
 /**
- * Quét toàn bộ thẻ iframe kích thước chuẩn IAB và banner GIF ngoài trong thẻ <a> quảng cáo
- * (bảo vệ an toàn ảnh nội dung bài viết / trang truyện trong <main> / <article>).
+ * Quét toàn bộ thẻ iframe kích thước chuẩn IAB và banner quảng cáo ngoài trong thẻ <a>
+ * (bảo vệ an toàn ảnh nội dung bài viết / trang truyện / poster phim).
  * @returns Số lượng phần tử quảng cáo đã được ẩn
  */
 export function scanAndHideHeuristicAds(root: Document | HTMLElement = document): number {
@@ -45,14 +46,25 @@ export function scanAndHideHeuristicAds(root: Document | HTMLElement = document)
     }
   });
 
-  // Quét banner ảnh quảng cáo IAB bọc trong liên kết mở tab ngoài từ CDN quảng cáo
-  root.querySelectorAll<HTMLAnchorElement>('a[href] > img').forEach((imgEl) => {
+  // Quét banner ảnh quảng cáo bọc trong liên kết (kiểm tra cả src, alt, title và tỷ lệ banner leaderboard trong dải QC)
+  root.querySelectorAll<HTMLImageElement>('a[href] img').forEach((imgEl) => {
     const src = imgEl.getAttribute('src') || '';
-    if (!EXTERNAL_BANNER_IMAGE_REGEX.test(src)) return;
+    const alt = imgEl.getAttribute('alt') || '';
+    const title = imgEl.getAttribute('title') || '';
+    const anchor = imgEl.closest('a');
+    const href = anchor?.getAttribute('href') || '';
 
-    const anchor = imgEl.parentElement;
+    const matchedKeyword = EXTERNAL_BANNER_IMAGE_REGEX.test(`${src} ${alt} ${title} ${href}`);
+    if (!matchedKeyword) return;
+
     const container = (anchor?.closest('div, aside, section') || anchor || imgEl) as HTMLElement;
-    if (container.tagName === 'MAIN' || container.tagName === 'ARTICLE') return;
+    if (
+      container.tagName === 'MAIN' ||
+      container.tagName === 'ARTICLE' ||
+      Boolean(container.closest('.movie-item, .film-item, .manga-item, #real-article'))
+    ) {
+      return;
+    }
     if (container.style.display !== 'none') {
       hideAdContainer(container);
       count++;

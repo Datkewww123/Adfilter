@@ -28,8 +28,29 @@
 ||xo88chinhhang.online^$script,subdocument,image
 ||zbetchinhhang.com^$script,subdocument,image
 ||debet.com^$script,subdocument,image
+||vsbet.*^$document,script,subdocument,image
+||bom88.*^$document,script,subdocument,image
+||yo88.*^$document,script,subdocument,image
+||zo88.*^$document,script,subdocument,image
+||hit.club^$document,script,subdocument,image
+||shbet.*^$document,script,subdocument,image
+||jun88.*^$document,script,subdocument,image
+||789bet.*^$document,script,subdocument,image
+||new88.*^$document,script,subdocument,image
+||8xbet.*^$document,script,subdocument,image
 
-! --- Regional Comic & Streaming Ad Selectors (Including Closed Shadow DOM Hosts) ---
+! --- Regional Comic & Streaming Ad Selectors (Including Closed Shadow DOM & Pause Overlays) ---
+##a[href*="vsbet"]
+##a[href*="bom88"]
+##a[href*="yo88"]
+##a[href*="zo88"]
+##a[href*="hitclub"]
+##a[href*="hit.club"]
+##img[alt*="vsbet" i]
+##img[alt*="yo88" i]
+##img[alt*="hitclub" i]
+##img[alt*="bom88" i]
+##img[alt*="zo88" i]
 ##div.w-overlay
 ##div[class*="w-overlay-"]
 ##[data-zone][data-zone-id]
