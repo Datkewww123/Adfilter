@@ -25,6 +25,12 @@ describe('ElementPicker (Element Zapper / Visual Picker)', () => {
     list.appendChild(li2);
     document.body.appendChild(list);
     expect(generateUniqueSelector(li2)).toBe('li:nth-child(2)');
+
+    const shadowZone = document.createElement('div');
+    shadowZone.className = 'hash8x9a';
+    shadowZone.setAttribute('data-zone', 'banner-top');
+    document.body.appendChild(shadowZone);
+    expect(generateUniqueSelector(shadowZone)).toBe('div[data-zone="banner-top"]');
   });
 
   it('di chuột làm nổi bật phần tử với viền đỏ và phục hồi khi di chuột ra', () => {
