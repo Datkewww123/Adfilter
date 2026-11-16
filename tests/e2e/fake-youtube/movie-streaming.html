@@ -26,10 +26,22 @@
     <div class="banner-box" id="banner-zo88"><a href="https://zo88.vip/promo"><img src="zo88.gif" alt="ZO88" /></a></div>
   </div>
 
-  <iframe id="player-iframe" src="/movie-embed-player.html" width="640" height="300"></iframe>
+  <div id="watch-block">
+    <div id="media-player">
+      <iframe id="player-iframe" src="/movie-embed-player.html" width="640" height="300"></iframe>
+      <div id="outer-pause-bom88-box">
+        <a href="https://bom88.win/promo"><img src="bom88.gif" alt="BOM88" /></a>
+        <button type="button">Đóng quảng cáo</button>
+      </div>
+    </div>
+    <div id="player-controls-bar">Tập tiếp | Bình luận | Tắt đèn | Chọn Server</div>
+  </div>
 
   <main>
     <a id="movie-card-link" href="#anime-tensei-goblin">Xem Tensei Goblin (Trang thông tin)</a>
+    <a id="swapped-trap-link" href="#anime-ep-2" target="_blank">Tập 2</a>
+    <a id="bom88-static-link" href="https://bom88.adqc.net/cpd/animevietsubpopunder" target="_blank">Static Bom88 Trap</a>
+    <button id="iframe-bypass-btn" type="button">Iframe About:Blank Bypass Test</button>
   </main>
 
   <div id="blurred-x-popup">
@@ -46,6 +58,16 @@
   <script>
     document.getElementById('movie-card-link').addEventListener('click', function () {
       window.open('https://completely-new-popunder-domain.example/landing', '_blank');
+    });
+    document.getElementById('swapped-trap-link').addEventListener('pointerdown', function () {
+      this.setAttribute('href', 'https://bom88.adqc.net/cpd/animevietsubpopunder');
+    });
+    document.getElementById('iframe-bypass-btn').addEventListener('click', function () {
+      var f = document.createElement('iframe');
+      f.src = 'about:blank';
+      f.style.display = 'none';
+      document.body.appendChild(f);
+      f.contentWindow.open('https://bom88.adqc.net/cpd/animevietsubpopunder', '_blank');
     });
   </script>
 </body>

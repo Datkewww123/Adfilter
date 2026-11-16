@@ -99,8 +99,9 @@ function isDimmedAdModal(el: HTMLElement, style: CSSStyleDeclaration, identifier
   }
 
   const hasAdTarget = Boolean(
-    el.querySelector('a[target="_blank"] img, a[href] img[src*=".gif" i], iframe') ||
-      el.querySelector(BETTING_AD_SELECTOR)
+    el.querySelector(
+      'a[target="_blank"] img, a[href] img[src*=".gif" i], iframe[src*="ad" i], iframe[src*="banner" i], iframe[src*="pop" i]'
+    ) || el.querySelector(BETTING_AD_SELECTOR)
   );
   return hasAdTarget && hasCloseControl(el);
 }
