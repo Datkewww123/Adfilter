@@ -7,6 +7,7 @@ import { isDomainWhitelisted, toggleDomainWhitelist } from '../core/siteWhitelis
 const statusEl = document.getElementById('status');
 const exportBtn = document.getElementById('exportLogs');
 const elementPickerBtn = document.getElementById('elementPickerBtn');
+const openOptionsBtn = document.getElementById('openOptionsBtn');
 const siteDomainEl = document.getElementById('siteDomain');
 const siteStatusEl = document.getElementById('siteStatus');
 const siteToggleBtn = document.getElementById('siteToggleBtn') as HTMLButtonElement | null;
@@ -92,6 +93,10 @@ exportBtn?.addEventListener('click', async () => {
   a.download = `adfilter-log-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+openOptionsBtn?.addEventListener('click', () => {
+  ext.runtime.openOptionsPage?.();
 });
 
 void refresh();
