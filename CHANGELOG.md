@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-11-16
+
+### Added
+- **Universal Movie & Streaming Shield (Week 30):**
+  - **Iframe Player Protection (`all_frames: true`):** Nạp `universalDefuser.js` và `universalContent.js` vào mọi `<iframe>` trình phát video nhúng (vẫn cách ly tuyệt đối `youtube.com` / `youtube-nocookie.com`).
+  - **Intent-Aware Anti-Popunder & Transparent Player Shield:** Chặn triệt để `window.open`, `<a target="_blank">.click()`, `location.assign`/`replace` khi bấm Play hoặc bấm card phim dẫn tới domain cross-origin lạ; gỡ bỏ lớp phủ click-catcher trong suốt đè lên trình phát video.
+  - **Zero-Delay Pause-Ad & Blurred Backdrop Guard:** Tự động nhận diện và ẩn trực tiếp overlay quảng cáo khi Pause (nút `"Đóng quảng cáo"`, `"Đóng và xem tiếp"`, nhãn `"Quảng cáo"`), bắt sự kiện `pause` + thay đổi attribute DOM tức thì, đồng thời triệt tiêu popup làm mờ background có nút `X` (bảo toàn modal đăng nhập hợp lệ).
+  - **Expanded Gambling/Betting Banner Shield:** Phủ thêm các brand/banner `vsbet`, `bom88`, `yo88`, `zo88`, `hitclub`, `hit.club`, `8xbet`, `shbet`, `jun88`, `789bet`, `new88`, `fb88`, `w88`, `fun88` qua cả `a[href*]` lẫn `img[src*]`/`img[alt*]` và bổ sung E2E test web phim toàn diện (`tests/e2e/movieStreaming.spec.ts`).
+
 ## [3.0.0] - 2026-11-16
 
 ### Added

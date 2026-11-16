@@ -32,4 +32,17 @@ describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
     expect(ids).toContain('ruleset_vietnam');
     expect(ids).toContain('ruleset_redirects');
   });
+
+  it('nạp universalDefuser và universalContent vào tất cả iframe (all_frames: true) để bảo vệ player video nhúng', () => {
+    const fullManifest = JSON.parse(readFileSync('src/manifest.json', 'utf8')) as {
+      content_scripts: Array<{ js?: string[]; all_frames?: boolean }>;
+    };
+    const universalScripts = fullManifest.content_scripts.filter(
+      (cs) => cs.js?.includes('universalDefuser.js') || cs.js?.includes('universalContent.js')
+    );
+    expect(universalScripts).toHaveLength(2);
+    for (const cs of universalScripts) {
+      expect(cs.all_frames).toBe(true);
+    }
+  });
 });

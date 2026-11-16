@@ -136,7 +136,32 @@ const VN_BETTING_MEDIA_SELECTOR = [
   'a[href*="five88"]',
   'a[href*="red88"]',
   'a[href*="big88"]',
+  'a[href*="vsbet"]',
+  'a[href*="bom88"]',
+  'a[href*="yo88"]',
+  'a[href*="zo88"]',
+  'a[href*="hitclub"]',
+  'a[href*="hit.club"]',
+  'a[href*="8xbet"]',
+  'a[href*="shbet"]',
+  'a[href*="jun88"]',
+  'a[href*="789bet"]',
+  'a[href*="new88"]',
+  'a[href*="fb88"]',
+  'a[href*="w88"]',
+  'a[href*="fun88"]',
   'img[src*="mplmncb.com"]',
+  'img[src*="yougetwhatyoupayfor.net"]',
+  'img[src*="vsbet" i]',
+  'img[src*="bom88" i]',
+  'img[src*="yo88" i]',
+  'img[src*="zo88" i]',
+  'img[src*="hitclub" i]',
+  'img[alt*="vsbet" i]',
+  'img[alt*="bom88" i]',
+  'img[alt*="yo88" i]',
+  'img[alt*="zo88" i]',
+  'img[alt*="hitclub" i]',
 ].join(', ');
 
 function hideElementCompletely(el: HTMLElement): void {
@@ -205,6 +230,8 @@ export function initUniversalContent(
   const isYouTube =
     host === 'youtube.com' ||
     host.endsWith('.youtube.com') ||
+    host === 'youtube-nocookie.com' ||
+    host.endsWith('.youtube-nocookie.com') ||
     Boolean(typeof window !== 'undefined' && window.location.pathname?.includes('watch.html'));
 
   if (isYouTube) {
@@ -245,17 +272,37 @@ export function initUniversalContent(
   // 5. Khởi động bộ bảo vệ tải ảnh lười cho truyện tranh
   const stopLazyLoad = startLazyLoadProtector(doc);
 
-  // 6. Thiết lập MutationObserver tối ưu: chỉ quét lại khi có Element mới được chèn vào DOM
+  // 6. Thiết lập MutationObserver + bắt sự kiện Pause video để diệt Pause-Ad & Popup định kỳ tức thì
   let sweepTimer: any = null;
-  const observer = new MutationObserver((mutations) => {
-    const hasAddedElement = mutations.some((m) =>
-      Array.from(m.addedNodes).some((node) => node.nodeType === 1)
-    );
-    if (!hasAddedElement || sweepTimer) return;
+  const scheduleSweep = (delayMs = 150) => {
+    if (sweepTimer) return;
     sweepTimer = setTimeout(() => {
       sweepTimer = null;
       runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
-    }, 200);
+    }, delayMs);
+  };
+
+  const handleVideoPause = () => {
+    purgeMoviePlayerAdOverlays(doc);
+    runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
+  };
+  doc.addEventListener('pause', handleVideoPause, true);
+
+  const observer = new MutationObserver((mutations) => {
+    const shouldSweep = mutations.some((m) => {
+      if (m.type === 'childList') {
+        return Array.from(m.addedNodes).some((node) => node.nodeType === 1);
+      }
+      if (m.type === 'attributes') {
+        const el = m.target as HTMLElement;
+        if (!el || el === doc.body || el === doc.documentElement) return false;
+        return el.style?.display !== 'none';
+      }
+      return false;
+    });
+    if (shouldSweep) {
+      scheduleSweep(100);
+    }
   });
 
   const targetNode = doc.body || doc.documentElement;
@@ -263,6 +310,8 @@ export function initUniversalContent(
     observer.observe(targetNode, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class', 'hidden'],
     });
   }
 
@@ -272,6 +321,7 @@ export function initUniversalContent(
       clearTimeout(sweepTimer);
       sweepTimer = null;
     }
+    doc.removeEventListener('pause', handleVideoPause, true);
     observer.disconnect();
     stopLazyLoad();
     const styleEl = doc.getElementById('adfilter-cosmetic-styles');

@@ -2,6 +2,10 @@ const BETTING_AD_SELECTOR = [
   'a[href*="sunwin"]',
   'a[href*="gemwin"]',
   'a[href*="zowin"]',
+  'a[href*="zo88"]',
+  'a[href*="yo88"]',
+  'a[href*="bom88"]',
+  'a[href*="vsbet"]',
   'a[href*="nhatvip"]',
   'a[href*="five88"]',
   'a[href*="red88"]',
@@ -13,12 +17,33 @@ const BETTING_AD_SELECTOR = [
   'a[href*="zbet"]',
   'a[href*="vin88"]',
   'a[href*="hitclub"]',
+  'a[href*="hit.club"]',
+  'a[href*="kubet"]',
+  'a[href*="8xbet"]',
+  'a[href*="shbet"]',
+  'a[href*="jun88"]',
+  'a[href*="789bet"]',
+  'a[href*="new88"]',
+  'a[href*="fb88"]',
+  'a[href*="w88"]',
+  'a[href*="fun88"]',
   'a[href*="chinhhang"]',
   'img[src*="mplmncb.com"]',
   'img[src*="yougetwhatyoupayfor.net"]',
+  'img[src*="vsbet" i]',
+  'img[src*="yo88" i]',
+  'img[src*="zo88" i]',
+  'img[src*="bom88" i]',
+  'img[src*="hitclub" i]',
+  'img[alt*="vsbet" i]',
+  'img[alt*="yo88" i]',
+  'img[alt*="zo88" i]',
+  'img[alt*="bom88" i]',
+  'img[alt*="hitclub" i]',
 ].join(', ');
 
-const SAFE_MODAL_KEYWORDS = /login|signin|sign-in|search|chapter|menu|nav|player|video|cookie-settings/i;
+const SAFE_MODAL_KEYWORDS = /login|signin|sign-in|register|search|chapter|menu|nav|player|video|episode|comment|cookie-settings/i;
+const CLOSE_CONTROL_TEXT_REGEX = /^[×✕✖xX]$|^đóng(?:\s*quảng\s*cáo)?$|^close$/i;
 
 function hideFloatingElement(el: HTMLElement): void {
   el.style.setProperty('display', 'none', 'important');
@@ -27,11 +52,63 @@ function hideFloatingElement(el: HTMLElement): void {
   el.style.setProperty('pointer-events', 'none', 'important');
 }
 
+function hasCloseControl(el: HTMLElement): boolean {
+  if (el.querySelector('[class*="close" i], [id*="close" i], [aria-label*="close" i], [aria-label*="đóng" i]')) {
+    return true;
+  }
+  const controls = el.querySelectorAll<HTMLElement>('button, a, span, div');
+  for (const ctrl of Array.from(controls)) {
+    const txt = (ctrl.textContent || '').trim();
+    if (txt && txt.length <= 16 && CLOSE_CONTROL_TEXT_REGEX.test(txt)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isDimmedAdModal(el: HTMLElement, style: CSSStyleDeclaration, identifier: string, doc: Document): boolean {
+  if (SAFE_MODAL_KEYWORDS.test(identifier) || el.querySelector('form, input, textarea, select')) {
+    return false;
+  }
+
+  const zIndexRaw = parseInt(style.zIndex || el.style.zIndex || '0', 10);
+  if (isNaN(zIndexRaw) || zIndexRaw < 50) return false;
+
+  const win = doc.defaultView;
+  const rect = el.getBoundingClientRect?.();
+  const isFullscreenInset =
+    (el.style.inset === '0' || el.style.inset === '0px') ||
+    ((style.top === '0px' || el.style.top === '0px') &&
+      (style.left === '0px' || el.style.left === '0px') &&
+      (style.width === '100%' || el.style.width === '100%' || style.right === '0px' || el.style.right === '0px'));
+  const coversScreenRect = Boolean(
+    rect &&
+      win &&
+      win.innerWidth > 0 &&
+      win.innerHeight > 0 &&
+      rect.width >= win.innerWidth * 0.7 &&
+      rect.height >= win.innerHeight * 0.7
+  );
+
+  const bg = (style.backgroundColor || el.style.backgroundColor || '').toLowerCase();
+  const backdrop = (style.backdropFilter || el.style.backdropFilter || '').toLowerCase();
+  const isBackdropStyled = bg.includes('rgba(') || backdrop.includes('blur');
+
+  if (!isFullscreenInset && !coversScreenRect && !isBackdropStyled) {
+    return false;
+  }
+
+  const hasAdTarget = Boolean(
+    el.querySelector('a[target="_blank"] img, a[href] img[src*=".gif" i], iframe') ||
+      el.querySelector(BETTING_AD_SELECTOR)
+  );
+  return hasAdTarget && hasCloseControl(el);
+}
+
 /**
  * Quét và xóa bỏ các banner dính cố định (fixed/sticky) ở chân trang, hai bên sườn,
- * vỏ bọc Closed Shadow DOM widget (`.w-overlay`, `[data-adfilter-shadow-ad]`)
- * và mở khóa cuộn trang nếu bị website đọc truyện khóa overflow.
- * @returns Số lượng phần tử quảng cáo dính đã bị xử lý
+ * popup làm mờ nền có nút X, vỏ bọc Closed Shadow DOM widget (`.w-overlay`, `[data-adfilter-shadow-ad]`)
+ * và mở khóa cuộn trang nếu bị khóa overflow/blur.
  */
 export function purgeFloatingAds(doc: Document = document): number {
   let count = 0;
@@ -87,10 +164,13 @@ export function purgeFloatingAds(doc: Document = document): number {
         !SAFE_MODAL_KEYWORDS.test(identifier) &&
         (hasSuspiciousMedia || htmlEl.children.length <= 2);
 
+      const isBlurredPopupModal = isDimmedAdModal(htmlEl, style, identifier, doc);
+
       if (
         isExplicitFloatFlank ||
         containsBettingAd ||
         isExtremeAdOverlay ||
+        isBlurredPopupModal ||
         ((isBottomSticky || isSideSticky) && hasAdKeyword)
       ) {
         hideFloatingElement(htmlEl);
@@ -99,10 +179,15 @@ export function purgeFloatingAds(doc: Document = document): number {
     }
   });
 
-  // Khôi phục cuộn trang nếu trang web cố tình khóa scroll (overflow: hidden)
-  if (doc.body && (doc.body.style.overflow === 'hidden' || doc.body.style.overflowY === 'hidden')) {
-    doc.body.style.setProperty('overflow', 'auto', 'important');
-    doc.body.style.setProperty('overflow-y', 'auto', 'important');
+  // Khôi phục cuộn trang và bỏ làm mờ nếu bị popup khóa overflow / filter
+  if (doc.body) {
+    if (doc.body.style.overflow === 'hidden' || doc.body.style.overflowY === 'hidden') {
+      doc.body.style.setProperty('overflow', 'auto', 'important');
+      doc.body.style.setProperty('overflow-y', 'auto', 'important');
+    }
+    if (doc.body.style.filter && doc.body.style.filter.includes('blur')) {
+      doc.body.style.setProperty('filter', 'none', 'important');
+    }
   }
   if (
     doc.documentElement &&

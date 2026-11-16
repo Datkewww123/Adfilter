@@ -25,8 +25,55 @@ describe('AntiPopup Engine', () => {
     expect(isSuspiciousUrl('https://bondeddarkenedswerve.com/sklnk/2117581')).toBe(true);
     expect(isSuspiciousUrl('https://bit.ly/adudr')).toBe(true);
     expect(isSuspiciousUrl('https://magiamgia.space/shopee')).toBe(true);
+    expect(isSuspiciousUrl('https://vsbet.com/promo')).toBe(true);
+    expect(isSuspiciousUrl('https://bom88.win/')).toBe(true);
+    expect(isSuspiciousUrl('https://yo88.club/')).toBe(true);
+    expect(isSuspiciousUrl('https://zo88.vip/')).toBe(true);
+    expect(isSuspiciousUrl('https://hit.club/')).toBe(true);
     expect(isSuspiciousUrl('https://nettruyen.com/chap-1')).toBe(false);
     expect(isSuspiciousUrl('')).toBe(false);
+  });
+
+  it('chặn popunder ăn theo khi bấm nút Play hoặc bấm card phim tới domain lạ bất kỳ (Intent Matching)', () => {
+    let pointerDownCb: ((e?: Event) => void) | undefined;
+    fakeWindow.location = { href: 'https://animevietsub.bid/phim/1', origin: 'https://animevietsub.bid' };
+    fakeWindow.addEventListener = vi.fn((event: string, cb: (e?: Event) => void) => {
+      if (event === 'pointerdown') {
+        pointerDownCb = cb;
+      }
+    });
+
+    const onBlocked = vi.fn();
+    installAntiPopup(fakeWindow, { onBlocked });
+
+    // 1. Giả lập click nút Play bên trong player
+    const playTarget = {
+      tagName: 'BUTTON',
+      closest: (sel: string) => (sel.includes('player') ? {} : null),
+    };
+    pointerDownCb?.({ target: playTarget } as unknown as Event);
+    expect(fakeWindow.open('https://unknown-brand-new-ad.xyz/tab', '_blank')).toBeNull();
+    expect(originalOpenMock).not.toHaveBeenCalled();
+
+    // 2. Giả lập click thẻ <a> phim nội bộ nhưng script mở kèm tab domain lạ
+    const movieCardLink = {
+      tagName: 'A',
+      getAttribute: (k: string) => (k === 'href' ? '/anime/bo-1' : ''),
+      closest: (sel: string) => (sel === 'a[href]' ? movieCardLink : null),
+    };
+    pointerDownCb?.({ target: movieCardLink } as unknown as Event);
+    expect(fakeWindow.open('https://totally-new-popunder.net/go', '_blank')).toBeNull();
+    expect(originalOpenMock).not.toHaveBeenCalled();
+
+    // 3. Click link ngoài chủ đích thì cho phép mở đúng link đó
+    const docLink = {
+      tagName: 'A',
+      getAttribute: (k: string) => (k === 'href' ? 'https://myanimelist.net/anime/1' : '_blank'),
+      closest: (sel: string) => (sel === 'a[href]' ? docLink : null),
+    };
+    pointerDownCb?.({ target: docLink } as unknown as Event);
+    fakeWindow.open('https://myanimelist.net/anime/1', '_blank');
+    expect(originalOpenMock).toHaveBeenCalledTimes(1);
   });
 
   it('chặn thẻ <a target="_blank">.click() giả lập popunder trên mobile', () => {

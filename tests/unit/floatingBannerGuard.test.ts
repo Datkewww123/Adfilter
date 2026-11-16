@@ -100,4 +100,28 @@ describe('FloatingBannerGuard', () => {
     expect(wOverlay.style.display).toBe('none');
     expect(loginModal.style.display).not.toBe('none');
   });
+
+  it('ẩn popup làm mờ background có nút X ở z-index thường và dãy banner VSbet/YO88/HITCLUB/ZO88', () => {
+    const dimmedModal = document.createElement('div');
+    dimmedModal.style.position = 'fixed';
+    dimmedModal.style.inset = '0';
+    dimmedModal.style.zIndex = '9999';
+    dimmedModal.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
+    dimmedModal.innerHTML = `
+      <button class="close-btn">×</button>
+      <a href="https://promo.example/out" target="_blank"><img src="https://cdn.example/banner.gif" /></a>
+    `;
+    document.body.appendChild(dimmedModal);
+
+    const vsbetBanner = document.createElement('div');
+    vsbetBanner.style.position = 'fixed';
+    vsbetBanner.style.top = '0px';
+    vsbetBanner.innerHTML = '<a href="/out/1"><img src="vsbet-tottenham.jpg" alt="VSbet" /></a>';
+    document.body.appendChild(vsbetBanner);
+
+    const count = purgeFloatingAds(document);
+    expect(count).toBe(2);
+    expect(dimmedModal.style.display).toBe('none');
+    expect(vsbetBanner.style.display).toBe('none');
+  });
 });

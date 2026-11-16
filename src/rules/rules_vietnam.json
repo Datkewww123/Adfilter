@@ -447,5 +447,235 @@
         "youtu.be"
       ]
     }
+  },
+  {
+    "id": 21,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||vsbet.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 22,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||bom88.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 23,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||yo88.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 24,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||zo88.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 25,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||hit.club^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 26,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||shbet.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 27,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||jun88.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 28,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||789bet.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 29,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||new88.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 30,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||8xbet.*^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
   }
 ]

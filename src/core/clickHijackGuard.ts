@@ -2,16 +2,45 @@ export interface ClickHijackOptions {
   onNeutralized?: (element: HTMLElement) => void;
 }
 
+function isTransparentClickCatcher(el: HTMLElement, computed: CSSStyleDeclaration): boolean {
+  const rawOpacity = computed.opacity || el.style.opacity;
+  const opacity = parseFloat(rawOpacity);
+  const visibility = computed.visibility || el.style.visibility;
+  if (opacity < 0.1 || visibility === 'hidden') return true;
+
+  const bg = (computed.backgroundColor || el.style.backgroundColor || '').trim().toLowerCase();
+  const isBgTransparent =
+    bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)' || bg === 'rgba(0,0,0,0)';
+  const hasMeaningfulText = (el.textContent || '').trim().length > 0;
+  const hasUiControls = Boolean(el.querySelector('input, form, video, button'));
+  return isBgTransparent && !hasMeaningfulText && !hasUiControls;
+}
+
+function isCoveringVideoPlayer(el: HTMLElement, rect: DOMRect, doc: Document): boolean {
+  const playerRoot = el.closest(
+    '.jwplayer, .video-js, .plyr, .art-video-player, [class*="player"], [id*="player"]'
+  );
+  const video = playerRoot?.querySelector('video') ?? doc.querySelector('video');
+  if (!video) return false;
+
+  const vRect = video.getBoundingClientRect();
+  if (vRect.width <= 0 || vRect.height <= 0) return false;
+  return rect.width >= vRect.width * 0.7 && rect.height >= vRect.height * 0.7;
+}
+
 export function isCoveringScreen(el: HTMLElement, win: Window = window): boolean {
   if (!el || el === win.document.body || el === win.document.documentElement) {
     return false;
   }
+  if (el.tagName === 'VIDEO' || el.tagName === 'BUTTON' || el.tagName === 'INPUT') {
+    return false;
+  }
 
-  // Tối ưu: Kiểm tra kích thước bounding trước để tránh reflow không cần thiết
   const rect = el.getBoundingClientRect();
-  const coversWidth = rect.width >= win.innerWidth * 0.8;
-  const coversHeight = rect.height >= win.innerHeight * 0.8;
-  if (!coversWidth || !coversHeight) {
+  const coversViewport =
+    rect.width >= win.innerWidth * 0.8 && rect.height >= win.innerHeight * 0.8;
+  const coversPlayer = isCoveringVideoPlayer(el, rect, win.document);
+  if (!coversViewport && !coversPlayer) {
     return false;
   }
 
@@ -22,27 +51,25 @@ export function isCoveringScreen(el: HTMLElement, win: Window = window): boolean
 
   const rawZIndex = computed.zIndex || el.style.zIndex;
   const zIndex = parseInt(rawZIndex, 10);
-  const hasHighZIndex = !isNaN(zIndex) && zIndex >= 1000;
+  const minZ = coversPlayer ? 10 : 1000;
+  const hasHighZIndex = !isNaN(zIndex) && zIndex >= minZ;
+  if (!hasHighZIndex) return false;
 
-  const rawOpacity = computed.opacity || el.style.opacity;
-  const opacity = parseFloat(rawOpacity);
-  const visibility = computed.visibility || el.style.visibility;
-  const isTransparent = opacity < 0.1 || visibility === 'hidden';
-
-  return hasHighZIndex && isTransparent;
+  return isTransparentClickCatcher(el, computed);
 }
 
-export function installClickHijackGuard(doc: Document = document, options: ClickHijackOptions = {}): () => void {
+export function installClickHijackGuard(
+  doc: Document = document,
+  options: ClickHijackOptions = {}
+): () => void {
   const handler = (e: MouseEvent | PointerEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
 
     if (isCoveringScreen(target, doc.defaultView || window)) {
-      // 1. Chặn đứng sự kiện click lan truyền tới mã độc
       e.preventDefault();
       e.stopImmediatePropagation();
 
-      // 2. Vô hiệu hóa pointer-events và xóa vĩnh viễn thẻ tàng hình khỏi DOM
       target.style.pointerEvents = 'none';
       target.remove();
 

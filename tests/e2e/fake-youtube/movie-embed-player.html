@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Embedded Video Player</title>
+  <style>
+    body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
+    .player-wrapper { position: relative; width: 100%; height: 280px; background: #111; }
+    video { width: 100%; height: 100%; background: #000; }
+    #iframe-play-btn {
+      position: absolute; bottom: 16px; left: 16px; z-index: 20;
+      padding: 8px 16px; background: #e11d48; color: #fff; border: 0; cursor: pointer;
+    }
+    #pause-bom88-overlay {
+      display: none; position: absolute; inset: 15% 20%; background: #1f2937;
+      z-index: 30; padding: 12px; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="player-wrapper" id="embed-player">
+    <video id="embed-video"></video>
+    <button id="iframe-play-btn" type="button">Play</button>
+    <button id="iframe-pause-btn" type="button">Pause</button>
+    <div id="pause-bom88-overlay">
+      <a href="https://bom88.win/promo"><img src="bom88.gif" alt="BOM88" /></a>
+      <div>Quảng cáo</div>
+      <button type="button">Đóng quảng cáo</button>
+      <button type="button">Đóng và xem tiếp</button>
+    </div>
+  </div>
+  <script>
+    document.getElementById('iframe-play-btn').addEventListener('click', function () {
+      window.open('https://unknown-streaming-pop.xyz/ad-tab', '_blank');
+    });
+    document.getElementById('iframe-pause-btn').addEventListener('click', function () {
+      var overlay = document.getElementById('pause-bom88-overlay');
+      overlay.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
