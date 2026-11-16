@@ -1,3 +1,5 @@
+import { isGamblingMorphologyMatch } from './gamblingMorphology';
+
 // Danh sách từ khóa/mẫu URL quảng cáo, cờ bạc, popunder & redirector ngụy trang dùng chung
 const BASE_SUSPICIOUS_URL_PATTERNS: RegExp[] = [
   /shopee\.vn/i,
@@ -27,6 +29,9 @@ const BASE_SUSPICIOUS_URL_PATTERNS: RegExp[] = [
   /vsbet/i,
   /bom88/i,
   /adqc\.net/i,
+  /hdbet/i,
+  /3bet/i,
+  /sun88/i,
   /yo88/i,
   /zo88/i,
   /hit\.?club/i,
@@ -107,8 +112,13 @@ export function clearDynamicBlockedUrlPatterns(): void {
 
 export function isSuspiciousUrl(url: string): boolean {
   if (!url || url === 'about:blank') return false;
-  return (
+  if (
     BASE_SUSPICIOUS_URL_PATTERNS.some((pattern) => pattern.test(url)) ||
     dynamicPatterns.some((pattern) => pattern.test(url))
-  );
+  ) {
+    return true;
+  }
+
+  // Kiểm tra thêm hình thái domain nhà cái (*bet, *88, *win, *club, *vip) không phân biệt tên brand mới
+  return isGamblingMorphologyMatch(url, '', '', '', '');
 }
