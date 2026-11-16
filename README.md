@@ -1,10 +1,10 @@
-# AdFilter — Tiện ích Lọc Quảng cáo YouTube (Manifest V3) & Hệ thống Quan sát Đám mây
+# AdFilter v3.0.0 — Brave-Style Universal AdFilter (Manifest V3) & Cloud Observability
 
 [![Verify CI](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml/badge.svg)](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-brightgreen.svg)](CHANGELOG.md)
 
-> **Mô tả & Phạm vi Dự án:** AdFilter là tiện ích trình duyệt đa nền tảng (**Chromium & Firefox Manifest V3**) viết bằng TypeScript với kiến trúc **Lõi Quyết định Thuần (Pure Core)**, kết hợp hệ thống **Observability (Fastify, PostgreSQL, Prometheus, Grafana, Canary)** và hạ tầng **AWS Terraform IaC & OIDC Continuous Deployment**. Dự án phục vụ mục đích học tập, nghiên cứu kỹ thuật phần mềm và thử nghiệm cá nhân trên tài khoản phụ; tiện ích **không** được phát hành lên Chrome Web Store hay Mozilla Add-ons.
+> **Mô tả & Phạm vi Dự án:** AdFilter là tiện ích chặn quảng cáo đa nền tảng (**Chromium & Firefox Manifest V3**) viết bằng TypeScript, kết hợp **Kiến trúc Lõi Quyết định Thuần (Pure Core)** cho YouTube và **Universal AdBlock Engine kiểu Brave/uBO** cho toàn bộ web (bộ biên dịch filter list ABP/uBO -> Multi-Ruleset DNR + `noop` redirects, Scriptlet Engine `+js`, `attachShadow` Shield trị Closed Shadow DOM, Procedural Engine `:has-text`/`:upward` và Dynamic Filter Updater), đi kèm hệ thống **Observability (Fastify, PostgreSQL, Prometheus, Grafana, Canary)** và hạ tầng **AWS Terraform IaC & OIDC Continuous Deployment**. Dự án phục vụ mục đích học tập, nghiên cứu kỹ thuật phần mềm và sử dụng cá nhân; tham khảo chính sách tại [SECURITY.md](SECURITY.md) và [docs/notes/permissions-review.md](docs/notes/permissions-review.md).
 
 ---
 
@@ -45,7 +45,7 @@ Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/C
 | :--- | :---: | :--- |
 | **Precision & Recall trên tập Fixtures (`n = 17`)** | **Precision = 100.0% (`1.000`)**<br>**Recall = 100.0% (`1.000`)** (`0 FP`, `0 FN`) | [`docs/notes/eval-baseline.md`](docs/notes/eval-baseline.md) & `pnpm eval` |
 | **Phiên dùng thực tế (`n = 53` quảng cáo)** | **Xác minh đạt: 96.2% (51/53)**<br>**Video chính bị kẹt: `0` (0.0%)** | [`docs/notes/week9-metrics.md`](docs/notes/week9-metrics.md) |
-| **Quy mô Kiểm thử Tự động** | **34 Unit Test suites (`253 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**7 kịch bản Playwright E2E (`35/35` stress runs)** | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
+| **Quy mô Kiểm thử Tự động** | **56 Unit Test suites (`347 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**12 kịch bản Playwright E2E** (YouTube, Truyện tranh Closed Shadow DOM, Phim VAST, Tin tức Procedural) | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
 | **Thời gian phát hiện sự cố (MTTD — 2 Chaos Drills)** | **Drill 01 (Hỏng DOM): `~45 giây`**<br>**Drill 02 (Ngắt mạch hàng loạt): `~40 giây`** | [`docs/notes/chaos-drill-01.md`](docs/notes/chaos-drill-01.md) & [`docs/notes/chaos-drill-02.md`](docs/notes/chaos-drill-02.md) |
 | **Thời gian Quay lui ( Tự động & Thủ công )** | **`~45 – 60 giây`** (cả Docker image lẫn cấu hình) | [`docs/notes/deploy-runbook.md`](docs/notes/deploy-runbook.md) |
 | **Thời gian Khôi phục Hạ tầng từ Số 0 (RTO)** | **`6 phút 30 giây` (6.5 phút)** | [`docs/notes/rebuild-from-zero.md`](docs/notes/rebuild-from-zero.md) |
@@ -55,10 +55,10 @@ Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/C
 ## 3. Hướng dẫn Cài đặt & Sử dụng An toàn
 
 ### Cài đặt trên Google Chrome / Chromium:
-1. Tải gói `adfilter-chromium-v1.0.0.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` để tạo thư mục `dist/chromium/`).
+1. Tải gói `adfilter-chromium-v3.0.0.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` / `pnpm package` để tạo `dist/chromium/` và `release/`).
 2. Kiểm tra tính toàn vẹn SHA-256:
    ```powershell
-   Get-FileHash adfilter-chromium-v1.0.0.zip -Algorithm SHA256
+   Get-FileHash adfilter-chromium-v3.0.0.zip -Algorithm SHA256
    ```
 3. Mở `chrome://extensions/`, bật **Developer mode**, bấm **Load unpacked** và chọn thư mục đã giải nén (`dist/chromium/`).
 
@@ -79,12 +79,18 @@ Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/C
 # Cài đặt toàn bộ phụ thuộc
 pnpm install
 
-# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 253 Unit Tests + Quality Gate Eval + Multi-target Build)
+# Biên dịch bộ lọc ABP/uBO -> DNR JSON + Cosmetic/Scriptlet Index
+pnpm compile:filters
+
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 347 Unit Tests + Quality Gate Eval + Multi-target Build)
 pnpm verify:all
 
-# Đóng gói bản Dev và chạy 7 kịch bản kiểm thử đầu cuối Playwright E2E
+# Đóng gói bản Dev và chạy 12 kịch bản kiểm thử đầu cuối Playwright E2E
 pnpm build:dev
 pnpm e2e
+
+# Đóng gói zip phát hành Chromium & Firefox vào thư mục release/
+pnpm package
 
 # Chạy kiểm tra kiểu và bộ test của Telemetry & Canary API Server
 pnpm --dir server typecheck
@@ -105,14 +111,14 @@ pnpm --dir server test
 
 ---
 
-## 6. Trạng thái Dự án (Project Status)
+## 6. Trạng thái Dự án & Chính sách
 
-- **Phiên bản hiện tại:** **`v1.0.0`** (Phát hành ngày `2026-11-06`).
-- **Trạng thái chương trình 20 tuần:** **Đã hoàn thành trọn vẹn 20/20 tuần** (từ Phase 0 đến Phase 9).
-- **Hướng phát triển tiếp theo (Tùy chọn):**
-  1. Thiết lập sao lưu tự động PostgreSQL (`pg_dump`) lên S3 theo lịch định kỳ.
-  2. Tích hợp chạy Playwright E2E tự động cho bản build Firefox trên GitHub Actions.
-  3. Phân tích phát hiện bất thường thống kê trên dữ liệu telemetry dài hạn.
+- **Phiên bản hiện tại:** **`v3.0.0`** (Phát hành ngày `2026-11-16` — xem [CHANGELOG.md](CHANGELOG.md)).
+- **Tiến độ đã hoàn thành (Tuần 1 – Tuần 29):**
+  - **Tuần 1–20:** Kiến trúc Pure Core YouTube, Circuit Breaker, Canary Observability & AWS Terraform CD.
+  - **Tuần 21–25:** Mở rộng Universal Web (Anti-Popup, IAB Heuristic, VAST Interceptor, Element Picker, Vietnamese Manga Shield).
+  - **Tuần 26–29 (`v3.0.0`):** Nâng cấp thành **Brave-Style Universal Engine** (Filter Compiler `filters/*.txt`, `noop.*` Redirects, Scriptlet Engine `+js`, `attachShadow` Shield, Procedural Engine `:has-text`/`:upward`, Dynamic DNR & Remote Filter Updater, tách làn an toàn YouTube).
+- **Bảo mật & Quyền truy cập:** Xem chi tiết tại **[SECURITY.md](SECURITY.md)** và **[docs/notes/permissions-review.md](docs/notes/permissions-review.md)**.
 
 ---
 
