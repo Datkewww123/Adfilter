@@ -8,7 +8,7 @@ export function generateUniqueSelector(el: HTMLElement): string {
 
   const dataZone = el.getAttribute?.('data-zone');
   if (dataZone) {
-    const escapedZone = dataZone.replace(/"/g, '\\"');
+    const escapedZone = dataZone.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return `${el.tagName.toLowerCase()}[data-zone="${escapedZone}"]`;
   }
 
