@@ -57,4 +57,24 @@ describe('ElementCollapsing', () => {
     expect(count).toBe(1);
     expect(parentHolder.style.height).toBe('0px');
   });
+
+  it('KHÔNG co rút nhầm khung player chứa iframe/video hoặc class chứa chuỗi load-/head-/shadow-', () => {
+    const loadContainer = document.createElement('div');
+    loadContainer.id = 'preload-player-box';
+    loadContainer.className = 'head-player shadow-player';
+    const iframe = document.createElement('iframe');
+    loadContainer.appendChild(iframe);
+    document.body.appendChild(loadContainer);
+
+    const adNamedWithVideo = document.createElement('div');
+    adNamedWithVideo.className = 'ad-container';
+    const video = document.createElement('video');
+    adNamedWithVideo.appendChild(video);
+    document.body.appendChild(adNamedWithVideo);
+
+    const count = collapseEmptyAdSlots(document);
+    expect(count).toBe(0);
+    expect(loadContainer.style.display).not.toBe('none');
+    expect(adNamedWithVideo.style.display).not.toBe('none');
+  });
 });

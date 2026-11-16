@@ -1,6 +1,9 @@
 const PLAYER_PAUSE_AD_BUTTON_TEXT =
   /^(đóng quảng cáo|đóng và xem tiếp|bỏ qua quảng cáo|tắt quảng cáo|close ad|skip ad)$/i;
 
+const PLAYER_CHROME_PROTECT_REGEX = /tập\s*tiếp|chọn\s*server|bình\s*luận|tắt\s*đèn/i;
+const MAIN_PLAYER_FRAME_REGEX = /\b(?:jwplayer|video-js|plyr|art-video-player|media-player)\b/i;
+
 const PLAYER_AD_MEDIA_SELECTOR = [
   'a[href*="bom88"]',
   'a[href*="vsbet"]',
@@ -43,29 +46,42 @@ function hidePlayerOverlay(el: HTMLElement): void {
   el.style.setProperty('pointer-events', 'none', 'important');
 }
 
+function containsProtectedMediaOrChrome(el: HTMLElement): boolean {
+  if (el.tagName === 'VIDEO' || el.tagName === 'IFRAME') return true;
+  if (el.querySelector('video, iframe, canvas, embed, object')) return true;
+  const text = el.textContent || '';
+  if (PLAYER_CHROME_PROTECT_REGEX.test(text)) return true;
+  return false;
+}
+
 function findEnclosingAdOverlay(el: HTMLElement, doc: Document): HTMLElement | null {
   let cursor: HTMLElement = el;
   while (cursor.parentElement) {
     const parent = cursor.parentElement;
+    const parentIdentifier = `${parent.id} ${parent.className}`;
     if (
       parent === doc.body ||
       parent === doc.documentElement ||
       parent.tagName === 'MAIN' ||
-      parent.tagName === 'ARTICLE'
+      parent.tagName === 'ARTICLE' ||
+      MAIN_PLAYER_FRAME_REGEX.test(parentIdentifier) ||
+      containsProtectedMediaOrChrome(parent)
     ) {
-      break;
-    }
-    if (parent.querySelector('video')) {
-      // Dừng ngay trước wrapper chứa thẻ <video> để chỉ ẩn lớp phủ QC
       return cursor === el ? null : cursor;
     }
+
     const textLen = (parent.textContent || '').trim().length;
     if (textLen > 450) {
       break;
     }
     cursor = parent;
   }
-  return cursor === el ? el.parentElement : cursor;
+  if (cursor === el) {
+    return el.parentElement && !containsProtectedMediaOrChrome(el.parentElement)
+      ? el.parentElement
+      : null;
+  }
+  return containsProtectedMediaOrChrome(cursor) ? null : cursor;
 }
 
 /**
@@ -107,7 +123,8 @@ export function autoCloseMovieOverlays(doc: Document = document): number {
 }
 
 /**
- * Ẩn triệt để các khung chứa quảng cáo đè lên trình phát video (kể cả Pause-Ad custom kiểu AnimeVietsub)
+ * Ẩn triệt để các khung chứa quảng cáo đè lên trình phát video (kể cả Pause-Ad custom kiểu AnimeVietsub),
+ * luôn bảo toàn tuyệt đối khung video/iframe trình phát và thanh điều khiển tập phim.
  */
 export function purgeMoviePlayerAdOverlays(doc: Document = document): number {
   const overlaySelectors = [
@@ -126,7 +143,7 @@ export function purgeMoviePlayerAdOverlays(doc: Document = document): number {
   let count = 0;
 
   doc.querySelectorAll<HTMLElement>(overlaySelectors).forEach((el) => {
-    if (el.style.display !== 'none') {
+    if (!containsProtectedMediaOrChrome(el) && el.style.display !== 'none') {
       hidePlayerOverlay(el);
       count++;
     }
@@ -140,7 +157,12 @@ export function purgeMoviePlayerAdOverlays(doc: Document = document): number {
     }
 
     const overlayBox = findEnclosingAdOverlay(node, doc);
-    if (overlayBox && overlayBox !== doc.body && overlayBox.style.display !== 'none') {
+    if (
+      overlayBox &&
+      overlayBox !== doc.body &&
+      !containsProtectedMediaOrChrome(overlayBox) &&
+      overlayBox.style.display !== 'none'
+    ) {
       hidePlayerOverlay(overlayBox);
       count++;
     }
@@ -154,7 +176,11 @@ export function purgeMoviePlayerAdOverlays(doc: Document = document): number {
     .forEach((player) => {
       player.querySelectorAll<HTMLElement>(PLAYER_AD_MEDIA_SELECTOR).forEach((mediaEl) => {
         const container = findEnclosingAdOverlay(mediaEl, doc) || mediaEl;
-        if (container !== player && container.style.display !== 'none') {
+        if (
+          container !== player &&
+          !containsProtectedMediaOrChrome(container) &&
+          container.style.display !== 'none'
+        ) {
           hidePlayerOverlay(container);
           count++;
         }

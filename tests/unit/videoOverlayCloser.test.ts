@@ -72,4 +72,36 @@ describe('VideoOverlayCloser (Tự động đóng quảng cáo video trên web p
     expect(video.style.display).not.toBe('none');
     expect(playerWrap.style.display).not.toBe('none');
   });
+
+  it('KHÔNG bao giờ ẩn khung iframe player hay thanh Tập tiếp / Bình luận dù nằm chung container với overlay Đóng quảng cáo', () => {
+    const watchBlock = document.createElement('div');
+    watchBlock.id = 'watch-movie-block';
+
+    const mediaPlayer = document.createElement('div');
+    mediaPlayer.id = 'media-player';
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://embed.example/player/1';
+    mediaPlayer.appendChild(iframe);
+
+    const adOverlay = document.createElement('div');
+    adOverlay.id = 'ad-pause-wrapper';
+    adOverlay.innerHTML = '<button type="button">Đóng quảng cáo</button>';
+    mediaPlayer.appendChild(adOverlay);
+
+    const bar = document.createElement('div');
+    bar.id = 'player-toolbar';
+    bar.textContent = 'Tập tiếp | Bình luận | Tắt đèn | Chọn Server';
+
+    watchBlock.appendChild(mediaPlayer);
+    watchBlock.appendChild(bar);
+    document.body.appendChild(watchBlock);
+
+    const count = purgeMoviePlayerAdOverlays(document);
+    expect(count).toBeGreaterThanOrEqual(1);
+    expect(adOverlay.style.display).toBe('none');
+    expect(watchBlock.style.display).not.toBe('none');
+    expect(mediaPlayer.style.display).not.toBe('none');
+    expect(iframe.style.display).not.toBe('none');
+    expect(bar.style.display).not.toBe('none');
+  });
 });

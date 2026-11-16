@@ -17,8 +17,11 @@ test('bảo vệ toàn diện web xem phim: iframe Play popunder, card phim popu
   await expect(page.locator('#banner-zo88')).not.toBeVisible();
   await expect(page.locator('#blurred-x-popup')).not.toBeVisible();
 
-  // Modal đăng nhập hợp lệ vẫn hiển thị
+  // Modal đăng nhập hợp lệ, khung player iframe và thanh điều khiển Tập tiếp / Bình luận vẫn hiển thị đầy đủ
   await expect(page.locator('#login-modal')).toBeVisible();
+  await expect(page.locator('#player-iframe')).toBeVisible();
+  await expect(page.locator('#player-controls-bar')).toBeVisible();
+  await expect(page.locator('#outer-pause-bom88-box')).not.toBeVisible();
 
   // 2. Click vào thẻ phim chuyển trang thông tin KHÔNG bị nhảy tab popunder lạ
   await page.click('#movie-card-link');

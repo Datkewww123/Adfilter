@@ -28,11 +28,24 @@ function isCoveringVideoPlayer(el: HTMLElement, rect: DOMRect, doc: Document): b
   return rect.width >= vRect.width * 0.7 && rect.height >= vRect.height * 0.7;
 }
 
+const PLAYER_UI_CONTROL_CLASS_REGEX =
+  /\b(?:jw-controls|jw-icon|jw-slider|vjs-control|plyr__control|art-control|art-bottom)\b/i;
+
+function isOfficialPlayerControl(el: HTMLElement): boolean {
+  if (el.tagName === 'VIDEO' || el.tagName === 'BUTTON' || el.tagName === 'INPUT') {
+    return true;
+  }
+  const role = el.getAttribute?.('role');
+  if (role === 'button' || role === 'slider') return true;
+  const cls = typeof el.className === 'string' ? el.className : '';
+  return PLAYER_UI_CONTROL_CLASS_REGEX.test(cls);
+}
+
 export function isCoveringScreen(el: HTMLElement, win: Window = window): boolean {
   if (!el || el === win.document.body || el === win.document.documentElement) {
     return false;
   }
-  if (el.tagName === 'VIDEO' || el.tagName === 'BUTTON' || el.tagName === 'INPUT') {
+  if (isOfficialPlayerControl(el)) {
     return false;
   }
 
