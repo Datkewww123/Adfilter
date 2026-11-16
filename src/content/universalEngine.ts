@@ -2,8 +2,10 @@ import { installClickHijackGuard } from '../core/clickHijackGuard';
 import {
   parseCosmeticRule,
   generateCosmeticCssFromIndex,
+  matchesDomainOrSubdomain,
   type CosmeticIndex,
   type CosmeticRule,
+  type ProceduralCosmeticRule,
 } from '../cosmetic/cosmeticEngine';
 import { applyProceduralCosmeticRules } from '../cosmetic/proceduralEngine';
 import compiledCosmeticIndexJson from '../rules/cosmetic_index.json';
@@ -170,12 +172,20 @@ export function purgeVietnameseAdBanners(doc: Document = document): number {
 /**
  * Thực hiện một lượt quét dọn toàn diện: Heuristic IAB Ads + Floating Ads + Element Collapsing + Anti-Adblock Modal + Lazy Images + Movie Video Overlays + VN Manga Ads
  */
-export function runCosmeticSweep(doc: Document = document, userSelectors: string[] = []): void {
+export function runCosmeticSweep(
+  doc: Document = document,
+  userSelectors: string[] = [],
+  customProcedural: ProceduralCosmeticRule[] = []
+): void {
   const host = typeof window !== 'undefined' ? window.location?.hostname ?? '' : '';
   scanAndHideHeuristicAds(doc);
   purgeFloatingAds(doc);
   purgeVietnameseAdBanners(doc);
-  applyProceduralCosmeticRules(doc, COMPILED_COSMETIC_INDEX.procedural ?? [], host);
+  applyProceduralCosmeticRules(
+    doc,
+    [...(COMPILED_COSMETIC_INDEX.procedural ?? []), ...customProcedural],
+    host
+  );
   collapseEmptyAdSlots(doc);
   bypassAdblockModals(doc);
   resolveLazyImages(doc);
@@ -212,14 +222,25 @@ export function initUniversalContent(
   // 2. Tiêm CSS ẩn quảng cáo tức thì tại document_start (Zero FOUC)
   injectCosmeticStyle(doc);
 
+  let activeCustomSelectors: string[] = [];
+  let activeCustomProcedural: ProceduralCosmeticRule[] = [];
+
   // 3. Quét dọn ban đầu
-  runCosmeticSweep(doc);
+  runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
 
   // 4. Lắng nghe sự kiện DOMContentLoaded và Window load
   if (doc.readyState === 'loading') {
-    doc.addEventListener('DOMContentLoaded', () => runCosmeticSweep(doc), { once: true });
+    doc.addEventListener(
+      'DOMContentLoaded',
+      () => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural),
+      { once: true }
+    );
   }
-  window.addEventListener('load', () => runCosmeticSweep(doc), { once: true });
+  window.addEventListener(
+    'load',
+    () => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural),
+    { once: true }
+  );
 
   // 5. Khởi động bộ bảo vệ tải ảnh lười cho truyện tranh
   const stopLazyLoad = startLazyLoadProtector(doc);
@@ -233,7 +254,7 @@ export function initUniversalContent(
     if (!hasAddedElement || sweepTimer) return;
     sweepTimer = setTimeout(() => {
       sweepTimer = null;
-      runCosmeticSweep(doc);
+      runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
     }, 200);
   });
 
@@ -257,15 +278,54 @@ export function initUniversalContent(
     if (styleEl) styleEl.remove();
   };
 
-  // 8. Đồng bộ với chrome.storage.local nếu có whitelist được cập nhật ngầm
+  // 8. Đồng bộ whitelist, custom cosmetic rules và user picker selectors từ chrome.storage.local
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
     try {
-      chrome.storage.local.get(['whitelist_domains'], (data: { [key: string]: any }) => {
-        const stored: string[] = Array.isArray(data?.whitelist_domains) ? data.whitelist_domains : [];
-        if (isDomainWhitelisted(host, stored)) {
-          cleanup();
+      chrome.storage.local.get(
+        ['whitelist_domains', 'user_blocked_selectors', 'user_custom_cosmetic_rules'],
+        (data: { [key: string]: any }) => {
+          const stored: string[] = Array.isArray(data?.whitelist_domains)
+            ? data.whitelist_domains
+            : [];
+          if (isDomainWhitelisted(host, stored)) {
+            cleanup();
+            return;
+          }
+
+          const customSelectors: string[] = Array.isArray(data?.user_blocked_selectors)
+            ? [...data.user_blocked_selectors]
+            : [];
+          const customStore = data?.user_custom_cosmetic_rules as
+            | {
+                generic?: string[];
+                byDomain?: Record<string, string[]>;
+                procedural?: ProceduralCosmeticRule[];
+              }
+            | undefined;
+
+          if (customStore) {
+            if (Array.isArray(customStore.generic)) {
+              customSelectors.push(...customStore.generic);
+            }
+            if (customStore.byDomain) {
+              for (const [dom, sels] of Object.entries(customStore.byDomain)) {
+                if (matchesDomainOrSubdomain(host, dom) && Array.isArray(sels)) {
+                  customSelectors.push(...sels);
+                }
+              }
+            }
+          }
+
+          const customProcedural = Array.isArray(customStore?.procedural)
+            ? customStore.procedural
+            : [];
+          activeCustomSelectors = customSelectors;
+          activeCustomProcedural = customProcedural;
+          if (customSelectors.length > 0 || customProcedural.length > 0) {
+            runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
+          }
         }
-      });
+      );
     } catch {
       // Bỏ qua nếu storage chưa sẵn sàng
     }

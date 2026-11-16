@@ -14,7 +14,9 @@ export interface TabStatus {
 export type Msg =
   | { kind: 'STATUS_UPDATE'; status: TabStatus }
   | { kind: 'GET_STATUS'; tabId: number }
-  | { kind: 'RESET_STATS' };
+  | { kind: 'RESET_STATS' }
+  | { kind: 'SYNC_FILTERS' }
+  | { kind: 'UPDATE_REMOTE_FILTERS' };
 
 export const statusKey = (tabId: number) => `tab:${tabId}`;
 
@@ -35,5 +37,6 @@ export function isMsg(x: unknown): x is Msg {
   if (m.kind === 'GET_STATUS') return typeof m.tabId === 'number';
   if (m.kind === 'STATUS_UPDATE') return typeof m.status === 'object' && m.status !== null;
   if (m.kind === 'RESET_STATS') return true;
+  if (m.kind === 'SYNC_FILTERS' || m.kind === 'UPDATE_REMOTE_FILTERS') return true;
   return false;
 }

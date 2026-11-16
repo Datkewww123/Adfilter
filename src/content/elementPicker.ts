@@ -6,6 +6,12 @@ export function generateUniqueSelector(el: HTMLElement): string {
     return `#${CSS.escape ? CSS.escape(el.id) : el.id}`;
   }
 
+  const dataZone = el.getAttribute?.('data-zone');
+  if (dataZone) {
+    const escapedZone = dataZone.replace(/"/g, '\\"');
+    return `${el.tagName.toLowerCase()}[data-zone="${escapedZone}"]`;
+  }
+
   const validClasses = Array.from(el.classList).filter((c) => !c.includes(':') && !c.includes('/'));
   if (validClasses.length > 0) {
     const classStr = validClasses.map((c) => (CSS.escape ? CSS.escape(c) : c)).join('.');
