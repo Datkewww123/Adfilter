@@ -48,4 +48,22 @@ describe('ClickHijackGuard', () => {
     expect(onNeutralized).toHaveBeenCalledWith(div);
     expect(div.parentElement).toBeNull();
   });
+
+  it('bắt lớp phủ click-catcher trong suốt (background transparent) đè lên video player', () => {
+    const player = document.createElement('div');
+    player.className = 'jwplayer';
+    const video = document.createElement('video');
+    video.getBoundingClientRect = () => ({ width: 640, height: 360 } as DOMRect);
+    const trapOverlay = document.createElement('div');
+    trapOverlay.style.position = 'absolute';
+    trapOverlay.style.zIndex = '50';
+    trapOverlay.style.backgroundColor = 'transparent';
+    trapOverlay.getBoundingClientRect = () => ({ width: 640, height: 360 } as DOMRect);
+
+    player.appendChild(video);
+    player.appendChild(trapOverlay);
+    document.body.appendChild(player);
+
+    expect(isCoveringScreen(trapOverlay, window)).toBe(true);
+  });
 });

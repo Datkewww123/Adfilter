@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Anime & Movie Streaming Simulation</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 16px; background: #0f172a; color: #fff; }
+    .ad-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .banner-box img { height: 60px; }
+    #blurred-x-popup {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #login-modal {
+      position: fixed; top: 12px; right: 12px; z-index: 9999;
+      background: #1e293b; padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ad-grid">
+    <div class="banner-box" id="banner-yo88"><a href="/out/1"><img src="yo88.gif" alt="YO88" /></a></div>
+    <div class="banner-box" id="banner-hitclub"><a href="/out/2"><img src="hitclub.gif" alt="HITCLUB" /></a></div>
+    <div class="banner-box" id="banner-vsbet"><a href="https://vsbet.com/promo"><img src="vsbet.jpg" alt="VSbet" /></a></div>
+    <div class="banner-box" id="banner-zo88"><a href="https://zo88.vip/promo"><img src="zo88.gif" alt="ZO88" /></a></div>
+  </div>
+
+  <iframe id="player-iframe" src="/movie-embed-player.html" width="640" height="300"></iframe>
+
+  <main>
+    <a id="movie-card-link" href="#anime-tensei-goblin">Xem Tensei Goblin (Trang thông tin)</a>
+  </main>
+
+  <div id="blurred-x-popup">
+    <div class="popup-inner">
+      <button type="button" class="close-btn">×</button>
+      <a href="https://random-ad-site.example/offer" target="_blank"><img src="promo.gif" alt="Promo" /></a>
+    </div>
+  </div>
+
+  <div id="login-modal">
+    <form><input type="text" placeholder="Tài khoản" /><button type="button">Đăng nhập</button></form>
+  </div>
+
+  <script>
+    document.getElementById('movie-card-link').addEventListener('click', function () {
+      window.open('https://completely-new-popunder-domain.example/landing', '_blank');
+    });
+  </script>
+</body>
+</html>

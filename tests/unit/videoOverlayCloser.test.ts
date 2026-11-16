@@ -47,4 +47,29 @@ describe('VideoOverlayCloser (Tự động đóng quảng cáo video trên web p
     expect(overlay1.style.display).toBe('none');
     expect(overlay2.style.display).toBe('none');
   });
+
+  it('ẩn triệt để Pause-Ad custom kiểu AnimeVietsub (BOM88 / Quảng cáo / Đóng và xem tiếp) mà giữ nguyên thẻ video', () => {
+    const playerWrap = document.createElement('div');
+    playerWrap.className = 'anime-player-box';
+
+    const video = document.createElement('video');
+    playerWrap.appendChild(video);
+
+    const pauseModal = document.createElement('div');
+    pauseModal.id = 'pause-bom88-box';
+    pauseModal.innerHTML = `
+      <a href="https://bom88.win/promo"><img src="bom88.gif" alt="BOM88" /></a>
+      <div>Quảng cáo</div>
+      <button type="button">Đóng quảng cáo</button>
+      <button type="button">Đóng và xem tiếp</button>
+    `;
+    playerWrap.appendChild(pauseModal);
+    document.body.appendChild(playerWrap);
+
+    const hiddenCount = purgeMoviePlayerAdOverlays(document);
+    expect(hiddenCount).toBeGreaterThanOrEqual(1);
+    expect(pauseModal.style.display).toBe('none');
+    expect(video.style.display).not.toBe('none');
+    expect(playerWrap.style.display).not.toBe('none');
+  });
 });
