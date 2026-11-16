@@ -12,6 +12,8 @@ import { runCompiledScriptlets } from './scriptlets/runner';
     const isYouTube =
       host === 'youtube.com' ||
       host.endsWith('.youtube.com') ||
+      host === 'youtube-nocookie.com' ||
+      host.endsWith('.youtube-nocookie.com') ||
       Boolean(typeof window !== 'undefined' && window.location.pathname?.includes('watch.html'));
 
     // Không can thiệp YouTube vì YouTube đã có defuser.ts riêng
