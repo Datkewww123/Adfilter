@@ -79,5 +79,18 @@ describe('DeclarativeNetRequest Rules', () => {
     expect(vnFilters).toContain('*/api/widget/*');
     expect(vnFilters).toContain('||bondeddarkenedswerve.com^');
     expect(vnFilters).toContain('||assets.yougetwhatyoupayfor.net^');
+
+    const globalRules = JSON.parse(
+      fs.readFileSync(path.join(rulesDir, 'rules_global.json'), 'utf-8')
+    );
+    const globalFilters = globalRules.map(
+      (r: { condition: { urlFilter: string } }) => r.condition.urlFilter
+    );
+    expect(globalFilters).toContain('||exosrv.com^');
+    expect(globalFilters).toContain('||magsrv.com^');
+    expect(globalFilters).toContain('||realsrv.com^');
+    expect(globalFilters).toContain('||popads.net^');
+    expect(globalFilters).toContain('||tsyndicate.com^');
+    expect(globalFilters).toContain('||betteradsystem.com^');
   });
 });

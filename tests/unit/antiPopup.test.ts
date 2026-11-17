@@ -212,4 +212,90 @@ describe('AntiPopup Engine', () => {
     fakeForm.submit();
     expect(origFormSubmit).not.toHaveBeenCalled();
   });
+
+  it('nhận diện mạng popunder quốc tế (ExoClick/ExoSrv/MagSrv/RealSrv/PopAds) và chặn dispatchEvent + <a> chèn động dưới con trỏ', () => {
+    expect(isSuspiciousUrl('https://s.magsrv.com/splash.php?idzone=123')).toBe(true);
+    expect(isSuspiciousUrl('https://syndication.exosrv.com/ads-iframe.php')).toBe(true);
+    expect(isSuspiciousUrl('https://a.realsrv.com/go')).toBe(true);
+    expect(isSuspiciousUrl('https://tsyndicate.com/api/v1/p')).toBe(true);
+    expect(isSuspiciousUrl('https://c1.popads.net/pop.js')).toBe(true);
+    expect(isSuspiciousUrl('https://betteradsystem.com/pop')).toBe(true);
+    expect(isSuspiciousUrl('https://hitomi.la/galleries/12345.html')).toBe(false);
+
+    const clickHandlers: Array<(e: Event) => void> = [];
+    const pointerHandlers: Array<(e?: Event) => void> = [];
+    const origDispatch = vi.fn().mockReturnValue(true);
+
+    class FakeAnchor {
+      tagName = 'A';
+      href = 'https://unknown-popunder.xyz/tab';
+      target = '_blank';
+      getAttribute(k: string) {
+        return k === 'target' ? this.target : this.href;
+      }
+      dispatchEvent(_ev: Event) {
+        return origDispatch.call(this, _ev);
+      }
+    }
+    class FakeEventTarget {}
+    (FakeEventTarget.prototype as unknown as { dispatchEvent: (e: Event) => boolean }).dispatchEvent =
+      origDispatch;
+
+    const fakeDoc = {
+      addEventListener: vi.fn((type: string, cb: (e: Event) => void) => {
+        if (type === 'click') clickHandlers.push(cb);
+      }),
+    };
+    const win = {
+      open: vi.fn().mockReturnValue({}),
+      location: { href: 'https://hitomi.la/', origin: 'https://hitomi.la' },
+      document: fakeDoc,
+      HTMLAnchorElement: FakeAnchor,
+      EventTarget: FakeEventTarget,
+      addEventListener: vi.fn((type: string, cb: (e?: Event) => void) => {
+        if (type === 'pointerdown') pointerHandlers.push(cb);
+      }),
+    } as unknown as Window;
+
+    const onBlocked = vi.fn();
+    installAntiPopup(win, { onBlocked });
+
+    // 1. Chặn EventTarget.prototype.dispatchEvent(MouseEvent('click')) trên <a>
+    const detachedAnchor = new FakeAnchor() as unknown as HTMLAnchorElement;
+    const dispatched = (FakeEventTarget.prototype as unknown as EventTarget).dispatchEvent.call(
+      detachedAnchor,
+      { type: 'click' } as unknown as Event
+    );
+    expect(dispatched).toBe(false);
+    expect(origDispatch).not.toHaveBeenCalled();
+
+    // 2. Giả lập pointerdown lên ảnh truyện trên hitomi.la, nhưng lúc click lại dính <a target="_blank"> mới chèn đè lên
+    const comicCard = {
+      tagName: 'DIV',
+      closest: () => null,
+    };
+    pointerHandlers.forEach((cb) => cb({ target: comicCard } as unknown as Event));
+
+    const dynamicTrapAnchor = {
+      tagName: 'A',
+      href: 'https://new-ad-domain.example/landing',
+      getAttribute: (k: string) =>
+        k === 'href' ? 'https://new-ad-domain.example/landing' : k === 'target' ? '_blank' : '',
+      closest: (sel: string) => (sel === 'a[href]' ? dynamicTrapAnchor : null),
+    };
+    const preventDefault = vi.fn();
+    const stopImmediatePropagation = vi.fn();
+    clickHandlers.forEach((cb) =>
+      cb({
+        target: dynamicTrapAnchor,
+        isTrusted: true,
+        preventDefault,
+        stopImmediatePropagation,
+      } as unknown as Event)
+    );
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopImmediatePropagation).toHaveBeenCalled();
+    expect(onBlocked).toHaveBeenCalledWith('https://new-ad-domain.example/landing');
+  });
 });
