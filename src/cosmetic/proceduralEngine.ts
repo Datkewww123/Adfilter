@@ -1,4 +1,5 @@
 import { isYouTubeHostname, matchesDomainOrSubdomain, type ProceduralCosmeticRule } from './cosmeticEngine';
+import { isContentListOrLayoutContainer } from './contentSafety';
 
 export interface ParsedProceduralChain {
   baseSelector: string;
@@ -6,8 +7,6 @@ export interface ParsedProceduralChain {
   matchesCss?: { prop: string; valueRegex: RegExp };
   upwardTarget?: number | string;
 }
-
-const PROTECTED_TAGS = new Set(['HTML', 'BODY', 'MAIN', 'HEADER', 'FOOTER']);
 
 function escapeRegexLiteral(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -118,15 +117,11 @@ function resolveUpwardTarget(el: HTMLElement, upward?: number | string): HTMLEle
 }
 
 function isSafeToHideTarget(doc: Document, target: HTMLElement | null): target is HTMLElement {
-  if (!target || target === doc.body || target === doc.documentElement) return false;
-  if (PROTECTED_TAGS.has(target.tagName)) return false;
-
-  // Chống ẩn nhầm khối bài viết / truyện dài
-  const textLen = (target.textContent || '').trim().length;
-  if (textLen > 600) return false;
-  if (target.tagName === 'ARTICLE') return false;
-
-  return true;
+  return !isContentListOrLayoutContainer(target, doc, {
+    allowSingleIframe: true,
+    maxTextLength: 600,
+    maxAnchors: 4,
+  });
 }
 
 function isRuleActiveForHost(rule: ProceduralCosmeticRule, hostname: string): boolean {

@@ -30,8 +30,12 @@ export function collapseEmptyAdSlots(doc: Document = document): number {
       return;
     }
 
-    // Tuyệt đối không co rút nếu khung có chứa trình phát video, iframe hoặc điều khiển hợp lệ
-    if (el.querySelector('video, iframe, canvas, button, input, form')) {
+    // Tuyệt đối không co rút nếu khung có chứa trình phát video, iframe, danh sách hoặc điều khiển hợp lệ
+    if (
+      el.querySelector(
+        'video, iframe, canvas, button, input, form, ul, ol, table, nav, header, footer, main, article'
+      )
+    ) {
       return;
     }
 

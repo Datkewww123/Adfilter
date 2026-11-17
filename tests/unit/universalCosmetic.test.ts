@@ -119,4 +119,25 @@ describe('UniversalCosmeticIntegration', () => {
     expect(catfishBanner.style.display).toBe('none');
     expect(debetModal.style.display).toBe('none');
   });
+
+  it('bảo toàn toàn bộ khối danh sách truyện/chương ngay cả khi có banner quảng cáo lồng chung trong wrapper .banner/.float', () => {
+    document.body.innerHTML = `
+      <div id="main" class="main-banner-wrap">
+        <a id="inline-bet-ad" href="https://bom88.win/promo"><img src="https://cdn.example/bom88.gif" alt="BOM88" /></a>
+        <ul id="comic-list">
+          <li><a href="/truyen-188.html">Truyện A - Tập 1</a></li>
+          <li><a href="/truyen-268.html">Truyện B - Tập 2</a></li>
+          <li><a href="/truyen-399.html">Truyện C - Tập 3</a></li>
+          <li><a href="/truyen-466.html">Truyện D - Tập 4</a></li>
+          <li><a href="/truyen-579.html">Truyện E - Tập 5</a></li>
+        </ul>
+      </div>
+    `;
+
+    runCosmeticSweep(document);
+
+    expect((document.getElementById('main') as HTMLElement).style.display).not.toBe('none');
+    expect((document.getElementById('comic-list') as HTMLElement).style.display).not.toBe('none');
+    expect((document.getElementById('inline-bet-ad') as HTMLElement).style.display).toBe('none');
+  });
 });
