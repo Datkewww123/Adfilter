@@ -38,6 +38,21 @@ describe('Zero-Flash Pre-Append DOM Shield (MAIN world 0ms)', () => {
     expect(blurredModal.style.getPropertyValue('display')).toBe('none');
   });
 
+  it('không chặn nhầm drawer danh sách chương gắn fixed có nhiều thẻ li/a', () => {
+    const chapterDrawer = document.createElement('div');
+    chapterDrawer.setAttribute('style', 'position: fixed; left: 0; bottom: 0; z-index: 200;');
+    chapterDrawer.innerHTML = `
+      <ul>
+        <li><a href="/chuong-188">Chương 188</a></li>
+        <li><a href="/chuong-189">Chương 189</a></li>
+      </ul>
+    `;
+
+    expect(shouldPreblockInsertedNode(chapterDrawer, 'hentaivnx.live')).toBe(false);
+    document.body.appendChild(chapterDrawer);
+    expect(chapterDrawer.getAttribute('data-adfilter-preblocked')).toBeNull();
+  });
+
   it('không chặn nhầm modal đăng nhập hoặc container hợp lệ có form/input/video', () => {
     const loginModal = document.createElement('div');
     loginModal.id = 'login-modal';

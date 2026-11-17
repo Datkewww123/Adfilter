@@ -140,4 +140,31 @@ describe('FloatingBannerGuard', () => {
     expect(hidden).toBe(1);
     expect(popup.style.display).toBe('none');
   });
+
+  it('không ẩn nhầm thanh điều khiển đọc truyện (reader/header/padding) hoặc danh sách chương dính cố định', () => {
+    const readerBar = document.createElement('div');
+    readerBar.className = 'reader-bottom-padding';
+    readerBar.style.position = 'fixed';
+    readerBar.style.bottom = '0px';
+    readerBar.innerHTML = '<span>Trang 1/20</span>';
+
+    const stickyChapterDrawer = document.createElement('div');
+    stickyChapterDrawer.id = 'floating-chapter-drawer';
+    stickyChapterDrawer.style.position = 'fixed';
+    stickyChapterDrawer.style.left = '0px';
+    stickyChapterDrawer.innerHTML = `
+      <ul>
+        <li><a href="/chap-1">Chương 1</a></li>
+        <li><a href="/chap-2">Chương 2</a></li>
+      </ul>
+    `;
+
+    document.body.appendChild(readerBar);
+    document.body.appendChild(stickyChapterDrawer);
+
+    const hidden = purgeFloatingAds(document);
+    expect(hidden).toBe(0);
+    expect(readerBar.style.display).not.toBe('none');
+    expect(stickyChapterDrawer.style.display).not.toBe('none');
+  });
 });

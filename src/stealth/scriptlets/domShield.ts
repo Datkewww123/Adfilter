@@ -71,7 +71,14 @@ export function shouldPreblockInsertedNode(node: unknown, currentHost: string = 
 
   const identifier = `${el.id || ''} ${typeof el.className === 'string' ? el.className : ''}`;
   if (SAFE_MODAL_OR_NAV_REGEX.test(identifier)) return false;
-  if (el.querySelector?.('form, input, textarea, select, video, nav')) return false;
+  if (
+    el.querySelector?.(
+      'form, input, textarea, select, video, nav, header, footer, ul li + li, ol li + li, table tr + tr'
+    )
+  ) {
+    return false;
+  }
+  if ((el.querySelectorAll?.('a[href]')?.length ?? 0) > 4) return false;
 
   if (/\bw-overlay\b|\bcatfish\b|\bpopup-.*ad\b/i.test(identifier)) {
     return true;

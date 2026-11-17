@@ -78,4 +78,48 @@ describe('Site-Agnostic Gambling Morphology & Neutral Edge Bar Guard', () => {
     expect(adStripWrap.style.display).toBe('none');
     expect(moviePosterCard.style.display).not.toBe('none');
   });
+
+  it('không gắn cờ link truyện tương đối có số/chữ (1288, chap-68, club, vip) và bảo toàn toàn bộ khối list truyện kiểu HentaiVN', () => {
+    expect(
+      isGamblingMorphologyMatch(
+        '/3868-maid-club-chapter-68.html',
+        'https://imgcdn.example/cover-99.jpg',
+        'Maid Club 99',
+        'Đọc truyện Maid Club',
+        'hentaivnx.live'
+      )
+    ).toBe(false);
+    expect(
+      isGamblingMorphologyMatch(
+        'https://cdn-bad88.example/banner.gif',
+        '',
+        '',
+        '',
+        'hentaivnx.live'
+      )
+    ).toBe(true);
+
+    document.body.innerHTML = `
+      <div id="main">
+        <div class="block-left">
+          <a id="direct-ad-link" href="https://bom88.win/km"><img src="https://cdn.example/ad.gif" alt="BOM88" /></a>
+          <ul class="list-item">
+            <li><a id="comic-1" href="/3868-maid-club.html"><img src="https://imgcdn.example/c88.jpg" alt="Maid Club" /></a></li>
+            <li><a id="comic-2" href="/2099-school-vip.html"><img src="https://imgcdn.example/c99.jpg" alt="School VIP" /></a></li>
+            <li><a id="comic-3" href="/1268-story-win.html"><img src="https://imgcdn.example/c68.jpg" alt="Story" /></a></li>
+            <li><a id="comic-4" href="/4566-another.html"><img src="https://imgcdn.example/c66.jpg" alt="Another" /></a></li>
+            <li><a id="comic-5" href="/5079-chapter-1.html"><img src="https://imgcdn.example/c79.jpg" alt="Chap 1" /></a></li>
+          </ul>
+        </div>
+      </div>
+    `;
+
+    scanAndHideHeuristicAds(document);
+
+    expect((document.getElementById('main') as HTMLElement).style.display).not.toBe('none');
+    expect((document.querySelector('.block-left') as HTMLElement).style.display).not.toBe('none');
+    expect((document.querySelector('.list-item') as HTMLElement).style.display).not.toBe('none');
+    expect((document.getElementById('comic-1') as HTMLElement).style.display).not.toBe('none');
+    expect((document.getElementById('direct-ad-link') as HTMLElement).style.display).toBe('none');
+  });
 });

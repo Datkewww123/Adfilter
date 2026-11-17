@@ -2,6 +2,7 @@ import {
   isCrossOriginUrl,
   isGamblingMorphologyMatch,
 } from '../stealth/gamblingMorphology';
+import { isContentListOrLayoutContainer } from './contentSafety';
 
 // Các kích thước chuẩn của banner quảng cáo IAB (dung sai +/- 5px)
 export const IAB_SIZES = [
@@ -30,21 +31,22 @@ function hideAdContainer(container: HTMLElement): void {
   container.style.setProperty('visibility', 'hidden', 'important');
 }
 
-function isProtectedContentZone(el: HTMLElement): boolean {
-  if (el.tagName === 'MAIN' || el.tagName === 'ARTICLE' || el.tagName === 'HEADER' || el.tagName === 'NAV') {
-    return true;
-  }
-  if (el.querySelector('video, iframe, form, input, article, main')) return true;
-  return Boolean(el.closest('.movie-item, .film-item, .manga-item, #real-article, header, nav'));
+function isProtectedContentZone(
+  el: HTMLElement,
+  doc?: Document,
+  allowSingleIframe = false
+): boolean {
+  return isContentListOrLayoutContainer(el, doc, { allowSingleIframe });
 }
 
 /**
  * Quét toàn bộ thẻ iframe kích thước chuẩn IAB và banner quảng cáo ngoài trong thẻ <a>
  * (kết hợp nhận diện hình thái brand + tỷ lệ hình học banner ngang/GIF trỏ cross-origin,
- * bảo vệ an toàn ảnh nội dung bài viết / trang truyện / poster phim).
+ * bảo vệ an toàn ảnh nội dung bài viết / trang truyện / danh sách chương / poster phim).
  */
 export function scanAndHideHeuristicAds(root: Document | HTMLElement = document): number {
   let count = 0;
+  const ownerDoc = root.nodeType === 9 ? (root as Document) : root.ownerDocument || undefined;
   const currentHost =
     (root as Document).location?.hostname ||
     root.ownerDocument?.location?.hostname ||
@@ -52,9 +54,17 @@ export function scanAndHideHeuristicAds(root: Document | HTMLElement = document)
 
   const iframes = root.querySelectorAll('iframe');
   iframes.forEach((iframe) => {
+    const iframeSrc = iframe.getAttribute('src') || '';
+    if (/(?:player|embed|youtube|vimeo|stream)/i.test(iframeSrc)) {
+      return;
+    }
     const rect = iframe.getBoundingClientRect();
     if (isIabBannerSize(rect.width, rect.height)) {
-      const container = (iframe.closest('div') || iframe) as HTMLElement;
+      const closestDiv = iframe.closest('div') as HTMLElement | null;
+      const container =
+        closestDiv && !isProtectedContentZone(closestDiv, ownerDoc, true)
+          ? closestDiv
+          : (iframe as unknown as HTMLElement);
       if (container.style.display !== 'none') {
         hideAdContainer(container);
         count++;
@@ -66,7 +76,7 @@ export function scanAndHideHeuristicAds(root: Document | HTMLElement = document)
   root.querySelectorAll<HTMLImageElement>('a[href] img').forEach((imgEl) => {
     const anchor = imgEl.closest('a') as HTMLAnchorElement | null;
     if (!anchor) return;
-    if (anchor.closest('.movie-item, .film-item, .manga-item, #real-article, header, nav')) {
+    if (anchor.closest('.movie-item, .film-item, .manga-item, #real-article, header, nav, footer')) {
       return;
     }
 
@@ -96,9 +106,9 @@ export function scanAndHideHeuristicAds(root: Document | HTMLElement = document)
 
     if (!isCdnOrMorphology && !isCrossOriginStripBanner) return;
 
-    const candidate = (anchor.closest('div, aside, section') || anchor) as HTMLElement;
+    const candidate = anchor.closest('div, aside, section') as HTMLElement | null;
     const target =
-      candidate !== anchor && !isProtectedContentZone(candidate) ? candidate : anchor;
+      candidate && !isProtectedContentZone(candidate, ownerDoc, false) ? candidate : anchor;
 
     if (target.style.display !== 'none') {
       hideAdContainer(target);

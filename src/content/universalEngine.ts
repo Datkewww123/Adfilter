@@ -15,6 +15,7 @@ import {
   purgeFloatingElementSubtree,
 } from '../cosmetic/floatingBannerGuard';
 import { collapseEmptyAdSlots } from '../cosmetic/elementCollapsing';
+import { isContentListOrLayoutContainer } from '../cosmetic/contentSafety';
 import { bypassAdblockModals } from '../core/adblockModalBypass';
 import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
 import { autoCloseMovieOverlays, purgeMoviePlayerAdOverlays } from '../core/videoOverlayCloser';
@@ -186,16 +187,19 @@ export function purgeVietnameseAdBanners(doc: Document = document): number {
   let count = 0;
 
   doc.querySelectorAll<HTMLElement>(VN_AD_CONTAINER_SELECTOR).forEach((container) => {
-    hideElementCompletely(container);
-    count++;
+    if (!isContentListOrLayoutContainer(container, doc, { allowSingleIframe: true })) {
+      hideElementCompletely(container);
+      count++;
+    }
   });
 
   doc.querySelectorAll<HTMLElement>(VN_BETTING_MEDIA_SELECTOR).forEach((el) => {
     const adWrapper = el.closest<HTMLElement>(
       '[id*="banner"], [id*="catfish"], [id*="popup"], [id*="float"], [class*="banner"], [class*="popup"], [class*="modal"], .ads, .qc'
     );
-    const target =
-      adWrapper && adWrapper !== doc.body && adWrapper !== doc.documentElement ? adWrapper : el;
+    const canHideWrapper =
+      adWrapper !== null && !isContentListOrLayoutContainer(adWrapper, doc, { allowSingleIframe: true });
+    const target = canHideWrapper ? adWrapper : el;
     hideElementCompletely(target);
     count++;
   });

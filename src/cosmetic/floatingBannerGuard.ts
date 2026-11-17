@@ -2,6 +2,7 @@ import {
   isCrossOriginUrl,
   isGamblingMorphologyMatch,
 } from '../stealth/gamblingMorphology';
+import { isContentListOrLayoutContainer } from './contentSafety';
 
 const BETTING_AD_SELECTOR = [
   'a[href*="sunwin"]',
@@ -183,7 +184,7 @@ function checkAndHideFloatingElement(
   if (!htmlEl || htmlEl.style?.display === 'none') return false;
   const tag = htmlEl.tagName;
   if (tag !== 'DIV' && tag !== 'ASIDE' && tag !== 'SECTION') return false;
-  if (htmlEl.closest('header, nav') || htmlEl.querySelector('nav, form, input, video')) return false;
+  if (isContentListOrLayoutContainer(htmlEl, doc, { allowSingleIframe: true })) return false;
 
   const view = doc.defaultView || window;
   const style = view.getComputedStyle ? view.getComputedStyle(htmlEl) : htmlEl.style;
@@ -204,9 +205,10 @@ function checkAndHideFloatingElement(
     (isNaN(widthVal) || widthVal <= 300);
 
   const identifier = `${htmlEl.className} ${htmlEl.id}`;
-  const hasAdKeyword = /ad|banner|qc|quangcao|floating|sticky-bottom|catfish|float[-_]?(left|right)/i.test(
-    identifier
-  );
+  const hasAdKeyword =
+    /(?:^|[\s_-])(?:ads?|adsbox|ad[-_]?banner|banner|qc|quangcao|floating[-_]?(?:ad|banner|left|right)?|sticky[-_]?bottom|catfish|float[-_]?(?:left|right))(?:$|[\s_-]|\d)/i.test(
+      identifier
+    );
   const isExplicitFloatFlank = /float[-_]?(left|right)|floating[-_]?(left|right)|catfish/i.test(identifier);
   const containsBettingAd = Boolean(htmlEl.querySelector(BETTING_AD_SELECTOR));
 
