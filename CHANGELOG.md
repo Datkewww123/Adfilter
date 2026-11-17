@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-11-17
+
+### Fixed
+- **YouTube — Video đầu tiên tải chậm 5–6 giây:** Chặn tại chỗ request remarketing (`/pagead/1p-user-list/`, `/ads/user-lists/`, `backend=innertube`) gây lỗi `302` → `CORS error`; lọc thêm `/youtubei/v1/get_watch` và `Response.json()`; bẫy `ytcfg` / `ytplayer.config` ngay từ `0ms`; không ép phát khi trình phát đang nạp dữ liệu; bỏ qua click trên video xem trước ở trang chủ.
+- **Web phim — Tab quảng cáo bật lên rồi bị chặn (`ERR_BLOCKED_BY_CLIENT`):** Tự động đóng ngay tab popunder và trả về tab phim; chặn mở tab trống `about:blank` khi bấm Play.
+
+### Added
+- **Nhận diện banner cờ bạc trên mọi web phim:** Nhận diện tên miền/ảnh nhà cái mới (`*88`, `*bet`, `*win`, `hdbet`, `3bet`, `sun88`...) và thanh banner dính mép màn hình mà không cần biết trước tên web.
+- **Zero-Flash:** Ẩn banner/popup ngay trước khi chúng kịp hiện lên màn hình (không còn nháy hình).
+- **README:** Hướng dẫn cài đặt từng bước cho người không biết lập trình.
+
 ## [3.1.0] - 2026-11-16
 
 ### Added

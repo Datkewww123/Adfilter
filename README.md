@@ -1,8 +1,91 @@
-# AdFilter v3.0.0 — Brave-Style Universal AdFilter (Manifest V3) & Cloud Observability
+# AdFilter v3.1.1 — Brave-Style Universal AdFilter (Manifest V3) & Cloud Observability
 
 [![Verify CI](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml/badge.svg)](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.0.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.1.1-brightgreen.svg)](CHANGELOG.md)
+
+**AdFilter** là tiện ích (extension) chặn quảng cáo cho trình duyệt **Chrome, Cốc Cốc, Edge, Brave**: chặn quảng cáo YouTube, popup/tab quảng cáo tự bật và banner cờ bạc trên web xem phim, web đọc truyện.
+
+---
+
+## 📥 Hướng dẫn cài đặt (dành cho người không biết lập trình)
+
+> Bạn **không cần cài gì thêm** và **không cần biết code**. Chỉ cần làm theo 3 bước dưới đây, mất khoảng 2 phút.
+
+### Bước 1: Tải tiện ích về máy
+
+1. Mở trang tải về: **👉 [https://github.com/Datkewww123/Adfilter/releases/latest](https://github.com/Datkewww123/Adfilter/releases/latest)**
+2. Kéo xuống mục **Assets**.
+3. Bấm vào file có tên **`adfilter-chromium-v3.1.1.zip`** để tải về.
+
+> [!WARNING]
+> **KHÔNG** bấm vào **"Source code (zip)"** hay nút xanh **"Code" → "Download ZIP"** ở trang chủ GitHub. Đó là mã nguồn, **không cài được**.
+> File đúng phải có chữ **`adfilter-chromium`** trong tên.
+
+### Bước 2: Giải nén file vừa tải
+
+1. Mở thư mục **Downloads (Tải xuống)** trên máy.
+2. **Chuột phải** vào file `adfilter-chromium-v3.1.1.zip` → chọn **"Extract All..." (Giải nén tất cả)** → bấm **Extract**.
+3. Bạn sẽ có một **thư mục** tên `adfilter-chromium-v3.1.1`. Mở thư mục đó ra, nếu bên trong thấy file **`manifest.json`** là đúng.
+
+> [!IMPORTANT]
+> Hãy để thư mục này ở một chỗ cố định (ví dụ `Documents\AdFilter`). **Đừng xóa hoặc di chuyển** thư mục sau khi cài, nếu không tiện ích sẽ biến mất.
+
+### Bước 3: Cài vào Chrome
+
+1. Mở Chrome, gõ vào thanh địa chỉ: **`chrome://extensions`** rồi nhấn **Enter**.
+   *(Cốc Cốc: `coccoc://extensions` · Edge: `edge://extensions` · Brave: `brave://extensions`)*
+2. Ở **góc trên bên phải**, bật công tắc **"Developer mode" (Chế độ dành cho nhà phát triển)**.
+3. Bấm nút **"Load unpacked" (Tải tiện ích đã giải nén)** vừa hiện ra ở góc trên bên trái.
+4. Chọn **thư mục `adfilter-chromium-v3.1.1`** đã giải nén ở Bước 2 (thư mục có chứa file `manifest.json`) → bấm **Select Folder (Chọn thư mục)**.
+5. ✅ Xong! Tiện ích **AdFilter** sẽ xuất hiện trong danh sách.
+
+**Mẹo:** Bấm vào biểu tượng **mảnh ghép 🧩** cạnh thanh địa chỉ → bấm **ghim 📌** cạnh **AdFilter** để biểu tượng luôn hiện trên thanh công cụ.
+
+---
+
+## 🖱️ Cách sử dụng
+
+Tiện ích **tự động hoạt động** ngay sau khi cài, bạn không cần bật gì thêm. Bấm vào biểu tượng **AdFilter** để mở bảng điều khiển:
+
+| Nút | Công dụng |
+| :--- | :--- |
+| **Tạm dừng** | Tạm tắt chặn quảng cáo **cho trang web đang mở** (web phim, web truyện…), dùng khi một trang bị lỗi hiển thị. Sau khi bấm, nhấn **F5** để tải lại trang. Bấm **Bật lại** để bật trở lại. |
+| **🎯 Chọn để xóa** | Còn sót quảng cáo? Bấm nút này rồi **bấm vào quảng cáo** trên trang để xóa nó đi. |
+| **⚙️ Cài đặt Bộ lọc** | Tùy chỉnh nâng cao (người dùng bình thường không cần đụng tới). |
+
+**Phím tắt khẩn cấp trên YouTube:** Nhấn **`Alt + Shift + K`** để tắt/bật nhanh chặn quảng cáo YouTube.
+
+---
+
+## 🔄 Cập nhật lên phiên bản mới
+
+1. Tải file `adfilter-chromium-v...zip` mới nhất từ **[trang Releases](https://github.com/Datkewww123/Adfilter/releases/latest)** và giải nén.
+2. Vào `chrome://extensions`, bấm **Remove (Xóa)** bản AdFilter cũ.
+3. Làm lại **Bước 3** ở trên với thư mục mới.
+
+---
+
+## ❓ Câu hỏi thường gặp
+
+**Chrome hiện thông báo "Tắt tiện ích ở chế độ nhà phát triển"?**
+Đây là cảnh báo bình thường của Chrome với tiện ích cài ngoài cửa hàng. Bấm **dấu X** hoặc **"Giữ lại"** để bỏ qua. **Không** bấm "Tắt".
+
+**Tiện ích tự nhiên biến mất / báo lỗi?**
+Có thể bạn đã xóa hoặc di chuyển thư mục giải nén. Hãy giải nén lại và làm lại **Bước 3**.
+
+**Một trang web bị lỗi hiển thị sau khi cài?**
+Bấm biểu tượng AdFilter → bấm **Tạm dừng** cho riêng trang đó → nhấn **F5**.
+
+**Vẫn còn quảng cáo trên YouTube?**
+Vào `chrome://extensions`, bấm nút **tải lại ↻** trên thẻ AdFilter, rồi tải lại (F5) trang YouTube.
+
+**Có an toàn không?**
+Có. AdFilter là **mã nguồn mở**, **không thu thập dữ liệu cá nhân** và không gửi lịch sử duyệt web của bạn đi đâu. Xem thêm tại [SECURITY.md](SECURITY.md).
+
+---
+
+> 👨‍💻 **Các phần bên dưới dành cho lập trình viên.**
 
 > **Mô tả & Phạm vi Dự án:** AdFilter là tiện ích chặn quảng cáo đa nền tảng (**Chromium & Firefox Manifest V3**) viết bằng TypeScript, kết hợp **Kiến trúc Lõi Quyết định Thuần (Pure Core)** cho YouTube và **Universal AdBlock Engine kiểu Brave/uBO** cho toàn bộ web (bộ biên dịch filter list ABP/uBO -> Multi-Ruleset DNR + `noop` redirects, Scriptlet Engine `+js`, `attachShadow` Shield trị Closed Shadow DOM, Procedural Engine `:has-text`/`:upward` và Dynamic Filter Updater), đi kèm hệ thống **Observability (Fastify, PostgreSQL, Prometheus, Grafana, Canary)** và hạ tầng **AWS Terraform IaC & OIDC Continuous Deployment**. Dự án phục vụ mục đích học tập, nghiên cứu kỹ thuật phần mềm và sử dụng cá nhân; tham khảo chính sách tại [SECURITY.md](SECURITY.md) và [docs/notes/permissions-review.md](docs/notes/permissions-review.md).
 
@@ -45,20 +128,20 @@ Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/C
 | :--- | :---: | :--- |
 | **Precision & Recall trên tập Fixtures (`n = 17`)** | **Precision = 100.0% (`1.000`)**<br>**Recall = 100.0% (`1.000`)** (`0 FP`, `0 FN`) | [`docs/notes/eval-baseline.md`](docs/notes/eval-baseline.md) & `pnpm eval` |
 | **Phiên dùng thực tế (`n = 53` quảng cáo)** | **Xác minh đạt: 96.2% (51/53)**<br>**Video chính bị kẹt: `0` (0.0%)** | [`docs/notes/week9-metrics.md`](docs/notes/week9-metrics.md) |
-| **Quy mô Kiểm thử Tự động** | **56 Unit Test suites (`347 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**12 kịch bản Playwright E2E** (YouTube, Truyện tranh Closed Shadow DOM, Phim VAST, Tin tức Procedural) | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
+| **Quy mô Kiểm thử Tự động** | **59 Unit Test suites (`371 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**13 kịch bản Playwright E2E** (YouTube, Truyện tranh Closed Shadow DOM, Phim VAST, Tin tức Procedural, Web phim) | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
 | **Thời gian phát hiện sự cố (MTTD — 2 Chaos Drills)** | **Drill 01 (Hỏng DOM): `~45 giây`**<br>**Drill 02 (Ngắt mạch hàng loạt): `~40 giây`** | [`docs/notes/chaos-drill-01.md`](docs/notes/chaos-drill-01.md) & [`docs/notes/chaos-drill-02.md`](docs/notes/chaos-drill-02.md) |
 | **Thời gian Quay lui ( Tự động & Thủ công )** | **`~45 – 60 giây`** (cả Docker image lẫn cấu hình) | [`docs/notes/deploy-runbook.md`](docs/notes/deploy-runbook.md) |
 | **Thời gian Khôi phục Hạ tầng từ Số 0 (RTO)** | **`6 phút 30 giây` (6.5 phút)** | [`docs/notes/rebuild-from-zero.md`](docs/notes/rebuild-from-zero.md) |
 
 ---
 
-## 3. Hướng dẫn Cài đặt & Sử dụng An toàn
+## 3. Cài đặt từ mã nguồn (Developer) & Cơ chế An toàn
 
 ### Cài đặt trên Google Chrome / Chromium:
-1. Tải gói `adfilter-chromium-v3.0.0.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` / `pnpm package` để tạo `dist/chromium/` và `release/`).
+1. Tải gói `adfilter-chromium-v3.1.1.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` / `pnpm package` để tạo `dist/chromium/` và `release/`).
 2. Kiểm tra tính toàn vẹn SHA-256:
    ```powershell
-   Get-FileHash adfilter-chromium-v3.0.0.zip -Algorithm SHA256
+   Get-FileHash adfilter-chromium-v3.1.1.zip -Algorithm SHA256
    ```
 3. Mở `chrome://extensions/`, bật **Developer mode**, bấm **Load unpacked** và chọn thư mục đã giải nén (`dist/chromium/`).
 
@@ -82,10 +165,10 @@ pnpm install
 # Biên dịch bộ lọc ABP/uBO -> DNR JSON + Cosmetic/Scriptlet Index
 pnpm compile:filters
 
-# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 347 Unit Tests + Quality Gate Eval + Multi-target Build)
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 371 Unit Tests + Quality Gate Eval + Multi-target Build)
 pnpm verify:all
 
-# Đóng gói bản Dev và chạy 12 kịch bản kiểm thử đầu cuối Playwright E2E
+# Đóng gói bản Dev và chạy 13 kịch bản kiểm thử đầu cuối Playwright E2E
 pnpm build:dev
 pnpm e2e
 
@@ -113,11 +196,12 @@ pnpm --dir server test
 
 ## 6. Trạng thái Dự án & Chính sách
 
-- **Phiên bản hiện tại:** **`v3.0.0`** (Phát hành ngày `2026-11-16` — xem [CHANGELOG.md](CHANGELOG.md)).
+- **Phiên bản hiện tại:** **`v3.1.1`** (Phát hành ngày `2026-11-17` — xem [CHANGELOG.md](CHANGELOG.md)).
 - **Tiến độ đã hoàn thành (Tuần 1 – Tuần 29):**
   - **Tuần 1–20:** Kiến trúc Pure Core YouTube, Circuit Breaker, Canary Observability & AWS Terraform CD.
   - **Tuần 21–25:** Mở rộng Universal Web (Anti-Popup, IAB Heuristic, VAST Interceptor, Element Picker, Vietnamese Manga Shield).
   - **Tuần 26–29 (`v3.0.0`):** Nâng cấp thành **Brave-Style Universal Engine** (Filter Compiler `filters/*.txt`, `noop.*` Redirects, Scriptlet Engine `+js`, `attachShadow` Shield, Procedural Engine `:has-text`/`:upward`, Dynamic DNR & Remote Filter Updater, tách làn an toàn YouTube).
+  - **Tuần 30 & bản vá (`v3.1.0` – `v3.1.1`):** Universal Movie Shield (iframe player, anti-popunder, pause-ad), nhận diện banner cờ bạc mọi web phim, Zero-Flash, tự đóng tab popunder, sửa lỗi video YouTube đầu tiên tải chậm 5–6 giây.
 - **Bảo mật & Quyền truy cập:** Xem chi tiết tại **[SECURITY.md](SECURITY.md)** và **[docs/notes/permissions-review.md](docs/notes/permissions-review.md)**.
 
 ---

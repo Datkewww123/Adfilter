@@ -1,6 +1,6 @@
 {
   "name": "adfilter",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Brave-Style Universal AdFilter Extension (Manifest V3) for Web, Movie Streaming & YouTube",
   "main": "index.js",
   "scripts": {
