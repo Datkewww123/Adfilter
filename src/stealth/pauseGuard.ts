@@ -30,6 +30,15 @@ export function installPauseGuard(win: Window = window): void {
     const target = e.target as HTMLElement | null;
     if (!target || typeof target.closest !== 'function') return;
 
+    // Bỏ qua click trên trình phát xem trước (inline preview) ở trang chủ / danh sách gợi ý
+    if (
+      target.closest(
+        '#inline-preview-player, ytd-video-preview, ytd-rich-grid-media, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer',
+      )
+    ) {
+      return;
+    }
+
     // 1. Click trực tiếp vào nút Play/Pause
     if (target.closest('.ytp-play-button')) {
       markUserPauseGesture();

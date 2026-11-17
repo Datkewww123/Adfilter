@@ -22,6 +22,11 @@ const isLocalTest =
   (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
 if (!isLocalTest) {
+  // Khai báo trạng thái quảng cáo hợp lệ ngay ở 0ms để ad_status.js không chờ timeout
+  try {
+    (window as any).google_ad_status = 1;
+  } catch {}
+
   // ─── Bẫy 0: Theo dõi cử chỉ Play/Pause thật của người dùng (không can thiệp pause()) ───
   installPauseGuard(window);
 
@@ -38,8 +43,31 @@ if (!isLocalTest) {
   let _lastDefusedAt = 0;
   const DEFUSED_THROTTLE_MS = 2000;
 
-  function purge(obj: unknown): void {
+  function stripRemarketingUrls(record: Record<string, unknown>): boolean {
+    const pt = record.playbackTracking;
+    if (!pt || typeof pt !== 'object' || Array.isArray(pt)) return false;
+    const ptRecord = pt as Record<string, unknown>;
+    let removed = false;
+    if ('googleRemarketingUrl' in ptRecord) {
+      delete ptRecord.googleRemarketingUrl;
+      removed = true;
+    }
+    if ('youtubeRemarketingUrl' in ptRecord) {
+      delete ptRecord.youtubeRemarketingUrl;
+      removed = true;
+    }
+    return removed;
+  }
+
+  function purge(obj: unknown, depth = 0): void {
     if (obj == null || typeof obj !== 'object') return;
+    if (Array.isArray(obj)) {
+      if (depth <= 2) {
+        for (const item of obj) purge(item, depth + 1);
+      }
+      return;
+    }
+
     const record = obj as Record<string, unknown>;
     let removed = false;
 
@@ -57,6 +85,10 @@ if (!isLocalTest) {
       }
     }
 
+    if (stripRemarketingUrls(record)) {
+      removed = true;
+    }
+
     // Triệt tiêu quảng cáo trên YouTube Shorts
     if (Array.isArray(record.entries)) {
       const entries = record.entries as any[];
@@ -68,22 +100,18 @@ if (!isLocalTest) {
       }
     }
 
-    // Quét sạch các trường QC lồng nhau 1 cấp (playerResponse, data, v.v.)
-    for (const k of Object.keys(record)) {
-      const val = record[k];
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
-        for (const key of AD_KEYS) {
-          if (key in (val as Record<string, unknown>)) {
-            const nestedVal = (val as Record<string, unknown>)[key];
-            if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-              const hadAds = Array.isArray(nestedVal) ? nestedVal.length > 0 : nestedVal != null;
-              (val as Record<string, unknown>)[key] = [];
-              if (hadAds) removed = true;
-            } else {
-              delete (val as Record<string, unknown>)[key];
-              removed = true;
-            }
-          }
+    if (depth < 2) {
+      for (const k of Object.keys(record)) {
+        const val = record[k];
+        if (val && typeof val === 'object') {
+          purge(val, depth + 1);
+        }
+      }
+    } else {
+      for (const key of ['playerResponse', 'watchNextResponse', 'onResponseReceivedEndpoints', 'data']) {
+        const val = record[key];
+        if (val && typeof val === 'object') {
+          purge(val, depth + 1);
         }
       }
     }
@@ -100,40 +128,128 @@ if (!isLocalTest) {
     }
   }
 
-  // ─── Hardening: Khóa bảo vệ bẫy chống bị YouTube ghi đè/gỡ bỏ ───────────────
   const origDefine = Object.defineProperty;
+  const origJSONParse = JSON.parse;
+
+  function purgeJsonStringField(obj: Record<string, unknown>, field: string): void {
+    const raw = obj[field];
+    if (typeof raw !== 'string' || raw.length === 0) return;
+    try {
+      const parsed = origJSONParse(raw);
+      purge(parsed);
+      obj[field] = JSON.stringify(parsed);
+    } catch {}
+  }
+
+  function purgePlayerVars(pv: Record<string, unknown>): void {
+    purge(pv);
+    purgeJsonStringField(pv, 'embedded_player_response');
+    purgeJsonStringField(pv, 'raw_player_response');
+  }
+
+  function purgePlayerConfig(cfg: any): void {
+    if (!cfg || typeof cfg !== 'object') return;
+    purge(cfg);
+    if (cfg.args && typeof cfg.args === 'object') {
+      purge(cfg.args);
+      purgeJsonStringField(cfg.args, 'raw_player_response');
+      purgeJsonStringField(cfg.args, 'player_response');
+      purgeJsonStringField(cfg.args, 'embedded_player_response');
+    }
+  }
+
+  function attachYtPlayerConfigTrap(playerObj: any): void {
+    if (!playerObj || typeof playerObj !== 'object') return;
+    let _cfg = playerObj.config;
+    if (_cfg) purgePlayerConfig(_cfg);
+    if ((playerObj as any)._adfConfigTrapped) return;
+    try {
+      const existing = Object.getOwnPropertyDescriptor(playerObj, 'config');
+      if (existing && !existing.configurable) return;
+      origDefine(playerObj, 'config', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return _cfg;
+        },
+        set(nextCfg: any) {
+          purgePlayerConfig(nextCfg);
+          _cfg = nextCfg;
+        },
+      });
+      Object.defineProperty(playerObj, '_adfConfigTrapped', { value: true, configurable: true });
+    } catch {}
+  }
+
+  function wrapYtcfg(ytcfg: any): void {
+    if (!ytcfg || typeof ytcfg !== 'object' || typeof ytcfg.set !== 'function') return;
+    if ((ytcfg as any)._adfYtcfgHooked) return;
+    const origSet = ytcfg.set.bind(ytcfg);
+    ytcfg.set = function (...args: unknown[]): unknown {
+      if (args.length > 0 && args[0] && typeof args[0] === 'object') {
+        const data = args[0] as Record<string, unknown>;
+        if (data['PLAYER_VARS'] && typeof data['PLAYER_VARS'] === 'object') {
+          purgePlayerVars(data['PLAYER_VARS'] as Record<string, unknown>);
+        }
+        purge(data);
+      } else if (
+        args.length >= 2 &&
+        args[0] === 'PLAYER_VARS' &&
+        args[1] &&
+        typeof args[1] === 'object'
+      ) {
+        purgePlayerVars(args[1] as Record<string, unknown>);
+      }
+      return origSet(...args);
+    };
+    try {
+      origDefine(ytcfg, '_adfYtcfgHooked', { value: true, configurable: true });
+    } catch {}
+  }
+
+  // ─── Hardening: Khóa bảo vệ bẫy chống bị YouTube ghi đè/gỡ bỏ ───────────────
   Object.defineProperty = function <T>(
     obj: T,
     prop: PropertyKey,
     desc: PropertyDescriptor & ThisType<any>,
   ): T {
-    if (
-      obj === (window as unknown) &&
-      (prop === 'ytInitialPlayerResponse' || prop === 'ytInitialData')
-    ) {
-      if (desc.set) {
-        const origSetter = desc.set;
-        desc.set = function (val: any) {
-          purge(val);
-          return origSetter.call(this, val);
-        };
+    if (obj === (window as unknown)) {
+      if (prop === 'ytInitialPlayerResponse' || prop === 'ytInitialData') {
+        if (desc.set) {
+          const origSetter = desc.set;
+          desc.set = function (val: any) {
+            purge(val);
+            return origSetter.call(this, val);
+          };
+        }
+      } else if (prop === 'ytcfg') {
+        if ('value' in desc) wrapYtcfg(desc.value);
+        if (desc.set) {
+          const origSetter = desc.set;
+          desc.set = function (val: any) {
+            wrapYtcfg(val);
+            return origSetter.call(this, val);
+          };
+        }
+      } else if (prop === 'ytplayer') {
+        if ('value' in desc) attachYtPlayerConfigTrap(desc.value);
+        if (desc.set) {
+          const origSetter = desc.set;
+          desc.set = function (val: any) {
+            attachYtPlayerConfigTrap(val);
+            return origSetter.call(this, val);
+          };
+        }
       }
     }
     return origDefine(obj, prop, desc);
   };
 
   // ─── Bẫy 1: JSON.parse có ngụy trang ──────────────────────────────────────────
-  const origJSONParse = JSON.parse;
   function patchedJSONParse(text: string, reviver?: (this: any, key: string, value: any) => any) {
     const result = origJSONParse(text, reviver);
     if (result && typeof result === 'object') {
       purge(result);
-      if (
-        (result as Record<string, unknown>).playerResponse &&
-        typeof (result as Record<string, unknown>).playerResponse === 'object'
-      ) {
-        purge((result as Record<string, unknown>).playerResponse);
-      }
     }
     return result;
   }
@@ -142,7 +258,7 @@ if (!isLocalTest) {
   // ─── Bẫy 2: ytInitialPlayerResponse ──────────────────────────────────────────
   let _playerResponse: unknown = undefined;
 
-  Object.defineProperty(window, 'ytInitialPlayerResponse', {
+  origDefine(window, 'ytInitialPlayerResponse', {
     configurable: true,
     get() {
       return _playerResponse;
@@ -156,7 +272,7 @@ if (!isLocalTest) {
   // ─── Bẫy 3: ytInitialData (trang chủ / gợi ý) ────────────────────────────────
   let _initialData: unknown = undefined;
 
-  Object.defineProperty(window, 'ytInitialData', {
+  origDefine(window, 'ytInitialData', {
     configurable: true,
     get() {
       return _initialData;
@@ -171,60 +287,49 @@ if (!isLocalTest) {
     },
   });
 
-  // ─── Bẫy 4: ytplayer.config.args.raw_player_response ────────────────────────
+  // ─── Bẫy 4: ytplayer & ytplayer.config.args.raw_player_response ─────────────
   let _ytplayer: any = (window as any).ytplayer;
-  Object.defineProperty(window, 'ytplayer', {
+  if (_ytplayer) attachYtPlayerConfigTrap(_ytplayer);
+  origDefine(window, 'ytplayer', {
     configurable: true,
     get() {
       return _ytplayer;
     },
     set(val: any) {
-      if (val?.config?.args?.raw_player_response) {
-        try {
-          const raw = origJSONParse(val.config.args.raw_player_response);
-          purge(raw);
-          val.config.args.raw_player_response = JSON.stringify(raw);
-        } catch {}
-      }
+      attachYtPlayerConfigTrap(val);
       _ytplayer = val;
     },
   });
 
-  // ─── Bẫy 5: ytcfg.set ────────────────────────────────────────────────────────
+  // ─── Bẫy 5: ytcfg.set ngay tại 0ms ────────────────────────────────────────────
   (function hookYtcfg(): void {
+    let _ytcfg: any = (window as any).ytcfg;
+    if (_ytcfg) wrapYtcfg(_ytcfg);
+    try {
+      origDefine(window, 'ytcfg', {
+        configurable: true,
+        get() {
+          return _ytcfg;
+        },
+        set(val: any) {
+          wrapYtcfg(val);
+          _ytcfg = val;
+        },
+      });
+    } catch {}
+
     const MAX_ATTEMPTS = 50;
     let attempts = 0;
 
     function tryHook(): void {
       const ytcfg = (window as any).ytcfg;
       if (ytcfg && typeof ytcfg.set === 'function') {
-        const origSet = ytcfg.set.bind(ytcfg);
-        ytcfg.set = function (...args: unknown[]): unknown {
-          if (args.length > 0 && args[0] && typeof args[0] === 'object') {
-            const data = args[0] as Record<string, unknown>;
-            if (data['PLAYER_VARS'] && typeof data['PLAYER_VARS'] === 'object') {
-              const pv = data['PLAYER_VARS'] as Record<string, unknown>;
-              purge(pv);
-              if (
-                pv['embedded_player_response'] &&
-                typeof pv['embedded_player_response'] === 'string'
-              ) {
-                try {
-                  const parsed = origJSONParse(pv['embedded_player_response']);
-                  purge(parsed);
-                  pv['embedded_player_response'] = JSON.stringify(parsed);
-                } catch {}
-              }
-            }
-            purge(data);
-          }
-          return origSet(...args);
-        };
+        wrapYtcfg(ytcfg);
         return;
       }
       attempts++;
       if (attempts < MAX_ATTEMPTS) {
-        window.setTimeout(tryHook, 100);
+        window.setTimeout(tryHook, 50);
       }
     }
 
@@ -520,13 +625,19 @@ if (!isLocalTest) {
       video.addEventListener('pause', () => {
         const isUserPause = isRecentUserPauseGesture(1200);
         dbg('pause', video, { userGesture: isUserPause });
-        if (video.ended) return;
-        if (isUserPause) return; // Người dùng chủ động pause -> Tôn trọng tuyệt đối
+        if (video.ended || isUserPause) return; // Người dùng chủ động pause -> Tôn trọng tuyệt đối
+        if (video.readyState < 2) return; // Tránh ép play trước khi MediaSource nạp đủ khung hình
 
+        let handled = false;
         const resumeNow = () => {
+          if (handled) return;
           const player = getPlayer(video);
-          if (!video.paused || video.ended) return;
+          if (!video.paused || video.ended || video.readyState < 2) return;
+          const playerState =
+            player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
+          if (playerState === 3) return; // Player đang BUFFERING ở 0:00, không ngắt nhịp nạp stream
           if (isAdShowing(player) || isRecentUserPauseGesture(1200)) return;
+          handled = true;
           playViaPlayer(player, video, 'auto-resume-0ms');
         };
         if (typeof queueMicrotask === 'function') {
