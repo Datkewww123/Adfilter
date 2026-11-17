@@ -10,8 +10,8 @@ function isTransparentClickCatcher(el: HTMLElement, computed: CSSStyleDeclaratio
 
   const bg = (computed.backgroundColor || el.style.backgroundColor || '').trim().toLowerCase();
   const isBgTransparent =
-    bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)' || bg === 'rgba(0,0,0,0)';
-  const hasMeaningfulText = (el.textContent || '').trim().length > 0;
+    bg === '' || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)' || bg === 'rgba(0,0,0,0)';
+  const hasMeaningfulText = (el.textContent || '').replace(/\u00a0/g, '').trim().length > 0;
   const hasUiControls = Boolean(el.querySelector('input, form, video, button'));
   return isBgTransparent && !hasMeaningfulText && !hasUiControls;
 }
@@ -51,7 +51,7 @@ export function isCoveringScreen(el: HTMLElement, win: Window = window): boolean
 
   const rect = el.getBoundingClientRect();
   const coversViewport =
-    rect.width >= win.innerWidth * 0.8 && rect.height >= win.innerHeight * 0.8;
+    rect.width >= win.innerWidth * 0.7 && rect.height >= win.innerHeight * 0.7;
   const coversPlayer = isCoveringVideoPlayer(el, rect, win.document);
   if (!coversViewport && !coversPlayer) {
     return false;
@@ -64,8 +64,7 @@ export function isCoveringScreen(el: HTMLElement, win: Window = window): boolean
 
   const rawZIndex = computed.zIndex || el.style.zIndex;
   const zIndex = parseInt(rawZIndex, 10);
-  const minZ = coversPlayer ? 10 : 1000;
-  const hasHighZIndex = !isNaN(zIndex) && zIndex >= minZ;
+  const hasHighZIndex = !isNaN(zIndex) && zIndex >= 10;
   if (!hasHighZIndex) return false;
 
   return isTransparentClickCatcher(el, computed);
@@ -75,18 +74,24 @@ export function installClickHijackGuard(
   doc: Document = document,
   options: ClickHijackOptions = {}
 ): () => void {
+  const win = doc.defaultView || window;
   const handler = (e: MouseEvent | PointerEvent) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
+    const startTarget = e.target as HTMLElement | null;
+    if (!startTarget) return;
 
-    if (isCoveringScreen(target, doc.defaultView || window)) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    let cursor: HTMLElement | null = startTarget;
+    for (let hop = 0; hop < 4 && cursor; hop++) {
+      if (isCoveringScreen(cursor, win)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
 
-      target.style.pointerEvents = 'none';
-      target.remove();
+        cursor.style.pointerEvents = 'none';
+        cursor.remove();
 
-      options.onNeutralized?.(target);
+        options.onNeutralized?.(cursor);
+        return;
+      }
+      cursor = cursor.parentElement;
     }
   };
 

@@ -464,10 +464,9 @@
     "condition": {
       "urlFilter": "||trafficjunky.net^",
       "resourceTypes": [
+        "main_frame",
         "script",
-        "xmlhttprequest",
-        "sub_frame",
-        "image"
+        "sub_frame"
       ],
       "excludedInitiatorDomains": [
         "youtube.com",
@@ -475,8 +474,7 @@
         "m.youtube.com",
         "music.youtube.com",
         "youtu.be"
-      ],
-      "domainType": "thirdParty"
+      ]
     }
   },
   {
@@ -488,10 +486,9 @@
     "condition": {
       "urlFilter": "||juicyads.com^",
       "resourceTypes": [
+        "main_frame",
         "script",
-        "xmlhttprequest",
-        "sub_frame",
-        "image"
+        "sub_frame"
       ],
       "excludedInitiatorDomains": [
         "youtube.com",
@@ -499,8 +496,7 @@
         "m.youtube.com",
         "music.youtube.com",
         "youtu.be"
-      ],
-      "domainType": "thirdParty"
+      ]
     }
   },
   {
@@ -512,6 +508,7 @@
     "condition": {
       "urlFilter": "||popcash.net^",
       "resourceTypes": [
+        "main_frame",
         "script",
         "sub_frame"
       ],
@@ -531,10 +528,12 @@
       "type": "block"
     },
     "condition": {
-      "urlFilter": "||onclkds.com^",
+      "urlFilter": "||popads.net^",
       "resourceTypes": [
+        "main_frame",
         "script",
-        "sub_frame"
+        "sub_frame",
+        "xmlhttprequest"
       ],
       "excludedInitiatorDomains": [
         "youtube.com",
@@ -552,9 +551,11 @@
       "type": "block"
     },
     "condition": {
-      "urlFilter": "||onclickads.net^",
+      "urlFilter": "||exoclick.com^",
       "resourceTypes": [
+        "main_frame",
         "script",
+        "xmlhttprequest",
         "sub_frame"
       ],
       "excludedInitiatorDomains": [
@@ -568,6 +569,388 @@
   },
   {
     "id": 25,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||exosrv.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 26,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||magsrv.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 27,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||realsrv.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 28,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||pemsrv.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 29,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||tsyndicate.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 30,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||tsyndicate.net^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 31,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||betteradsystem.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 32,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||highperformanceformat.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 33,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||topcreativeformat.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 34,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||acscdn.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 35,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||wpadmngr.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 36,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||bidgear.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 37,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||twinrdengine.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 38,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||adsco.re^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 39,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||dtscout.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 40,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||onclkds.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 41,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||onclickads.net^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 42,
     "priority": 1,
     "action": {
       "type": "block"
@@ -589,7 +972,7 @@
     }
   },
   {
-    "id": 26,
+    "id": 43,
     "priority": 1,
     "action": {
       "type": "block"
@@ -611,7 +994,7 @@
     }
   },
   {
-    "id": 27,
+    "id": 44,
     "priority": 1,
     "action": {
       "type": "block"
@@ -619,6 +1002,7 @@
     "condition": {
       "urlFilter": "||hilltopads.net^",
       "resourceTypes": [
+        "main_frame",
         "script",
         "sub_frame"
       ],
@@ -632,7 +1016,7 @@
     }
   },
   {
-    "id": 28,
+    "id": 45,
     "priority": 1,
     "action": {
       "type": "block"
@@ -640,6 +1024,7 @@
     "condition": {
       "urlFilter": "||monetag.com^",
       "resourceTypes": [
+        "main_frame",
         "script",
         "sub_frame"
       ],
@@ -653,7 +1038,7 @@
     }
   },
   {
-    "id": 29,
+    "id": 46,
     "priority": 1,
     "action": {
       "type": "block"
@@ -661,6 +1046,7 @@
     "condition": {
       "urlFilter": "||galaksion.com^",
       "resourceTypes": [
+        "main_frame",
         "script",
         "sub_frame"
       ],

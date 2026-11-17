@@ -17,6 +17,8 @@ interface ClickIntentContext {
 
 const PATCHED_OPEN_SYMBOL = Symbol.for('adfilter.openPatched');
 const IFRAME_HOOKED_SYMBOL = Symbol.for('adfilter.iframeHooked');
+const DISPATCH_PATCHED_SYMBOL = Symbol.for('adfilter.dispatchPatched');
+const FRAME_INSERT_HOOKED_SYMBOL = Symbol.for('adfilter.frameInsertHooked');
 
 let lastUserClickTime = 0;
 let lastClickIntent: ClickIntentContext | null = null;
@@ -34,27 +36,36 @@ function isPlayerControlTarget(el: Element | null): boolean {
 // Ghi nhận tương tác chuột và ngữ cảnh phần tử thực tế mà người dùng vừa bấm
 export function trackUserGesture(targetWindow: Window = window): void {
   try {
+    const onPointerInput = (e?: Event) => {
+      const now = Date.now();
+      lastUserClickTime = now;
+
+      const target = (e?.target as Element | null) ?? null;
+      if (!target || typeof target !== 'object') {
+        lastClickIntent = null;
+        return;
+      }
+
+      const anchor = typeof target.closest === 'function' ? target.closest('a[href]') : null;
+      const rawHref = anchor?.getAttribute?.('href') || (anchor as HTMLAnchorElement | null)?.href || null;
+      lastClickIntent = {
+        timestamp: now,
+        isPlayerInteraction: isPlayerControlTarget(target),
+        clickedAnchorElement: anchor,
+        clickedAnchorHref: rawHref,
+        clickedAnchorTarget: (anchor?.getAttribute?.('target') || '').toLowerCase(),
+      };
+    };
+
+    targetWindow.addEventListener('pointerdown', onPointerInput, { capture: true, passive: true });
+    targetWindow.addEventListener('touchstart', onPointerInput, { capture: true, passive: true });
     targetWindow.addEventListener(
-      'pointerdown',
+      'keydown',
       (e?: Event) => {
-        const now = Date.now();
-        lastUserClickTime = now;
-
-        const target = (e?.target as Element | null) ?? null;
-        if (!target || typeof target !== 'object') {
+        const key = (e as KeyboardEvent | undefined)?.key;
+        if (key === 'Enter' || key === ' ') {
           lastClickIntent = null;
-          return;
         }
-
-        const anchor = typeof target.closest === 'function' ? target.closest('a[href]') : null;
-        const rawHref = anchor?.getAttribute?.('href') || (anchor as HTMLAnchorElement | null)?.href || null;
-        lastClickIntent = {
-          timestamp: now,
-          isPlayerInteraction: isPlayerControlTarget(target),
-          clickedAnchorElement: anchor,
-          clickedAnchorHref: rawHref,
-          clickedAnchorTarget: (anchor?.getAttribute?.('target') || '').toLowerCase(),
-        };
       },
       { capture: true, passive: true }
     );
@@ -89,8 +100,8 @@ export function isUnintendedPopupAttempt(
     return false;
   }
 
-  // Chặn mở tab trống about:blank / '' để script popunder tự gán location sau đó
-  if (!urlString || urlString === 'about:blank') {
+  // Chặn mở tab trống about:blank / '' / about:blank#... để script popunder tự gán location sau đó
+  if (!urlString || urlString.startsWith('about:blank')) {
     return true;
   }
 
@@ -121,24 +132,42 @@ export function isUnintendedPopupAttempt(
 }
 
 function isHiddenTrapAnchor(anchor: HTMLElement, targetWindow: Window): boolean {
-  const style = targetWindow.getComputedStyle?.(anchor);
-  const pos = style?.position || anchor.style?.position;
-  if (pos !== 'fixed' && pos !== 'absolute') return false;
+  let node: HTMLElement | null = anchor;
+  const body = targetWindow.document?.body;
+  const docEl = targetWindow.document?.documentElement;
 
-  const opacity = parseFloat(style?.opacity || anchor.style?.opacity || '1');
-  if (!isNaN(opacity) && opacity < 0.1) return true;
+  for (let hop = 0; hop < 4 && node && node !== body && node !== docEl; hop++) {
+    const trimmedText = (node.textContent || '').replace(/\u00a0/g, '').trim();
+    if (hop > 0 && (trimmedText.length > 15 || node.querySelector?.('input, form, video, button'))) {
+      break;
+    }
 
-  const rect = anchor.getBoundingClientRect?.();
-  if (
-    rect &&
-    targetWindow.innerWidth > 0 &&
-    targetWindow.innerHeight > 0 &&
-    rect.width >= targetWindow.innerWidth * 0.65 &&
-    rect.height >= targetWindow.innerHeight * 0.65 &&
-    (anchor.textContent || '').trim().length === 0
-  ) {
-    return true;
+    const style = targetWindow.getComputedStyle?.(node);
+    const pos = style?.position || node.style?.position;
+    if (pos === 'fixed' || pos === 'absolute') {
+      const opacity = parseFloat(style?.opacity || node.style?.opacity || '1');
+      if (!isNaN(opacity) && opacity < 0.1) return true;
+
+      const rect = node.getBoundingClientRect?.();
+      if (rect) {
+        if (
+          targetWindow.innerWidth > 0 &&
+          targetWindow.innerHeight > 0 &&
+          rect.width >= targetWindow.innerWidth * 0.5 &&
+          rect.height >= targetWindow.innerHeight * 0.5 &&
+          trimmedText.length <= 15
+        ) {
+          return true;
+        }
+        if (pos === 'fixed' && rect.width > 0 && rect.width <= 4 && rect.height > 0 && rect.height <= 4 && trimmedText.length === 0) {
+          return true;
+        }
+      }
+    }
+
+    node = node.parentElement;
   }
+
   return false;
 }
 
@@ -166,11 +195,30 @@ function installNativeAnchorClickTrap(
         lastClickIntent!.clickedAnchorHref !== rawHref &&
         lastClickIntent!.clickedAnchorHref !== fullHref;
 
+      const baseHref = targetWindow.location?.href;
+      const currentOrigin = targetWindow.location?.origin;
+      const destParsed = tryParseUrl(fullHref || rawHref, baseHref);
+      const isCrossOriginDest = Boolean(currentOrigin && destParsed && destParsed.origin !== currentOrigin);
+
       const isSuspicious = isSuspiciousUrl(fullHref) || isSuspiciousUrl(rawHref);
       const isHiddenTargetBlank =
         targetAttr === '_blank' && isHiddenTrapAnchor(anchor, targetWindow);
+      const isUntrustedBlank =
+        targetAttr === '_blank' && e.isTrusted === false && (isCrossOriginDest || isSuspicious);
+      const wasInjectedUnderPointer =
+        targetAttr === '_blank' &&
+        isCrossOriginDest &&
+        Boolean(lastClickIntent) &&
+        Date.now() - lastClickIntent!.timestamp <= 1000 &&
+        lastClickIntent!.clickedAnchorElement !== anchor;
 
-      if (isSuspicious || wasHrefSwapped || isHiddenTargetBlank) {
+      if (
+        isSuspicious ||
+        wasHrefSwapped ||
+        isHiddenTargetBlank ||
+        isUntrustedBlank ||
+        wasInjectedUnderPointer
+      ) {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (wasHrefSwapped && lastClickIntent?.clickedAnchorHref) {
@@ -187,29 +235,63 @@ function installSyntheticAnchorTrap(
   targetWindow: Window,
   options: AntiPopupOptions
 ): void {
-  const anchorProto = (targetWindow as unknown as { HTMLAnchorElement?: typeof HTMLAnchorElement })
-    .HTMLAnchorElement?.prototype;
+  const anchorCtor = (targetWindow as unknown as { HTMLAnchorElement?: typeof HTMLAnchorElement })
+    .HTMLAnchorElement;
+  const anchorProto = anchorCtor?.prototype;
   const originalAnchorClick = anchorProto?.click;
-  if (!anchorProto || !originalAnchorClick) return;
+  if (anchorProto && originalAnchorClick) {
+    const patchedAnchorClick = function (this: HTMLAnchorElement): void {
+      const target = this.getAttribute('target') || this.target || '';
+      const href = this.href || this.getAttribute('href') || '';
+      if (
+        (target.toLowerCase() === '_blank' || isSuspiciousUrl(href)) &&
+        isUnintendedPopupAttempt(href, targetWindow)
+      ) {
+        options.onBlocked?.(href);
+        return;
+      }
+      return originalAnchorClick.call(this);
+    };
 
-  const patchedAnchorClick = function (this: HTMLAnchorElement): void {
-    const target = this.getAttribute('target') || this.target || '';
-    const href = this.href || this.getAttribute('href') || '';
-    if (
-      (target.toLowerCase() === '_blank' || isSuspiciousUrl(href)) &&
-      isUnintendedPopupAttempt(href, targetWindow)
-    ) {
-      options.onBlocked?.(href);
-      return;
-    }
-    return originalAnchorClick.call(this);
-  };
+    disguise(
+      patchedAnchorClick as (...args: unknown[]) => unknown,
+      originalAnchorClick as (...args: unknown[]) => unknown
+    );
+    anchorProto.click = patchedAnchorClick;
+  }
 
-  disguise(
-    patchedAnchorClick as (...args: unknown[]) => unknown,
-    originalAnchorClick as (...args: unknown[]) => unknown
-  );
-  anchorProto.click = patchedAnchorClick;
+  // Bắt luôn chiêu a.dispatchEvent(new MouseEvent('click')) kể cả trên thẻ <a> chưa gắn DOM
+  const eventTargetProto = (targetWindow as unknown as { EventTarget?: typeof EventTarget })
+    .EventTarget?.prototype;
+  const origDispatch = eventTargetProto?.dispatchEvent;
+  const store = targetWindow as unknown as Record<symbol, unknown>;
+  if (eventTargetProto && origDispatch && !store[DISPATCH_PATCHED_SYMBOL]) {
+    const patchedDispatch = function (this: EventTarget, event: Event): boolean {
+      const isAnchor =
+        (anchorCtor && this instanceof anchorCtor) ||
+        (this as unknown as { tagName?: string })?.tagName === 'A';
+      if (isAnchor && event?.type === 'click') {
+        const a = this as unknown as HTMLAnchorElement;
+        const target = a.getAttribute?.('target') || a.target || '';
+        const href = a.href || a.getAttribute?.('href') || '';
+        if (
+          (target.toLowerCase() === '_blank' || isSuspiciousUrl(href)) &&
+          isUnintendedPopupAttempt(href, targetWindow)
+        ) {
+          options.onBlocked?.(href);
+          return false;
+        }
+      }
+      return origDispatch.call(this, event);
+    };
+
+    disguise(
+      patchedDispatch as (...args: unknown[]) => unknown,
+      origDispatch as (...args: unknown[]) => unknown
+    );
+    eventTargetProto.dispatchEvent = patchedDispatch;
+    store[DISPATCH_PATCHED_SYMBOL] = true;
+  }
 }
 
 function installFormSubmitTrap(
@@ -272,25 +354,79 @@ function installIframeContentWindowOpenGuard(
     if (!desc?.get || desc.configurable === false) return;
 
     const originalGet = desc.get;
+    const hookChildWindow = (childWin: Window | null | undefined) => {
+      try {
+        if (childWin && typeof childWin.open === 'function') {
+          const childStore = childWin as unknown as Record<symbol, unknown>;
+          if (!childStore[PATCHED_OPEN_SYMBOL]) {
+            childWin.open = createOpenWrapper(childWin, childWin.open);
+            childStore[PATCHED_OPEN_SYMBOL] = true;
+          }
+        }
+      } catch {
+        // Cross-origin iframe bảo mật — bỏ qua an toàn
+      }
+    };
+
     Object.defineProperty(iframeProto, 'contentWindow', {
       configurable: true,
       get(this: HTMLIFrameElement) {
         const childWin = originalGet.call(this);
-        try {
-          if (childWin && typeof childWin.open === 'function') {
-            const childStore = childWin as unknown as Record<symbol, unknown>;
-            if (!childStore[PATCHED_OPEN_SYMBOL]) {
-              childWin.open = createOpenWrapper(childWin, childWin.open);
-              childStore[PATCHED_OPEN_SYMBOL] = true;
-            }
-          }
-        } catch {
-          // Cross-origin iframe bảo mật — bỏ qua an toàn
-        }
+        hookChildWindow(childWin);
         return childWin;
       },
     });
     store[IFRAME_HOOKED_SYMBOL] = true;
+
+    // Bắt luôn chiêu appendChild(iframe) rồi gọi window.frames[i].open(...)
+    const nodeProto = (targetWindow as unknown as { Node?: typeof Node }).Node?.prototype;
+    if (nodeProto && !store[FRAME_INSERT_HOOKED_SYMBOL]) {
+      const hookInsertedNode = (node: unknown) => {
+        if (!node || typeof node !== 'object') return;
+        const el = node as HTMLElement;
+        if (el.tagName === 'IFRAME') {
+          hookChildWindow(originalGet.call(el as unknown as HTMLIFrameElement));
+          return;
+        }
+        el.querySelectorAll?.('iframe').forEach((frame) => {
+          hookChildWindow(originalGet.call(frame));
+        });
+      };
+
+      if (nodeProto.appendChild) {
+        const origAppendChild = nodeProto.appendChild;
+        const patchedAppendChild = function <T extends Node>(this: Node, child: T): T {
+          const inserted = origAppendChild.call(this, child) as T;
+          hookInsertedNode(inserted);
+          return inserted;
+        };
+        disguise(
+          patchedAppendChild as (...args: unknown[]) => unknown,
+          origAppendChild as (...args: unknown[]) => unknown
+        );
+        nodeProto.appendChild = patchedAppendChild;
+      }
+
+      if (nodeProto.insertBefore) {
+        const origInsertBefore = nodeProto.insertBefore;
+        const patchedInsertBefore = function <T extends Node>(
+          this: Node,
+          newNode: T,
+          refNode: Node | null
+        ): T {
+          const inserted = origInsertBefore.call(this, newNode, refNode) as T;
+          hookInsertedNode(inserted);
+          return inserted;
+        };
+        disguise(
+          patchedInsertBefore as (...args: unknown[]) => unknown,
+          origInsertBefore as (...args: unknown[]) => unknown
+        );
+        nodeProto.insertBefore = patchedInsertBefore;
+      }
+
+      store[FRAME_INSERT_HOOKED_SYMBOL] = true;
+    }
   } catch {
     // Môi trường không hỗ trợ override
   }

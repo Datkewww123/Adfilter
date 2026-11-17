@@ -40,13 +40,17 @@ describe('ClickHijackGuard', () => {
     document.body.appendChild(div);
 
     const onNeutralized = vi.fn();
-    installClickHijackGuard(document, { onNeutralized });
+    const stop = installClickHijackGuard(document, { onNeutralized });
 
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-    div.dispatchEvent(event);
+    try {
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      div.dispatchEvent(event);
 
-    expect(onNeutralized).toHaveBeenCalledWith(div);
-    expect(div.parentElement).toBeNull();
+      expect(onNeutralized).toHaveBeenCalledWith(div);
+      expect(div.parentElement).toBeNull();
+    } finally {
+      stop();
+    }
   });
 
   it('bắt lớp phủ click-catcher trong suốt (background transparent) đè lên video player', () => {
@@ -65,5 +69,30 @@ describe('ClickHijackGuard', () => {
     document.body.appendChild(player);
 
     expect(isCoveringScreen(trapOverlay, window)).toBe(true);
+  });
+
+  it('bắt cả lớp phủ trong suốt z-index thường (99) và click qua thẻ <a> con nằm bên trong', () => {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.zIndex = '99';
+    overlay.style.backgroundColor = 'transparent';
+    overlay.getBoundingClientRect = () => ({ width: 900, height: 700 } as DOMRect);
+
+    const innerLink = document.createElement('a');
+    innerLink.href = 'https://popunder.example/tab';
+    innerLink.target = '_blank';
+    overlay.appendChild(innerLink);
+    document.body.appendChild(overlay);
+
+    const onNeutralized = vi.fn();
+    const stop = installClickHijackGuard(document, { onNeutralized });
+
+    try {
+      innerLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      expect(onNeutralized).toHaveBeenCalledWith(overlay);
+      expect(overlay.parentElement).toBeNull();
+    } finally {
+      stop();
+    }
   });
 });
