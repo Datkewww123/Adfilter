@@ -1,6 +1,33 @@
 import { disguise } from './anti-detect';
+import {
+  normalizeYouTubeAdMode,
+  readCachedYouTubeAdMode,
+  YT_AD_MODE_MSG_TYPE,
+  type YouTubeAdMode,
+} from '../storage/config';
 
 const nativeJSONParse = JSON.parse;
+
+let runtimeYouTubeAdMode: YouTubeAdMode = readCachedYouTubeAdMode();
+
+export function getRuntimeYouTubeAdMode(): YouTubeAdMode {
+  return runtimeYouTubeAdMode;
+}
+
+export function setRuntimeYouTubeAdMode(mode: unknown): void {
+  runtimeYouTubeAdMode = normalizeYouTubeAdMode(mode);
+}
+
+export function handleYouTubeAdModeMessage(
+  event: { source?: unknown; data?: unknown },
+  expectedSource?: unknown,
+): void {
+  if (expectedSource !== undefined && event.source !== expectedSource) return;
+  const data = event.data as Record<string, unknown> | null | undefined;
+  if (data && typeof data === 'object' && data.type === YT_AD_MODE_MSG_TYPE) {
+    setRuntimeYouTubeAdMode(data.mode);
+  }
+}
 
 const AD_KEYS = [
   'adPlacements',
@@ -36,9 +63,16 @@ export const AD_NETWORK_BLOCK_PATTERNS = [
 
 const AD_SIGNAL_HINT_REGEX =
   /adPlacements|playerAds|adSlots|adBreak|RemarketingUrl|reelWatchEndpoint/;
+const FAST_SKIP_SIGNAL_HINT_REGEX = /RemarketingUrl|reelWatchEndpoint/;
 
-export function containsAdSignalText(text: string): boolean {
-  return text.length >= 16 && AD_SIGNAL_HINT_REGEX.test(text);
+export function containsAdSignalText(
+  text: string,
+  mode: YouTubeAdMode = 'strict-defuser',
+): boolean {
+  if (text.length < 16) return false;
+  return mode === 'fast-skip'
+    ? FAST_SKIP_SIGNAL_HINT_REGEX.test(text)
+    : AD_SIGNAL_HINT_REGEX.test(text);
 }
 
 export function extractRequestUrl(input: unknown): string {
@@ -50,7 +84,12 @@ export function extractRequestUrl(input: unknown): string {
   return '';
 }
 
-export function isAdNetworkUrl(url: string): boolean {
+export function isAdNetworkUrl(url: string, mode: YouTubeAdMode = 'strict-defuser'): boolean {
+  // Ở chế độ fast-skip (Chế độ A), giữ nguyên chặn mọi 3rd-party, /pagead/ và /player/ad_break;
+  // chỉ cho phép ping 1st-party /api/stats/ads của youtube.com để YouTube ghi nhận phiên và miễn QC các video sau.
+  if (mode === 'fast-skip' && url.includes('youtube.com/') && url.includes('/api/stats/ads')) {
+    return false;
+  }
   return AD_NETWORK_BLOCK_PATTERNS.some((pattern) => url.includes(pattern));
 }
 
@@ -72,32 +111,40 @@ export function isStreamingWatchUrl(url: string): boolean {
   return !isAdNetworkUrl(url) && url.includes('/youtubei/v1/get_watch');
 }
 
-export function purge(obj: unknown, depth = 0): boolean {
+export function purge(
+  obj: unknown,
+  depth = 0,
+  mode: YouTubeAdMode = 'strict-defuser',
+): boolean {
   if (obj == null || typeof obj !== 'object') return false;
   let modified = false;
 
   if (Array.isArray(obj)) {
     if (depth <= 2) {
       for (const item of obj) {
-        if (purge(item, depth + 1)) modified = true;
+        if (purge(item, depth + 1, mode)) modified = true;
       }
     }
     return modified;
   }
 
   const record = obj as Record<string, unknown>;
-  for (const key of AD_KEYS) {
-    if (key in record) {
-      const val = record[key];
-      if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-        const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
-        if (!Array.isArray(val) || val.length > 0) {
-          record[key] = [];
+  // Ở chế độ fast-skip, giữ nguyên adPlacements/playerAds/adSlots/adBreaks để video đầu
+  // vào fast-skip + VisualMask (~0.3s) và các video kế tiếp trong phiên sạch QC (<1s).
+  if (mode === 'strict-defuser') {
+    for (const key of AD_KEYS) {
+      if (key in record) {
+        const val = record[key];
+        if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+          const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
+          if (!Array.isArray(val) || val.length > 0) {
+            record[key] = [];
+          }
+          if (hadAds) modified = true;
+        } else {
+          delete record[key];
+          modified = true;
         }
-        if (hadAds) modified = true;
-      } else {
-        delete record[key];
-        modified = true;
       }
     }
   }
@@ -132,14 +179,20 @@ export function purge(obj: unknown, depth = 0): boolean {
     for (const k of Object.keys(record)) {
       const val = record[k];
       if (val && typeof val === 'object') {
-        if (purge(val, depth + 1)) modified = true;
+        if (purge(val, depth + 1, mode)) modified = true;
       }
     }
   } else {
-    for (const key of ['playerResponse', 'watchNextResponse', 'data', 'response']) {
+    for (const key of [
+      'playerResponse',
+      'watchNextResponse',
+      'onResponseReceivedEndpoints',
+      'data',
+      'response',
+    ]) {
       const val = record[key];
       if (val && typeof val === 'object') {
-        if (purge(val, depth + 1)) modified = true;
+        if (purge(val, depth + 1, mode)) modified = true;
       }
     }
   }
@@ -163,14 +216,22 @@ function emptySuccessResponse(url: string): Response {
 }
 
 if (typeof window !== 'undefined') {
+  runtimeYouTubeAdMode = readCachedYouTubeAdMode();
+  try {
+    window.addEventListener('message', (event: MessageEvent) => {
+      handleYouTubeAdModeMessage(event, window);
+    });
+  } catch {}
+
   // ─── 1. Bẫy fetch() có ngụy trang ────────────────────────────────────────
   const originalFetch = window.fetch.bind(window);
 
   async function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = extractRequestUrl(input);
+    const mode = getRuntimeYouTubeAdMode();
 
     // Chặn ngay ad network request và trả về 200 OK đúng định dạng để không gây lỗi/timeout
-    if (isAdNetworkUrl(url)) {
+    if (isAdNetworkUrl(url, mode)) {
       return emptySuccessResponse(url);
     }
 
@@ -179,11 +240,11 @@ if (typeof window !== 'undefined') {
     if (isPlayerDataUrl(url) && !isStreamingWatchUrl(url)) {
       try {
         const text = await res.clone().text();
-        if (!containsAdSignalText(text)) {
+        if (!containsAdSignalText(text, mode)) {
           return res;
         }
         const data = nativeJSONParse(text);
-        if (!purge(data)) {
+        if (!purge(data, 0, mode)) {
           return res;
         }
         const cleanHeaders = new Headers(res.headers);
@@ -216,7 +277,7 @@ if (typeof window !== 'undefined') {
     const origJson = Response.prototype.json;
     async function patchedResponseJson(this: Response): Promise<unknown> {
       const data = await origJson.call(this);
-      purge(data);
+      purge(data, 0, getRuntimeYouTubeAdMode());
       return data;
     }
     Response.prototype.json = disguise(patchedResponseJson, origJson);
@@ -231,7 +292,7 @@ if (typeof window !== 'undefined') {
 
     open(method: string, url: string | URL, ...rest: any[]): void {
       this._url = extractRequestUrl(url);
-      this._blocked = isAdNetworkUrl(this._url);
+      this._blocked = isAdNetworkUrl(this._url, getRuntimeYouTubeAdMode());
 
       // Dùng endpoint sạch cùng origin '/generate_204', không gắn query nhận diện adfilter
       if (this._blocked) {
@@ -266,10 +327,11 @@ if (typeof window !== 'undefined') {
     get responseText(): string {
       if (this._blocked) return '{}';
       const text = super.responseText;
-      if (isPlayerDataUrl(this._url) && containsAdSignalText(text)) {
+      const mode = getRuntimeYouTubeAdMode();
+      if (isPlayerDataUrl(this._url) && containsAdSignalText(text, mode)) {
         try {
           const data = nativeJSONParse(text);
-          if (purge(data)) {
+          if (purge(data, 0, mode)) {
             return JSON.stringify(data);
           }
         } catch {

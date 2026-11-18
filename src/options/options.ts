@@ -1,4 +1,5 @@
 import { loadConfig, saveConfig } from '../storage/configStore';
+import type { YouTubeAdMode } from '../storage/config';
 import { defaultStealthConfig, STEALTH_CONFIG_KEY, type StealthConfig } from '../core/stealthConfig';
 import { ext } from '../platform/api';
 import {
@@ -13,10 +14,19 @@ const speed = document.getElementById('maxSpeed') as HTMLInputElement | null;
 const seek = document.getElementById('allowSeek') as HTMLInputElement | null;
 const telemetry = document.getElementById('telemetry') as HTMLInputElement | null;
 
-const defuser = document.getElementById('defuserEnabled') as HTMLInputElement | null;
+const youtubeAdModeEl = document.getElementById('youtubeAdMode') as HTMLSelectElement | null;
+const youtubeAdModeHintEl = document.getElementById('youtubeAdModeHint');
 const cosmetic = document.getElementById('cosmeticEnabled') as HTMLInputElement | null;
 const mask = document.getElementById('visualMaskEnabled') as HTMLInputElement | null;
 const fallback = document.getElementById('fastSeekFallback') as HTMLInputElement | null;
+
+function renderYouTubeAdModeHint(mode: YouTubeAdMode): void {
+  if (!youtubeAdModeHintEl) return;
+  youtubeAdModeHintEl.textContent =
+    mode === 'fast-skip'
+      ? 'Chế độ A (khuyến nghị): Che đen + tắt tiếng + tua hết QC video đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s (vẫn chặn 3rd-party DNR, /pagead/ & ad_break).'
+      : 'Chế độ B: Chặn tuyệt đối tại nguồn (không gửi ping /api/stats/ads 1st-party), nhưng server YouTube có thể giữ luồng video 4–8 giây ở từng video có QC.';
+}
 
 const filterGlobalEl = document.getElementById('filterGlobalEnabled') as HTMLInputElement | null;
 const filterVietnamEl = document.getElementById('filterVietnamEnabled') as HTMLInputElement | null;
@@ -74,9 +84,10 @@ async function init(): Promise<void> {
   if (speed) speed.value = String(c.maxSpeed);
   if (seek) seek.checked = c.allowSeek;
   if (telemetry) telemetry.checked = c.telemetry;
+  if (youtubeAdModeEl) youtubeAdModeEl.value = c.youtubeAdMode;
+  renderYouTubeAdModeHint(c.youtubeAdMode);
 
   const sc = await getStealthConfig();
-  if (defuser) defuser.checked = sc.defuserEnabled;
   if (cosmetic) cosmetic.checked = sc.cosmeticEnabled;
   if (mask) mask.checked = sc.visualMaskEnabled;
   if (fallback) fallback.checked = sc.fastSeekFallback;
@@ -101,7 +112,14 @@ speed?.addEventListener('change', () => {
 seek?.addEventListener('change', () => void saveConfig({ allowSeek: seek.checked }));
 telemetry?.addEventListener('change', () => void saveConfig({ telemetry: telemetry.checked }));
 
-defuser?.addEventListener('change', () => void saveStealthConfig({ defuserEnabled: defuser.checked }));
+youtubeAdModeEl?.addEventListener('change', () => {
+  const mode: YouTubeAdMode =
+    youtubeAdModeEl.value === 'strict-defuser' ? 'strict-defuser' : 'fast-skip';
+  renderYouTubeAdModeHint(mode);
+  void saveConfig({ youtubeAdMode: mode }).then(() =>
+    saveStealthConfig({ defuserEnabled: mode === 'strict-defuser' }),
+  );
+});
 cosmetic?.addEventListener('change', () => void saveStealthConfig({ cosmeticEnabled: cosmetic.checked }));
 mask?.addEventListener('change', () => void saveStealthConfig({ visualMaskEnabled: mask.checked }));
 fallback?.addEventListener('change', () => void saveStealthConfig({ fastSeekFallback: fallback.checked }));

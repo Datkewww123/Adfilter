@@ -10,7 +10,11 @@
  * trực tiếp (làm lệch trạng thái nội bộ của YouTube Player → kẹt nút Play/Pause, live trôi
  * sai vị trí). Mọi lệnh đều đi qua API của player: playVideo(), seekToLiveHead().
  */
-import './interceptor';
+import {
+  containsAdSignalText,
+  getRuntimeYouTubeAdMode,
+  purge as purgeAdPayload,
+} from './interceptor';
 import { disguise } from './anti-detect';
 import { releaseScrollLockIfSafe } from './scrollLock';
 import { installPauseGuard, isRecentUserPauseGesture } from './pauseGuard';
@@ -30,93 +34,12 @@ if (!isLocalTest) {
   // ─── Bẫy 0: Theo dõi cử chỉ Play/Pause thật của người dùng (không can thiệp pause()) ───
   installPauseGuard(window);
 
-  const AD_KEYS = [
-    'adPlacements',
-    'playerAds',
-    'adSlots',
-    'adBreakParams',
-    'adBreakHeartbeatParams',
-    'adBreaks',
-  ];
-
   // Throttle chống spam: chỉ gửi 1 tín hiệu AD_DEFUSED tối đa mỗi 2 giây
   let _lastDefusedAt = 0;
   const DEFUSED_THROTTLE_MS = 2000;
 
-  function stripRemarketingUrls(record: Record<string, unknown>): boolean {
-    const pt = record.playbackTracking;
-    if (!pt || typeof pt !== 'object' || Array.isArray(pt)) return false;
-    const ptRecord = pt as Record<string, unknown>;
-    let removed = false;
-    if ('googleRemarketingUrl' in ptRecord) {
-      delete ptRecord.googleRemarketingUrl;
-      removed = true;
-    }
-    if ('youtubeRemarketingUrl' in ptRecord) {
-      delete ptRecord.youtubeRemarketingUrl;
-      removed = true;
-    }
-    return removed;
-  }
-
-  function purge(obj: unknown, depth = 0): void {
-    if (obj == null || typeof obj !== 'object') return;
-    if (Array.isArray(obj)) {
-      if (depth <= 2) {
-        for (const item of obj) purge(item, depth + 1);
-      }
-      return;
-    }
-
-    const record = obj as Record<string, unknown>;
-    let removed = false;
-
-    for (const key of AD_KEYS) {
-      if (key in record) {
-        const val = record[key];
-        if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-          const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
-          record[key] = [];
-          if (hadAds) removed = true;
-        } else {
-          delete record[key];
-          removed = true;
-        }
-      }
-    }
-
-    if (stripRemarketingUrls(record)) {
-      removed = true;
-    }
-
-    // Triệt tiêu quảng cáo trên YouTube Shorts
-    if (Array.isArray(record.entries)) {
-      const entries = record.entries as any[];
-      const origLen = entries.length;
-      const filtered = entries.filter((entry: any) => !entry?.command?.reelWatchEndpoint?.ad);
-      if (filtered.length < origLen) {
-        record.entries = filtered;
-        removed = true;
-      }
-    }
-
-    if (depth < 2) {
-      for (const k of Object.keys(record)) {
-        const val = record[k];
-        if (val && typeof val === 'object') {
-          purge(val, depth + 1);
-        }
-      }
-    } else {
-      for (const key of ['playerResponse', 'watchNextResponse', 'onResponseReceivedEndpoints', 'data']) {
-        const val = record[key];
-        if (val && typeof val === 'object') {
-          purge(val, depth + 1);
-        }
-      }
-    }
-
-    // Báo cáo về Content Script — throttle 2 giây chống spam đếm trùng
+  function purge(obj: unknown): boolean {
+    const removed = purgeAdPayload(obj, 0, getRuntimeYouTubeAdMode());
     if (removed && typeof window !== 'undefined') {
       const now = Date.now();
       if (now - _lastDefusedAt >= DEFUSED_THROTTLE_MS) {
@@ -126,6 +49,7 @@ if (!isLocalTest) {
         } catch {}
       }
     }
+    return removed;
   }
 
   const origDefine = Object.defineProperty;
@@ -136,8 +60,9 @@ if (!isLocalTest) {
     if (typeof raw !== 'string' || raw.length === 0) return;
     try {
       const parsed = origJSONParse(raw);
-      purge(parsed);
-      obj[field] = JSON.stringify(parsed);
+      if (purge(parsed)) {
+        obj[field] = JSON.stringify(parsed);
+      }
     } catch {}
   }
 
@@ -247,15 +172,13 @@ if (!isLocalTest) {
   Object.defineProperty = disguise(patchedDefine as typeof Object.defineProperty, origDefine);
 
   // ─── Bẫy 1: JSON.parse có ngụy trang (fast-path bỏ qua JSON không chứa tín hiệu ad) ─
-  const AD_SIGNAL_HINT = /adPlacements|playerAds|adSlots|adBreak|RemarketingUrl|reelWatchEndpoint/;
   function patchedJSONParse(text: string, reviver?: (this: any, key: string, value: any) => any) {
     const result = origJSONParse(text, reviver);
     if (
       result &&
       typeof result === 'object' &&
       typeof text === 'string' &&
-      text.length >= 16 &&
-      AD_SIGNAL_HINT.test(text)
+      containsAdSignalText(text, getRuntimeYouTubeAdMode())
     ) {
       purge(result);
     }
