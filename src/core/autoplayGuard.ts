@@ -165,6 +165,23 @@ function isVisibleLiveBadge(badge: Element): boolean {
 }
 
 /**
+ * Selector các container/player phụ trên YouTube (hover inline preview, card gợi ý, Shorts, trailer kênh)
+ * không thuộc trình phát xem video chính `#movie_player`.
+ */
+export const NON_WATCH_PLAYER_SELECTOR =
+  '#video-preview, #inline-preview-player, #shorts-player, #c4-player, ytd-video-preview, ytd-reel-video-renderer, ytd-rich-grid-media, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer';
+
+/**
+ * Chỉ bảo vệ/tự phát cho `<video>` đang nằm trong trình phát xem chính `#movie_player`,
+ * bỏ qua `<video>` của trình phát xem trước (hover preview), Shorts hoặc `<video>` rời bên ngoài.
+ */
+export function isWatchPlayerVideo(video: Element | null | undefined): boolean {
+  if (!video || typeof video.closest !== 'function') return false;
+  if (video.closest(NON_WATCH_PLAYER_SELECTOR)) return false;
+  return !!video.closest('#movie_player');
+}
+
+/**
  * Kiểm tra chính xác xem trình phát YouTube hiện tại có đang phát Livestream hay không
  * (hỗ trợ cả Livestream có DVR với duration hữu hạn lẫn Livestream không DVR).
  * Tuyệt đối bỏ qua .ytp-live-badge đang ẩn (display: none) có sẵn trong DOM của mọi video VOD.

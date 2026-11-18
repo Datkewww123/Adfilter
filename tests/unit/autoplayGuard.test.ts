@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   inspectLiveEdge,
   isLivePlayback,
+  isWatchPlayerVideo,
   isYouTubeLivePlayer,
   seekToLiveEdge,
   shouldAttemptAutoplay,
@@ -262,5 +263,30 @@ describe('live edge helpers', () => {
     const video = { ...liveVideo(0, 100), duration: Infinity };
     expect(seekToLiveEdge(video)).toBe(true);
     expect(video.currentTime).toBe(99.5);
+  });
+});
+
+describe('isWatchPlayerVideo', () => {
+  const mockVideo = (matches: string[]) =>
+    ({
+      closest: (selector: string) =>
+        matches.some((token) => selector.includes(token)) ? {} : null,
+    }) as unknown as Element;
+
+  it('chỉ chấp nhận thẻ video nằm trong trình phát xem chính #movie_player', () => {
+    expect(isWatchPlayerVideo(mockVideo(['#movie_player']))).toBe(true);
+    expect(isWatchPlayerVideo(mockVideo([]))).toBe(false);
+    expect(isWatchPlayerVideo(null)).toBe(false);
+    expect(isWatchPlayerVideo(undefined)).toBe(false);
+  });
+
+  it('tuyệt đối bỏ qua hover inline preview, Shorts và trailer kênh để không ép chạy lại khi chuyển trang', () => {
+    expect(isWatchPlayerVideo(mockVideo(['#video-preview']))).toBe(false);
+    expect(isWatchPlayerVideo(mockVideo(['#inline-preview-player']))).toBe(false);
+    expect(isWatchPlayerVideo(mockVideo(['ytd-video-preview']))).toBe(false);
+    expect(isWatchPlayerVideo(mockVideo(['#shorts-player', 'ytd-reel-video-renderer']))).toBe(false);
+    expect(isWatchPlayerVideo(mockVideo(['#c4-player']))).toBe(false);
+    // Kể cả khi selector khớp cả #movie_player lẫn container loại trừ, container loại trừ luôn thắng
+    expect(isWatchPlayerVideo(mockVideo(['#movie_player', '#inline-preview-player']))).toBe(false);
   });
 });
