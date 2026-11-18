@@ -1,3 +1,4 @@
+import { isYouTubeContext } from '../cosmetic/cosmeticEngine';
 import { installAntiPopup } from './antiPopup';
 import { installAntiRedirect } from './antiRedirect';
 import { installAntiAdblockDefuser } from './antiAdblockDefuser';
@@ -9,16 +10,8 @@ import { runCompiledScriptlets } from './scriptlets/runner';
 
 (function initUniversalDefuser() {
   try {
-    const host = window.location.hostname;
-    const isYouTube =
-      host === 'youtube.com' ||
-      host.endsWith('.youtube.com') ||
-      host === 'youtube-nocookie.com' ||
-      host.endsWith('.youtube-nocookie.com') ||
-      Boolean(typeof window !== 'undefined' && window.location.pathname?.includes('watch.html'));
-
-    // Không can thiệp YouTube vì YouTube đã có defuser.ts riêng
-    if (isYouTube) {
+    // Không can thiệp YouTube (kể cả iframe about:blank thuộc YouTube) vì YouTube đã có defuser.ts riêng
+    if (isYouTubeContext(window, document)) {
       return;
     }
 

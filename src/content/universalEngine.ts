@@ -1,5 +1,6 @@
 import { installClickHijackGuard } from '../core/clickHijackGuard';
 import {
+  isYouTubeContext,
   parseCosmeticRule,
   generateCosmeticCssFromIndex,
   matchesDomainOrSubdomain,
@@ -257,17 +258,10 @@ export function initUniversalContent(
   doc: Document = document,
   whitelist: string[] = []
 ): { cleanup: () => void; observer: MutationObserver } | null {
-  const host = window.location.hostname;
-  const isYouTube =
-    host === 'youtube.com' ||
-    host.endsWith('.youtube.com') ||
-    host === 'youtube-nocookie.com' ||
-    host.endsWith('.youtube-nocookie.com') ||
-    Boolean(typeof window !== 'undefined' && window.location.pathname?.includes('watch.html'));
-
-  if (isYouTube) {
-    return null; // Đã có src/content/index.ts chuyên dụng cho YouTube
+  if (isYouTubeContext(window, doc)) {
+    return null; // Đã có src/content/index.ts chuyên dụng cho YouTube (gồm cả iframe about:blank bên trong)
   }
+  const host = window.location.hostname;
 
   // 0. Bỏ qua nếu website nằm trong danh sách ngoại lệ (Per-Site Whitelist)
   if (isDomainWhitelisted(host, whitelist)) {

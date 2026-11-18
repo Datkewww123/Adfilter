@@ -4,6 +4,7 @@ import {
   extractRequestUrl,
   isAdNetworkUrl,
   isPlayerDataUrl,
+  isStreamingWatchUrl,
   purge,
 } from '../../src/stealth/interceptor';
 
@@ -127,5 +128,15 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     };
     expect(purge(dirtyVod)).toBe(true);
     expect(dirtyVod.adPlacements).toEqual([]);
+  });
+
+  it('isStreamingWatchUrl nhận diện riêng endpoint streaming /youtubei/v1/get_watch', () => {
+    expect(isStreamingWatchUrl('https://www.youtube.com/youtubei/v1/get_watch?prettyPrint=false')).toBe(
+      true,
+    );
+    expect(isStreamingWatchUrl('https://www.youtube.com/youtubei/v1/player?prettyPrint=false')).toBe(
+      false,
+    );
+    expect(isStreamingWatchUrl('https://www.youtube.com/youtubei/v1/next?key=AIzaSy')).toBe(false);
   });
 });
