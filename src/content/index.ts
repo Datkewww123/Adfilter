@@ -8,7 +8,14 @@ import type { AdPhase, Signals } from '../core/types';
 import { verifyAction } from '../core/verify';
 import { recordAction } from '../storage/actionLog';
 import { saveBreaker } from '../storage/breakerStore';
-import { defaultConfig, normalizeConfig, type Config } from '../storage/config';
+import {
+  defaultConfig,
+  normalizeConfig,
+  writeCachedYouTubeAdMode,
+  YT_AD_MODE_MSG_TYPE,
+  type Config,
+  type YouTubeAdMode,
+} from '../storage/config';
 import { CONFIG_KEY, loadConfig, saveConfig } from '../storage/configStore';
 import { Actuator } from './actuator';
 import { extractSignals } from './extractSignals';
@@ -77,9 +84,21 @@ const actuator = new Actuator({
 
 const clock = (t: number): string => new Date(t).toISOString().slice(11, 19);
 
+function syncMainWorldAdMode(mode: YouTubeAdMode): void {
+  writeCachedYouTubeAdMode(mode);
+  try {
+    const origin =
+      window.location?.origin && window.location.origin !== 'null' ? window.location.origin : '*';
+    window.postMessage({ type: YT_AD_MODE_MSG_TYPE, mode }, origin);
+  } catch {}
+}
+
+syncMainWorldAdMode(cfg.youtubeAdMode);
+
 void loadConfig()
   .then((c) => {
     cfg = c;
+    syncMainWorldAdMode(cfg.youtubeAdMode);
     log.info('config', cfg);
   })
   .catch(() => undefined);
@@ -91,6 +110,7 @@ ext.storage.onChanged.addListener((changes, area) => {
   const ch = changes[CONFIG_KEY];
   if (area === 'local' && ch) {
     cfg = normalizeConfig(ch.newValue);
+    syncMainWorldAdMode(cfg.youtubeAdMode);
     log.info('config đã đổi', cfg);
     if (!cfg.enabled) actuator.restore();
   }
@@ -160,8 +180,12 @@ function instantIntervene(): void {
   actuator.noteBaseline();
   actuator.touch();
 
-  const allVideos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
-  for (const v of allVideos) {
+  const playerVideos = Array.from(
+    document.querySelectorAll<HTMLVideoElement>(`${SEL.player} video`),
+  );
+  const activeVideo = playerVideos.length > 0 ? null : getActiveVideo(document);
+  const targetVideos = playerVideos.length > 0 ? playerVideos : activeVideo ? [activeVideo] : [];
+  for (const v of targetVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
     if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {

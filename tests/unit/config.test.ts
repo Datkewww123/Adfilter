@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig, normalizeConfig } from '../../src/storage/config';
 
 describe('defaultConfig', () => {
-  it('mặc định tối ưu: dry-run tắt, cho phép seek, tốc độ 16x', () => {
+  it('mặc định tối ưu: dry-run tắt, cho phép seek, tốc độ 16x, chế độ fast-skip', () => {
     expect(defaultConfig.dryRun).toBe(false);
     expect(defaultConfig.allowSeek).toBe(true);
     expect(defaultConfig.maxSpeed).toBe(16);
     expect(defaultConfig.telemetry).toBe(false);
+    expect(defaultConfig.youtubeAdMode).toBe('fast-skip');
   });
 });
 
@@ -15,13 +16,14 @@ describe('normalizeConfig', () => {
     expect(normalizeConfig(raw)).toEqual(defaultConfig);
   });
 
-  it('giữ giá trị hợp lệ', () => {
+  it('giữ giá trị hợp lệ kể cả strict-defuser', () => {
     const v = {
       enabled: false,
       dryRun: true,
       maxSpeed: 8,
       allowSeek: false,
       telemetry: true,
+      youtubeAdMode: 'strict-defuser' as const,
     };
     expect(normalizeConfig(v)).toEqual(v);
   });
@@ -36,7 +38,9 @@ describe('normalizeConfig', () => {
     expect(normalizeConfig({ maxSpeed: Infinity }).maxSpeed).toBe(defaultConfig.maxSpeed);
   });
 
-  it('bỏ qua giá trị sai kiểu', () => {
-    expect(normalizeConfig({ enabled: 'yes', maxSpeed: '3' })).toEqual(defaultConfig);
+  it('bỏ qua giá trị sai kiểu kể cả youtubeAdMode không hợp lệ', () => {
+    expect(normalizeConfig({ enabled: 'yes', maxSpeed: '3', youtubeAdMode: 'unknown' })).toEqual(
+      defaultConfig,
+    );
   });
 });

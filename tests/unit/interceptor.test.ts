@@ -2,11 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   containsAdSignalText,
   extractRequestUrl,
+  getRuntimeYouTubeAdMode,
+  handleYouTubeAdModeMessage,
   isAdNetworkUrl,
   isPlayerDataUrl,
   isStreamingWatchUrl,
   purge,
+  setRuntimeYouTubeAdMode,
 } from '../../src/stealth/interceptor';
+import {
+  readCachedYouTubeAdMode,
+  writeCachedYouTubeAdMode,
+  YT_AD_MODE_MSG_TYPE,
+} from '../../src/storage/config';
 
 describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu quảng cáo YouTube', () => {
   it('nhận diện đúng URL gọi dữ liệu player (/player, /next, /get_watch)', () => {
@@ -138,5 +146,107 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       false,
     );
     expect(isStreamingWatchUrl('https://www.youtube.com/youtubei/v1/next?key=AIzaSy')).toBe(false);
+  });
+
+  it('chế độ fast-skip giữ nguyên adSlots/adPlacements và /api/stats/ads 1st-party nhưng vẫn chặn remarketing, Shorts ad, /pagead/ và ad_break', () => {
+    expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
+    expect(isAdNetworkUrl('https://m.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
+    expect(isAdNetworkUrl('https://s.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
+    expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'strict-defuser')).toBe(
+      true,
+    );
+    expect(isAdNetworkUrl('https://www.youtube.com/pagead/viewthroughconversion', 'fast-skip')).toBe(
+      true,
+    );
+    expect(
+      isAdNetworkUrl(
+        'https://www.youtube.com/pagead/viewthroughconversion?next=/api/stats/ads',
+        'fast-skip',
+      ),
+    ).toBe(true);
+    expect(isAdNetworkUrl('https://evil-youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(true);
+    expect(
+      isAdNetworkUrl('https://youtube.com.attacker.org/api/stats/ads?foo=1', 'fast-skip'),
+    ).toBe(true);
+    expect(
+      isAdNetworkUrl(
+        'https://bad-site.com/track?target=https://www.youtube.com/api/stats/ads',
+        'fast-skip',
+      ),
+    ).toBe(true);
+    expect(isAdNetworkUrl('https://www.youtube.com/youtubei/v1/player/ad_break', 'fast-skip')).toBe(
+      true,
+    );
+    expect(isAdNetworkUrl('https://googleads.g.doubleclick.net/pagead/id', 'fast-skip')).toBe(
+      true,
+    );
+
+    const payload = {
+      adPlacements: [{ adPlacementRenderer: {} }],
+      playerAds: [{ x: 1 }],
+      adSlots: [{ slot: 1 }],
+      adBreakParams: 'keep-for-cooldown',
+      playbackTracking: {
+        googleRemarketingUrl: { baseUrl: 'https://www.google.com/pagead/1p-user-list/' },
+        ptrackingUrl: { baseUrl: 'https://www.youtube.com/ptracking' },
+      },
+      entries: [
+        { command: { reelWatchEndpoint: { videoId: 'normal1' } } },
+        { command: { reelWatchEndpoint: { videoId: 'ad1', ad: {} } } },
+      ],
+    };
+
+    expect(purge(payload, 0, 'fast-skip')).toBe(true);
+    expect(payload.adPlacements).toHaveLength(1);
+    expect(payload.playerAds).toHaveLength(1);
+    expect(payload.adSlots).toHaveLength(1);
+    expect(payload.adBreakParams).toBe('keep-for-cooldown');
+    expect(payload.playbackTracking.googleRemarketingUrl).toBeUndefined();
+    expect(payload.playbackTracking.ptrackingUrl).toBeDefined();
+    expect(payload.entries).toHaveLength(1);
+
+    expect(containsAdSignalText('{"adSlots":[{}]}', 'fast-skip')).toBe(false);
+    expect(containsAdSignalText('{"googleRemarketingUrl":{}}', 'fast-skip')).toBe(true);
+    expect(containsAdSignalText('{"reelWatchEndpoint":{}}', 'fast-skip')).toBe(true);
+  });
+
+  it('đồng bộ chế độ YouTubeAdMode qua cache localStorage và postMessage live', () => {
+    const backing = new Map<string, string>();
+    const fakeStorage = {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        backing.set(k, v);
+      },
+    };
+    writeCachedYouTubeAdMode('strict-defuser', fakeStorage);
+    expect(readCachedYouTubeAdMode(fakeStorage)).toBe('strict-defuser');
+    setRuntimeYouTubeAdMode(readCachedYouTubeAdMode(fakeStorage));
+    expect(getRuntimeYouTubeAdMode()).toBe('strict-defuser');
+
+    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định fast-skip
+    const throwingStorage = {
+      getItem: () => {
+        throw new Error('SecurityError');
+      },
+      setItem: () => {
+        throw new Error('SecurityError');
+      },
+    };
+    expect(() => writeCachedYouTubeAdMode('strict-defuser', throwingStorage)).not.toThrow();
+    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('fast-skip');
+
+    const fakeWin = {};
+    const otherWin = {};
+    handleYouTubeAdModeMessage(
+      { source: otherWin, data: { type: YT_AD_MODE_MSG_TYPE, mode: 'fast-skip' } },
+      fakeWin,
+    );
+    expect(getRuntimeYouTubeAdMode()).toBe('strict-defuser');
+
+    handleYouTubeAdModeMessage(
+      { source: fakeWin, data: { type: YT_AD_MODE_MSG_TYPE, mode: 'fast-skip' } },
+      fakeWin,
+    );
+    expect(getRuntimeYouTubeAdMode()).toBe('fast-skip');
   });
 });
