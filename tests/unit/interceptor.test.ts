@@ -150,12 +150,30 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
 
   it('chế độ fast-skip giữ nguyên adSlots/adPlacements và /api/stats/ads 1st-party nhưng vẫn chặn remarketing, Shorts ad, /pagead/ và ad_break', () => {
     expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
+    expect(isAdNetworkUrl('https://m.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
+    expect(isAdNetworkUrl('https://s.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
     expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'strict-defuser')).toBe(
       true,
     );
     expect(isAdNetworkUrl('https://www.youtube.com/pagead/viewthroughconversion', 'fast-skip')).toBe(
       true,
     );
+    expect(
+      isAdNetworkUrl(
+        'https://www.youtube.com/pagead/viewthroughconversion?next=/api/stats/ads',
+        'fast-skip',
+      ),
+    ).toBe(true);
+    expect(isAdNetworkUrl('https://evil-youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(true);
+    expect(
+      isAdNetworkUrl('https://youtube.com.attacker.org/api/stats/ads?foo=1', 'fast-skip'),
+    ).toBe(true);
+    expect(
+      isAdNetworkUrl(
+        'https://bad-site.com/track?target=https://www.youtube.com/api/stats/ads',
+        'fast-skip',
+      ),
+    ).toBe(true);
     expect(isAdNetworkUrl('https://www.youtube.com/youtubei/v1/player/ad_break', 'fast-skip')).toBe(
       true,
     );

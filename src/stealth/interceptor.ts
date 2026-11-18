@@ -84,10 +84,32 @@ export function extractRequestUrl(input: unknown): string {
   return '';
 }
 
+function isFirstPartyYouTubeStatsAdsUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const base =
+      typeof window !== 'undefined' &&
+      window.location?.href &&
+      !window.location.href.startsWith('about:')
+        ? window.location.href
+        : 'https://localhost';
+    const parsed = new URL(url, base);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host !== 'youtube.com' && !host.endsWith('.youtube.com')) return false;
+    return (
+      parsed.pathname === '/api/stats/ads' ||
+      parsed.pathname.startsWith('/api/stats/ads/')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function isAdNetworkUrl(url: string, mode: YouTubeAdMode = 'strict-defuser'): boolean {
   // Ở chế độ fast-skip (Chế độ A), giữ nguyên chặn mọi 3rd-party, /pagead/ và /player/ad_break;
   // chỉ cho phép ping 1st-party /api/stats/ads của youtube.com để YouTube ghi nhận phiên và miễn QC các video sau.
-  if (mode === 'fast-skip' && url.includes('youtube.com/') && url.includes('/api/stats/ads')) {
+  if (mode === 'fast-skip' && isFirstPartyYouTubeStatsAdsUrl(url)) {
     return false;
   }
   return AD_NETWORK_BLOCK_PATTERNS.some((pattern) => url.includes(pattern));
