@@ -14,7 +14,7 @@ import './interceptor';
 import { disguise } from './anti-detect';
 import { releaseScrollLockIfSafe } from './scrollLock';
 import { installPauseGuard, isRecentUserPauseGesture } from './pauseGuard';
-import { isYouTubeLivePlayer } from '../core/autoplayGuard';
+import { isWatchPlayerVideo, isYouTubeLivePlayer } from '../core/autoplayGuard';
 
 // Chỉ kích hoạt trên môi trường YouTube thật, không chạy trên fake-youtube của E2E test
 const isLocalTest =
@@ -465,13 +465,10 @@ if (!isLocalTest) {
   let _userScrubbed = false;
 
   function getPlayer(video?: HTMLVideoElement | null): any {
-    return (
-      (video && typeof video.closest === 'function'
-        ? video.closest('#movie_player, .html5-video-player')
-        : null) ||
-      document.querySelector('#movie_player') ||
-      document.querySelector('.html5-video-player')
-    );
+    if (video && typeof video.closest === 'function') {
+      return video.closest('#movie_player');
+    }
+    return document.querySelector('#movie_player');
   }
 
   function isAdShowing(player: any): boolean {
@@ -523,6 +520,7 @@ if (!isLocalTest) {
    * Tuyệt đối tôn trọng cử chỉ tua của người dùng (_userScrubbed).
    */
   function tryLiveHead(video: HTMLVideoElement): void {
+    if (!isWatchPlayerVideo(video)) return;
     if (_liveHeadDone || _userScrubbed) return;
     if (video.readyState < 2) return;
     const player = getPlayer(video);
@@ -585,7 +583,7 @@ if (!isLocalTest) {
 
   /** Khi video đã nạp khung hình mà vẫn đứng ở trạng thái dừng (không do người dùng) → phát ngay. */
   function tryStartupAutoplay(video: HTMLVideoElement): void {
-    if (video.ended) return;
+    if (!isWatchPlayerVideo(video) || video.ended) return;
     const player = getPlayer(video);
     if (isAdShowing(player)) return;
     if (!video.paused) {
@@ -634,17 +632,23 @@ if (!isLocalTest) {
 
     function attachPlaybackGuard(video: HTMLVideoElement): void {
       if ((video as any)._adfPlaybackGuard) return;
+      if (!isWatchPlayerVideo(video)) return;
       (video as any)._adfPlaybackGuard = true;
 
-      video.addEventListener('loadstart', () => resetCycle('loadstart'));
+      video.addEventListener('loadstart', () => {
+        if (!isWatchPlayerVideo(video)) return;
+        resetCycle('loadstart');
+      });
       video.addEventListener('loadeddata', () => tryStartupAutoplay(video));
       video.addEventListener('canplay', () => {
+        if (!isWatchPlayerVideo(video)) return;
         dbg('canplay', video);
         if (isYouTubeLivePlayer(getPlayer(video))) tryLiveHead(video);
         tryStartupAutoplay(video);
       });
       video.addEventListener('canplaythrough', () => tryStartupAutoplay(video));
       video.addEventListener('playing', () => {
+        if (!isWatchPlayerVideo(video)) return;
         dbg('playing', video);
         if (isYouTubeLivePlayer(getPlayer(video))) tryLiveHead(video);
       });
@@ -652,6 +656,7 @@ if (!isLocalTest) {
       // Pause ngầm (do YouTube tự dừng lúc load, do buffer, hoặc do ad break):
       // Tự động khôi phục playback nếu KHÔNG CÓ cử chỉ Pause thật của người dùng trong 1.2s qua.
       video.addEventListener('pause', () => {
+        if (!isWatchPlayerVideo(video)) return;
         const isUserPause = isRecentUserPauseGesture(1200);
         dbg('pause', video, { userGesture: isUserPause });
         if (video.ended || isUserPause) return; // Người dùng chủ động pause -> Tôn trọng tuyệt đối
@@ -660,6 +665,7 @@ if (!isLocalTest) {
         let handled = false;
         const resumeNow = () => {
           if (handled) return;
+          if (!isWatchPlayerVideo(video)) return;
           const player = getPlayer(video);
           if (!video.paused || video.ended || video.readyState < 2) return;
           const playerState =
@@ -688,8 +694,7 @@ if (!isLocalTest) {
         for (const n of m.addedNodes) {
           if (n instanceof HTMLVideoElement) attachPlaybackGuard(n);
           else if (n instanceof HTMLElement) {
-            const v = n.querySelector('video');
-            if (v) attachPlaybackGuard(v);
+            n.querySelectorAll<HTMLVideoElement>('video').forEach(attachPlaybackGuard);
           }
         }
       }

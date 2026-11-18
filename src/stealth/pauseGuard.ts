@@ -8,6 +8,8 @@
  * Tuyệt đối không ghi nhận khi video đang dừng/nạp trang để không chặn autoplay.
  */
 
+import { NON_WATCH_PLAYER_SELECTOR } from '../core/autoplayGuard';
+
 let _lastUserGestureAt = 0;
 const USER_GESTURE_WINDOW_MS = 1200;
 
@@ -31,11 +33,7 @@ export function installPauseGuard(win: Window = window): void {
     if (!target || typeof target.closest !== 'function') return;
 
     // Bỏ qua click trên trình phát xem trước (inline preview) ở trang chủ / danh sách gợi ý
-    if (
-      target.closest(
-        '#inline-preview-player, ytd-video-preview, ytd-rich-grid-media, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer',
-      )
-    ) {
+    if (target.closest(NON_WATCH_PLAYER_SELECTOR)) {
       return;
     }
 
