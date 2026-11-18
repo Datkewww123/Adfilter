@@ -66,6 +66,24 @@ export const COMMON_COSMETIC_RULES_RAW = [
   '##[data-adfilter-preblocked="1"]',
   '##div.w-overlay',
   '##div[class*="w-overlay-"]',
+  // Widget & iframe quảng cáo xoay domain / about:blank sandbox (bn.js / ExoClick / JuicyAds...)
+  '##[id^="__clb-spot_"]',
+  '##iframe[id^="__clb-spot_"]',
+  '##.my_banner',
+  '##img[g-role="img"]',
+  '##img[src*="bncloudfl.com"]',
+  '##img[src*="/tsk/"]',
+  '##ins[data-zoneid]',
+  '##[data-idzone]',
+  '##[class*="exo-native"]',
+  '##[class*="exo_wrapper"]',
+  '##[class*="adsbyexoclick"]',
+  '##[class*="adsbyjuicy"]',
+  '##[id^="adsbyjuicy"]',
+  '##[class*="trafficstars"]',
+  '##[class*="adskeeper"]',
+  '##iframe[sandbox*="allow-popups-to-escape-sandbox"]:not([src^="http"])',
+  '##div[style*="grid-template-columns" i]:has(img[g-role="img"])',
   // CSS :has() Zero-FOUC 0ms: ẩn trước khi vẽ đối với thanh fixed bottom/dimmed overlay chứa GIF/banner ngoài
   '##div[style*="position: fixed" i][style*="bottom: 0" i]:not(:has(form, input, textarea, select, nav, video)):has(a[target="_blank"] img)',
   '##div[style*="position:fixed" i][style*="bottom:0" i]:not(:has(form, input, textarea, select, nav, video)):has(a[target="_blank"] img)',
@@ -282,6 +300,12 @@ export function initUniversalContent(
     { once: true }
   );
 
+  // Quét trễ nhẹ cho script async (<script async src=".../bn.js">) dựng iframe muộn sau load
+  const delayedTimers = [
+    setTimeout(() => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural), 500),
+    setTimeout(() => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural), 1500),
+  ];
+
   // 5. Khởi động bộ bảo vệ tải ảnh lười cho truyện tranh
   const stopLazyLoad = startLazyLoadProtector(doc);
 
@@ -320,6 +344,9 @@ export function initUniversalContent(
         const el = m.target as HTMLElement;
         if (el && el !== doc.body && el !== doc.documentElement && el.style?.display !== 'none') {
           purgeFloatingElementSubtree(el, doc);
+          if (el.tagName === 'IFRAME') {
+            scanAndHideHeuristicAds(el.parentElement || doc);
+          }
           needsPauseSweep = true;
           shouldScheduleFallback = true;
         }
@@ -340,12 +367,15 @@ export function initUniversalContent(
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['style', 'class', 'hidden'],
+      attributeFilter: ['style', 'class', 'hidden', 'src', 'sandbox', 'id'],
     });
   }
 
   // 7. Cơ chế dọn dẹp chống rò rỉ bộ nhớ (Memory Leak Protection) khi người dùng đổi trang / đọc chapter mới
   const cleanup = () => {
+    for (const t of delayedTimers) {
+      clearTimeout(t);
+    }
     if (sweepTimer) {
       clearTimeout(sweepTimer);
       sweepTimer = null;

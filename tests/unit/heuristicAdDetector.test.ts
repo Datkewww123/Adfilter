@@ -71,4 +71,74 @@ describe('HeuristicAdDetector', () => {
     expect(hiddenCount).toBe(0);
     expect(iframe.style.display).not.toBe('none');
   });
+
+  it('ẩn triệt để widget __clb-spot_, .my_banner, iframe sandbox about:blank và lưới 4 ô g-role="img" không dùng thẻ <a>', () => {
+    document.body.innerHTML = `
+      <article id="item-detail">
+        <h1>Truyện hay</h1>
+        <div class="my_banner">
+          <iframe id="native-blank-frame" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>
+        </div>
+        <div id="__clb-spot_2121458_ryo_3">
+          <iframe id="__clb-spot_2121458_ryo_3_container" sandbox="allow-same-origin allow-scripts allow-popups-to-escape-sandbox"></iframe>
+        </div>
+        <div id="grid-native-no-anchor" style="display: grid; grid-template-columns: repeat(4, minmax(100px, 300px)); z-index: 2147483646;">
+          <div><img g-role="img" src="https://um.vandalcuculla.click/tsk/abc" /></div>
+          <div><img g-role="img" src="https://um.vandalcuculla.click/tsk/def" /></div>
+          <div><img g-role="img" src="https://um.vandalcuculla.click/tsk/ghi" /></div>
+          <div><img g-role="img" src="https://um.vandalcuculla.click/tsk/jkl" /></div>
+        </div>
+        <ul id="chapter-list">
+          <li><a href="/chap-1">Chapter 1</a></li>
+          <li><a href="/chap-2">Chapter 2</a></li>
+        </ul>
+      </article>
+    `;
+
+    const hiddenCount = scanAndHideHeuristicAds(document);
+    expect(hiddenCount).toBeGreaterThanOrEqual(3);
+    expect((document.querySelector('.my_banner') as HTMLElement).style.display).toBe('none');
+    expect((document.getElementById('__clb-spot_2121458_ryo_3') as HTMLElement).style.display).toBe(
+      'none'
+    );
+    expect((document.getElementById('grid-native-no-anchor') as HTMLElement).style.display).toBe(
+      'none'
+    );
+    expect((document.getElementById('item-detail') as HTMLElement).style.display).not.toBe('none');
+    expect((document.getElementById('chapter-list') as HTMLElement).style.display).not.toBe('none');
+  });
+
+  it('ẩn dải Native Ads 4 thẻ <a> trỏ cross-origin kèm tracking mà vẫn giữ nguyên iframe trình phát video', () => {
+    const origUrl = window.location.href;
+    Object.defineProperty(window, 'location', {
+      value: { hostname: 'hitomi.la', href: 'https://hitomi.la/reader/1.html' },
+      configurable: true,
+    });
+
+    try {
+      document.body.innerHTML = `
+        <iframe id="player-frame" src="https://embed.example/player/1" sandbox="allow-scripts allow-same-origin"></iframe>
+        <div id="bottom-native-row">
+          <a href="https://promo.realsrv.com/c?zone=101" target="_blank"><img src="https://cdn.realsrv.com/1.jpg" /><span>Sofia, 23</span></a>
+          <a href="https://promo.realsrv.com/c?zone=102" target="_blank"><img src="https://cdn.realsrv.com/2.jpg" /><span>One little tap</span></a>
+          <a href="https://promo.realsrv.com/c?zone=103" target="_blank"><img src="https://cdn.realsrv.com/3.jpg" /><span>Unlock</span></a>
+          <a href="https://promo.realsrv.com/c?zone=104" target="_blank"><img src="https://cdn.realsrv.com/4.jpg" /><span>Dream</span></a>
+        </div>
+      `;
+
+      scanAndHideHeuristicAds(document);
+
+      expect((document.getElementById('bottom-native-row') as HTMLElement).style.display).toBe(
+        'none'
+      );
+      expect((document.getElementById('player-frame') as HTMLElement).style.display).not.toBe(
+        'none'
+      );
+    } finally {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'localhost', href: origUrl },
+        configurable: true,
+      });
+    }
+  });
 });
