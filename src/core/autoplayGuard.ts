@@ -140,23 +140,64 @@ export function isLivePlayback(video: { duration: number; isLiveDom?: boolean })
   return video.duration === Infinity;
 }
 
+function isVisibleLiveBadge(badge: Element): boolean {
+  const htmlBadge = badge as HTMLElement;
+  if (htmlBadge.hasAttribute?.('hidden')) return false;
+  if (htmlBadge.style?.display === 'none' || htmlBadge.style?.visibility === 'hidden') {
+    return false;
+  }
+
+  const view = badge.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (view && typeof view.getComputedStyle === 'function') {
+    try {
+      const style = view.getComputedStyle(badge);
+      if (style?.display === 'none' || style?.visibility === 'hidden') return false;
+    } catch {}
+  }
+
+  if (typeof htmlBadge.getBoundingClientRect === 'function') {
+    const rect = htmlBadge.getBoundingClientRect();
+    if (rect && rect.width === 0 && rect.height === 0 && htmlBadge.offsetParent === null) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Kiểm tra chính xác xem trình phát YouTube hiện tại có đang phát Livestream hay không
  * (hỗ trợ cả Livestream có DVR với duration hữu hạn lẫn Livestream không DVR).
+ * Tuyệt đối bỏ qua .ytp-live-badge đang ẩn (display: none) có sẵn trong DOM của mọi video VOD.
  */
 export function isYouTubeLivePlayer(player: Element | null | undefined): boolean {
   if (!player) return false;
   if (player.classList?.contains('ytp-live')) return true;
-  if (typeof (player as any).querySelector === 'function' && (player as any).querySelector('.ytp-live-badge')) return true;
 
   // Lưu ý: KHÔNG dùng videoDetails.isLiveContent — cờ này cũng bật với bản ghi
   // của buổi live đã kết thúc (replay), khiến video thường bị coi nhầm là live.
   const pAny = player as any;
   try {
-    if (typeof pAny.getVideoData === 'function' && pAny.getVideoData()?.isLive === true) {
-      return true;
+    if (typeof pAny.getVideoData === 'function') {
+      const data = pAny.getVideoData();
+      if (data && typeof data.isLive === 'boolean') {
+        return data.isLive;
+      }
     }
   } catch {}
+
+  try {
+    if (typeof pAny.getPlayerResponse === 'function') {
+      const resp = pAny.getPlayerResponse();
+      if (typeof resp?.videoDetails?.isLive === 'boolean') {
+        return resp.videoDetails.isLive;
+      }
+    }
+  } catch {}
+
+  if (typeof pAny.querySelector === 'function') {
+    const badge = pAny.querySelector('.ytp-live-badge');
+    if (badge && isVisibleLiveBadge(badge)) return true;
+  }
 
   return false;
 }

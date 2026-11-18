@@ -160,6 +160,58 @@ describe('isLivePlayback & isYouTubeLivePlayer', () => {
     } as unknown as Element;
     expect(isYouTubeLivePlayer(replayPlayer)).toBe(false);
   });
+
+  it('không coi VOD có .ytp-live-badge ẩn (display: none) trong DOM là livestream', () => {
+    const hiddenBadge = {
+      style: { display: 'none', visibility: '' },
+      hasAttribute: () => false,
+      getAttribute: () => null,
+      getBoundingClientRect: () => ({ width: 0, height: 0 }),
+      offsetParent: null,
+    };
+    const vodWithHiddenBadge = {
+      classList: { contains: () => false },
+      getVideoData: () => ({ isLive: false }),
+      querySelector: (sel: string) => (sel === '.ytp-live-badge' ? hiddenBadge : null),
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(vodWithHiddenBadge)).toBe(false);
+
+    const vodNoVideoDataHiddenBadge = {
+      classList: { contains: () => false },
+      querySelector: (sel: string) =>
+        sel === '.ytp-live-badge'
+          ? {
+              style: { display: '', visibility: '' },
+              hasAttribute: () => false,
+              getAttribute: () => null,
+              getBoundingClientRect: () => ({ width: 0, height: 0 }),
+              offsetParent: null,
+            }
+          : null,
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(vodNoVideoDataHiddenBadge)).toBe(false);
+  });
+
+  it('nhận diện livestream khi .ytp-live-badge hiển thị thật hoặc playerResponse.videoDetails.isLive === true', () => {
+    const visibleBadge = {
+      style: { display: 'inline-flex', visibility: 'visible' },
+      hasAttribute: () => false,
+      getAttribute: () => null,
+      getBoundingClientRect: () => ({ width: 42, height: 18 }),
+      offsetParent: {},
+    };
+    const liveWithVisibleBadge = {
+      classList: { contains: () => false },
+      querySelector: (sel: string) => (sel === '.ytp-live-badge' ? visibleBadge : null),
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(liveWithVisibleBadge)).toBe(true);
+
+    const liveViaPlayerResponse = {
+      classList: { contains: () => false },
+      getPlayerResponse: () => ({ videoDetails: { isLive: true } }),
+    } as unknown as Element;
+    expect(isYouTubeLivePlayer(liveViaPlayerResponse)).toBe(true);
+  });
 });
 
 describe('live edge helpers', () => {

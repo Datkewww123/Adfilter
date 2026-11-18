@@ -32,6 +32,13 @@ export const AD_NETWORK_BLOCK_PATTERNS = [
   'youtube.com/pagead',
 ];
 
+const AD_SIGNAL_HINT_REGEX =
+  /adPlacements|playerAds|adSlots|adBreak|RemarketingUrl|reelWatchEndpoint/;
+
+export function containsAdSignalText(text: string): boolean {
+  return text.length >= 16 && AD_SIGNAL_HINT_REGEX.test(text);
+}
+
 export function extractRequestUrl(input: unknown): string {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.href;
@@ -54,24 +61,32 @@ export function isPlayerDataUrl(url: string): boolean {
   );
 }
 
-export function purge(obj: unknown, depth = 0): void {
-  if (obj == null || typeof obj !== 'object') return;
+export function purge(obj: unknown, depth = 0): boolean {
+  if (obj == null || typeof obj !== 'object') return false;
+  let modified = false;
+
   if (Array.isArray(obj)) {
     if (depth <= 2) {
       for (const item of obj) {
-        purge(item, depth + 1);
+        if (purge(item, depth + 1)) modified = true;
       }
     }
-    return;
+    return modified;
   }
 
   const record = obj as Record<string, unknown>;
   for (const key of AD_KEYS) {
     if (key in record) {
+      const val = record[key];
       if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-        record[key] = [];
+        const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
+        if (!Array.isArray(val) || val.length > 0) {
+          record[key] = [];
+        }
+        if (hadAds) modified = true;
       } else {
         delete record[key];
+        modified = true;
       }
     }
   }
@@ -80,35 +95,55 @@ export function purge(obj: unknown, depth = 0): void {
   const pt = record.playbackTracking;
   if (pt && typeof pt === 'object' && !Array.isArray(pt)) {
     const ptRecord = pt as Record<string, unknown>;
-    delete ptRecord.googleRemarketingUrl;
-    delete ptRecord.youtubeRemarketingUrl;
+    if ('googleRemarketingUrl' in ptRecord) {
+      delete ptRecord.googleRemarketingUrl;
+      modified = true;
+    }
+    if ('youtubeRemarketingUrl' in ptRecord) {
+      delete ptRecord.youtubeRemarketingUrl;
+      modified = true;
+    }
   }
 
   // Triệt tiêu cả entries trong response của Shorts
   if (Array.isArray(record.entries)) {
-    record.entries = record.entries.filter(
+    const origLen = record.entries.length;
+    const filtered = record.entries.filter(
       (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
     );
+    if (filtered.length < origLen) {
+      record.entries = filtered;
+      modified = true;
+    }
   }
 
   if (depth < 2) {
     for (const k of Object.keys(record)) {
       const val = record[k];
       if (val && typeof val === 'object') {
-        purge(val, depth + 1);
+        if (purge(val, depth + 1)) modified = true;
       }
     }
   } else {
     for (const key of ['playerResponse', 'watchNextResponse', 'data', 'response']) {
       const val = record[key];
       if (val && typeof val === 'object') {
-        purge(val, depth + 1);
+        if (purge(val, depth + 1)) modified = true;
       }
     }
   }
+
+  return modified;
 }
 
-function emptySuccessResponse(): Response {
+function emptySuccessResponse(url: string): Response {
+  if (url.includes('ad_status')) {
+    return new Response('window.google_ad_status = 1;', {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'Content-Type': 'application/javascript' },
+    });
+  }
   return new Response('{}', {
     status: 200,
     statusText: 'OK',
@@ -123,18 +158,23 @@ if (typeof window !== 'undefined') {
   async function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = extractRequestUrl(input);
 
-    // Chặn ngay ad network request và trả về 200 OK '{}' hợp lệ để không gây SyntaxError
+    // Chặn ngay ad network request và trả về 200 OK đúng định dạng để không gây lỗi/timeout
     if (isAdNetworkUrl(url)) {
-      return emptySuccessResponse();
+      return emptySuccessResponse(url);
     }
 
     const res = await originalFetch(input, init);
 
     if (isPlayerDataUrl(url)) {
       try {
-        const text = await res.text();
+        const text = await res.clone().text();
+        if (!containsAdSignalText(text)) {
+          return res;
+        }
         const data = JSON.parse(text);
-        purge(data);
+        if (!purge(data)) {
+          return res;
+        }
         const syntheticRes = new Response(JSON.stringify(data), {
           status: res.status,
           statusText: res.statusText,
@@ -168,7 +208,7 @@ if (typeof window !== 'undefined') {
     Response.prototype.json = disguise(patchedResponseJson, origJson);
   }
 
-  // ─── 2. Bẫy XMLHttpRequest ──────────────────────────────────────────────
+  // ─── 2. Bẫy XMLHttpRequest có ngụy trang [native code] ──────────────────
   const OrigXHR = window.XMLHttpRequest;
 
   class PatchedXHR extends OrigXHR {
@@ -179,24 +219,31 @@ if (typeof window !== 'undefined') {
       this._url = extractRequestUrl(url);
       this._blocked = isAdNetworkUrl(this._url);
 
-      // Dùng URL dummy cùng origin '/generate_204' an toàn 100%, không gây lỗi CORS.
+      // Dùng endpoint sạch cùng origin '/generate_204', không gắn query nhận diện adfilter
       if (this._blocked) {
-        return (super.open as any)(method, '/generate_204?adfilter_blocked=1', ...rest);
+        return (super.open as any)(method, '/generate_204', ...rest);
       }
       return (super.open as any)(method, url, ...rest);
     }
 
     send(body?: Document | XMLHttpRequestBodyInit | null): void {
       if (this._blocked) {
-        // Giả lập hoàn tất thành công ngay lập tức để không tạo traffic thật
-        try {
-          Object.defineProperty(this, 'readyState', { value: 4, configurable: true });
-          Object.defineProperty(this, 'status', { value: 204, configurable: true });
-          Object.defineProperty(this, 'statusText', { value: 'No Content', configurable: true });
-          this.dispatchEvent(new Event('readystatechange'));
-          this.dispatchEvent(new Event('load'));
-          this.dispatchEvent(new Event('loadend'));
-        } catch {}
+        // Hoàn tất bất đồng bộ đúng chuẩn XHR để không gây lệch chu kỳ đọc
+        const emitBlockedComplete = () => {
+          try {
+            Object.defineProperty(this, 'readyState', { value: 4, configurable: true });
+            Object.defineProperty(this, 'status', { value: 204, configurable: true });
+            Object.defineProperty(this, 'statusText', { value: 'No Content', configurable: true });
+            this.dispatchEvent(new Event('readystatechange'));
+            this.dispatchEvent(new Event('load'));
+            this.dispatchEvent(new Event('loadend'));
+          } catch {}
+        };
+        if (typeof queueMicrotask === 'function') {
+          queueMicrotask(emitBlockedComplete);
+        } else {
+          emitBlockedComplete();
+        }
         return;
       }
       return super.send(body);
@@ -205,11 +252,12 @@ if (typeof window !== 'undefined') {
     get responseText(): string {
       if (this._blocked) return '{}';
       const text = super.responseText;
-      if (isPlayerDataUrl(this._url)) {
+      if (isPlayerDataUrl(this._url) && containsAdSignalText(text)) {
         try {
           const data = JSON.parse(text);
-          purge(data);
-          return JSON.stringify(data);
+          if (purge(data)) {
+            return JSON.stringify(data);
+          }
         } catch {
           return text;
         }
@@ -226,7 +274,12 @@ if (typeof window !== 'undefined') {
     }
   }
 
-  window.XMLHttpRequest = PatchedXHR as unknown as typeof XMLHttpRequest;
+  disguise(PatchedXHR.prototype.open as (...args: any[]) => any, OrigXHR.prototype.open as (...args: any[]) => any);
+  disguise(PatchedXHR.prototype.send as (...args: any[]) => any, OrigXHR.prototype.send as (...args: any[]) => any);
+  window.XMLHttpRequest = disguise(
+    PatchedXHR as unknown as (...args: any[]) => any,
+    OrigXHR as unknown as (...args: any[]) => any,
+  ) as unknown as typeof XMLHttpRequest;
 
-  console.log('[AdFilter Stealth] Interceptor đã bọc fetch(), Response.json() & XHR với Anti-Detection + Ad Network Block');
+  console.log('[AdFilter Stealth] Interceptor đã bọc fetch(), Response.json() & XHR với Anti-Detection + Fast-Path');
 }

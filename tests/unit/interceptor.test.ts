@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  containsAdSignalText,
   extractRequestUrl,
   isAdNetworkUrl,
   isPlayerDataUrl,
@@ -81,7 +82,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       },
     ];
 
-    purge(payload);
+    expect(purge(payload)).toBe(true);
 
     expect(payload[0].playerResponse?.adPlacements).toEqual([]);
     expect(payload[0].playerResponse?.playerAds).toEqual([]);
@@ -95,5 +96,36 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     expect(payload[0].playerResponse?.playbackTracking.videostatsWatchtimeUrl).toBeDefined();
     expect(payload[0].playerResponse?.playbackTracking.atrUrl).toBeDefined();
     expect(payload[1].watchNextResponse?.adSlots).toEqual([]);
+  });
+
+  it('containsAdSignalText nhận diện nhanh text chứa tín hiệu ad và bỏ qua payload sạch', () => {
+    expect(containsAdSignalText('{}')).toBe(false);
+    expect(containsAdSignalText('{"videoDetails":{"videoId":"dQw4w9WgXcQ","isLive":false}}')).toBe(
+      false,
+    );
+    expect(containsAdSignalText('{"adPlacements":[{"adPlacementRenderer":{}}]}')).toBe(true);
+    expect(containsAdSignalText('{"playerAds":[{}]}')).toBe(true);
+    expect(containsAdSignalText('{"adSlots":[{}]}')).toBe(true);
+    expect(containsAdSignalText('{"adBreakParams":"abc"}')).toBe(true);
+    expect(containsAdSignalText('{"googleRemarketingUrl":{"baseUrl":"x"}}')).toBe(true);
+    expect(containsAdSignalText('{"reelWatchEndpoint":{"adClientParams":{}}}')).toBe(true);
+  });
+
+  it('purge trả về false cho VOD payload sạch và true khi thực sự sửa dữ liệu', () => {
+    const cleanVod = {
+      videoDetails: { videoId: 'abc123', lengthSeconds: '240', isLive: false },
+      streamingData: { formats: [{ url: 'https://rr1---sn.googlevideo.com/videoplayback' }] },
+      playbackTracking: {
+        ptrackingUrl: { baseUrl: 'https://www.youtube.com/ptracking?html5=1' },
+      },
+    };
+    expect(purge(cleanVod)).toBe(false);
+
+    const dirtyVod = {
+      adPlacements: [{ adPlacementRenderer: {} }],
+      videoDetails: { videoId: 'xyz' },
+    };
+    expect(purge(dirtyVod)).toBe(true);
+    expect(dirtyVod.adPlacements).toEqual([]);
   });
 });

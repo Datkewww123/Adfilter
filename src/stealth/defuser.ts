@@ -208,7 +208,7 @@ if (!isLocalTest) {
   }
 
   // ─── Hardening: Khóa bảo vệ bẫy chống bị YouTube ghi đè/gỡ bỏ ───────────────
-  Object.defineProperty = function <T>(
+  const patchedDefine = function <T>(
     obj: T,
     prop: PropertyKey,
     desc: PropertyDescriptor & ThisType<any>,
@@ -244,11 +244,19 @@ if (!isLocalTest) {
     }
     return origDefine(obj, prop, desc);
   };
+  Object.defineProperty = disguise(patchedDefine as typeof Object.defineProperty, origDefine);
 
-  // ─── Bẫy 1: JSON.parse có ngụy trang ──────────────────────────────────────────
+  // ─── Bẫy 1: JSON.parse có ngụy trang (fast-path bỏ qua JSON không chứa tín hiệu ad) ─
+  const AD_SIGNAL_HINT = /adPlacements|playerAds|adSlots|adBreak|RemarketingUrl|reelWatchEndpoint/;
   function patchedJSONParse(text: string, reviver?: (this: any, key: string, value: any) => any) {
     const result = origJSONParse(text, reviver);
-    if (result && typeof result === 'object') {
+    if (
+      result &&
+      typeof result === 'object' &&
+      typeof text === 'string' &&
+      text.length >= 16 &&
+      AD_SIGNAL_HINT.test(text)
+    ) {
       purge(result);
     }
     return result;
@@ -516,13 +524,25 @@ if (!isLocalTest) {
    */
   function tryLiveHead(video: HTMLVideoElement): void {
     if (_liveHeadDone || _userScrubbed) return;
+    if (video.readyState < 2) return;
     const player = getPlayer(video);
     if (!isYouTubeLivePlayer(player) || isAdShowing(player)) return;
+    let playerState: number | null = null;
+    try {
+      playerState =
+        player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
+    } catch {}
+    if (playerState === -1 || playerState === 5) return;
 
     // 1. Thử qua API chính thức seekToLiveHead() của YouTube Player
-    if (typeof player.isAtLiveHead === 'function' && typeof player.seekToLiveHead === 'function') {
+    if (typeof player.isAtLiveHead === 'function') {
       try {
-        if (player.isAtLiveHead() === false) {
+        const atHead = player.isAtLiveHead();
+        if (atHead === true) {
+          _liveHeadDone = true;
+          return;
+        }
+        if (atHead === false && typeof player.seekToLiveHead === 'function') {
           player.seekToLiveHead();
           _liveHeadDone = true;
           dbg('seekToLiveHead()', video);
@@ -531,13 +551,22 @@ if (!isLocalTest) {
       } catch {}
     }
 
-    // 2. Thử qua seekToStreamTime nếu có
+    // 2. Thử qua seekToStreamTime chỉ khi không chắc đã ở live head & có dấu hiệu livestream
     if (typeof player.seekToStreamTime === 'function') {
       try {
-        player.seekToStreamTime();
-        _liveHeadDone = true;
-        dbg('seekToStreamTime()', video);
-        return;
+        let shouldSeekStream = video.duration === Infinity;
+        if (!shouldSeekStream && video.seekable && video.seekable.length > 0) {
+          const edge = video.seekable.end(video.seekable.length - 1);
+          if (Number.isFinite(edge) && edge > 0 && edge - video.currentTime > 3) {
+            shouldSeekStream = true;
+          }
+        }
+        if (shouldSeekStream) {
+          player.seekToStreamTime();
+          _liveHeadDone = true;
+          dbg('seekToStreamTime()', video);
+          return;
+        }
       } catch {}
     }
 
