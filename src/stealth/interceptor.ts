@@ -1,5 +1,7 @@
 import { disguise } from './anti-detect';
 
+const nativeJSONParse = JSON.parse;
+
 const AD_KEYS = [
   'adPlacements',
   'playerAds',
@@ -59,6 +61,15 @@ export function isPlayerDataUrl(url: string): boolean {
     url.includes('/youtubei/v1/next') ||
     url.includes('/youtubei/v1/get_watch')
   );
+}
+
+/**
+ * `/youtubei/v1/get_watch` trả về ReadableStream theo từng chunk (`playerResponse` trước, `watchNextResponse` sau).
+ * Nếu đệm toàn bộ bằng `res.clone().text()` trong `fetch()` sẽ làm chậm `loadstart` ~0.8–1s;
+ * thay vào đó để YouTube đọc stream trực tiếp và lọc từng chunk khi qua `JSON.parse` ở `defuser.ts`.
+ */
+export function isStreamingWatchUrl(url: string): boolean {
+  return !isAdNetworkUrl(url) && url.includes('/youtubei/v1/get_watch');
 }
 
 export function purge(obj: unknown, depth = 0): boolean {
@@ -165,20 +176,23 @@ if (typeof window !== 'undefined') {
 
     const res = await originalFetch(input, init);
 
-    if (isPlayerDataUrl(url)) {
+    if (isPlayerDataUrl(url) && !isStreamingWatchUrl(url)) {
       try {
         const text = await res.clone().text();
         if (!containsAdSignalText(text)) {
           return res;
         }
-        const data = JSON.parse(text);
+        const data = nativeJSONParse(text);
         if (!purge(data)) {
           return res;
         }
+        const cleanHeaders = new Headers(res.headers);
+        cleanHeaders.delete('content-encoding');
+        cleanHeaders.delete('content-length');
         const syntheticRes = new Response(JSON.stringify(data), {
           status: res.status,
           statusText: res.statusText,
-          headers: res.headers,
+          headers: cleanHeaders,
         });
         try {
           Object.defineProperty(syntheticRes, 'url', {
@@ -254,7 +268,7 @@ if (typeof window !== 'undefined') {
       const text = super.responseText;
       if (isPlayerDataUrl(this._url) && containsAdSignalText(text)) {
         try {
-          const data = JSON.parse(text);
+          const data = nativeJSONParse(text);
           if (purge(data)) {
             return JSON.stringify(data);
           }

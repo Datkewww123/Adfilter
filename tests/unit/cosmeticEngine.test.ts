@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  isYouTubeContext,
   parseCosmeticRule,
   generateInjectedCss,
   collectCosmeticSelectorsForHost,
@@ -74,5 +75,38 @@ describe('CosmeticFilterEngine', () => {
 
     expect(collectCosmeticSelectorsForHost(index, 'www.youtube.com')).toEqual([]);
     expect(generateCosmeticCssFromIndex(index, 'youtube.com')).toBe('');
+  });
+
+  it('isYouTubeContext nhận diện cả YouTube lẫn iframe about:blank thuộc YouTube qua ancestorOrigins/referrer', () => {
+    expect(
+      isYouTubeContext({ location: { hostname: 'www.youtube.com', pathname: '/watch' } } as unknown as Window),
+    ).toBe(true);
+    expect(
+      isYouTubeContext({
+        location: {
+          hostname: '',
+          pathname: 'blank',
+          ancestorOrigins: ['https://www.youtube.com'],
+        },
+      } as unknown as Window),
+    ).toBe(true);
+    expect(
+      isYouTubeContext(
+        { location: { hostname: '', pathname: 'blank' } } as unknown as Window,
+        { referrer: 'https://www.youtube.com/watch?v=rFZHOHl-L8A' } as unknown as Document,
+      ),
+    ).toBe(true);
+    expect(
+      isYouTubeContext(
+        {
+          location: {
+            hostname: '',
+            pathname: 'blank',
+            ancestorOrigins: ['https://truyenqqko.com'],
+          },
+        } as unknown as Window,
+        { referrer: 'https://truyenqqko.com/' } as unknown as Document,
+      ),
+    ).toBe(false);
   });
 });

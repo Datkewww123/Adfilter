@@ -22,6 +22,66 @@ export function isYouTubeHostname(hostname: string): boolean {
   return h === 'youtube.com' || h.endsWith('.youtube.com') || h === 'youtu.be';
 }
 
+function isYouTubeOrEmbedHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase();
+  return (
+    isYouTubeHostname(h) ||
+    h === 'youtube-nocookie.com' ||
+    h.endsWith('.youtube-nocookie.com')
+  );
+}
+
+function extractHostnameFromUrl(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Nhận diện ngữ cảnh YouTube gồm cả trang chính lẫn các iframe `about:blank` / `about:srcdoc`
+ * do YouTube tạo ra (ví dụ `#chatframe` lúc khởi tạo), giúp không tiêm nhầm bộ lọc phổ thông.
+ */
+export function isYouTubeContext(
+  win: Window | undefined = typeof window !== 'undefined' ? window : undefined,
+  doc: Document | undefined = typeof document !== 'undefined' ? document : undefined,
+): boolean {
+  if (!win) return false;
+  try {
+    const loc = win.location;
+    if (loc) {
+      if (isYouTubeOrEmbedHost(loc.hostname || '') || loc.pathname?.includes('watch.html')) {
+        return true;
+      }
+
+      const origins = loc.ancestorOrigins;
+      if (origins && origins.length > 0) {
+        for (let i = 0; i < origins.length; i++) {
+          if (isYouTubeOrEmbedHost(extractHostnameFromUrl(origins[i]))) {
+            return true;
+          }
+        }
+      }
+    }
+
+    const referrer = doc?.referrer || win.document?.referrer || '';
+    if (referrer && isYouTubeOrEmbedHost(extractHostnameFromUrl(referrer))) {
+      return true;
+    }
+
+    if (win.parent && win.parent !== win) {
+      try {
+        const parentHost = win.parent.location?.hostname || '';
+        if (isYouTubeOrEmbedHost(parentHost)) return true;
+      } catch {
+        // Cross-origin parent frame — bỏ qua an toàn
+      }
+    }
+  } catch {}
+  return false;
+}
+
 export function matchesDomainOrSubdomain(hostname: string, ruleDomain: string): boolean {
   const h = hostname.trim().toLowerCase();
   const d = ruleDomain.trim().toLowerCase();
