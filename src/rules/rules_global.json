@@ -956,6 +956,326 @@
       "type": "block"
     },
     "condition": {
+      "urlFilter": "||wimplyprowlworrisome.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 43,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||campfirecroutondecorator.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 44,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||bncloudfl.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 45,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||vandalcuculla.click^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest",
+        "image"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 46,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||trafficstars.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 47,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||jads.co^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 48,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||plugrush.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 49,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||adskeeper.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 50,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||adskeeper.co.uk^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame",
+        "xmlhttprequest"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 51,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||eroadvertising.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 52,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||ero-advertising.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 53,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||trafficforce.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 54,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||admaven.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 55,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||adxpansion.com^",
+      "resourceTypes": [
+        "main_frame",
+        "script",
+        "sub_frame"
+      ],
+      "excludedInitiatorDomains": [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be"
+      ]
+    }
+  },
+  {
+    "id": 56,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
       "urlFilter": "||a-ads.com^",
       "resourceTypes": [
         "script",
@@ -972,7 +1292,7 @@
     }
   },
   {
-    "id": 43,
+    "id": 57,
     "priority": 1,
     "action": {
       "type": "block"
@@ -994,7 +1314,7 @@
     }
   },
   {
-    "id": 44,
+    "id": 58,
     "priority": 1,
     "action": {
       "type": "block"
@@ -1016,7 +1336,7 @@
     }
   },
   {
-    "id": 45,
+    "id": 59,
     "priority": 1,
     "action": {
       "type": "block"
@@ -1038,7 +1358,7 @@
     }
   },
   {
-    "id": 46,
+    "id": 60,
     "priority": 1,
     "action": {
       "type": "block"

@@ -92,5 +92,19 @@ describe('DeclarativeNetRequest Rules', () => {
     expect(globalFilters).toContain('||popads.net^');
     expect(globalFilters).toContain('||tsyndicate.com^');
     expect(globalFilters).toContain('||betteradsystem.com^');
+    expect(globalFilters).toContain('||wimplyprowlworrisome.com^');
+    expect(globalFilters).toContain('||campfirecroutondecorator.com^');
+    expect(globalFilters).toContain('||bncloudfl.com^');
+    expect(globalFilters).toContain('||vandalcuculla.click^');
+    expect(globalFilters).toContain('||trafficstars.com^');
+    expect(globalFilters).toContain('||jads.co^');
+    expect(globalFilters).toContain('||adskeeper.com^');
+
+    const cosmeticIndex = JSON.parse(
+      fs.readFileSync(path.join(rulesDir, 'cosmetic_index.json'), 'utf-8')
+    );
+    expect(cosmeticIndex.generic).toContain('[id^="__clb-spot_"]');
+    expect(cosmeticIndex.generic).toContain('.my_banner');
+    expect(cosmeticIndex.generic).toContain('img[g-role="img"]');
   });
 });

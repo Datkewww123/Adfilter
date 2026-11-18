@@ -90,6 +90,19 @@ const BASE_SUSPICIOUS_URL_PATTERNS: RegExp[] = [
   /twinrdengine/i,
   /adsco\.re/i,
   /dtscout/i,
+  /wimplyprowlworrisome/i,
+  /campfirecroutondecorator/i,
+  /bncloudfl/i,
+  /vandalcuculla/i,
+  /trafficstars/i,
+  /jads\.co/i,
+  /plugrush/i,
+  /adskeeper/i,
+  /ero-?advertising/i,
+  /trafficforce/i,
+  /admaven/i,
+  /adxpansion/i,
+  /\.click\/tsk\//i,
 ];
 
 const dynamicPatterns: RegExp[] = [];
