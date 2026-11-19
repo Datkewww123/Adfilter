@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2026-11-19
+
+### Added
+- **YouTube — 2 chế độ xử lý quảng cáo (`Chế độ A: Tải nhanh <1s` mặc định & `Chế độ B: Chặn tuyệt đối`) kèm nút chuyển sống trong Popup/Options (PR #81):** Chế độ A tự động che đen (`VisualMask`) + tắt tiếng + tua hết quảng cáo đầu phiên (~0.3–1s) và chỉ cho phép ping 1st-party `youtube.com/api/stats/ads` (xác thực chặt qua `new URL()`), giúp các video kế tiếp trong phiên tải trong `<1s` mà không bị server phạt `SABR NextRequestPolicy.backoffTimeMs` (4–8s) và vẫn giữ chất lượng gốc cao nhất (4K).
+
+### Fixed
+- **YouTube — Khử trễ tải & lỗi trình phát xem trước (PR #78, #79, #80):**
+  - Cô lập `attachPlaybackGuard`, `tryLiveHead`, `tryStartupAutoplay` và `videoWatcher` chỉ theo dõi `#movie_player`, chấm dứt lỗi hồi sinh `#video-preview` khi hover rồi bấm chuyển video (PR #80).
+  - Không đệm toàn bộ stream `/youtubei/v1/get_watch` trong `fetch()` và cách ly frame `about:blank` trên YouTube để giảm ~0.8–1s độ trễ `loadstart` (PR #79).
+  - Loại bỏ các lần gọi `seekToLiveHead()` nhầm trên video thường (VOD) gây khựng luồng phát và thêm fast-path cho `JSON.parse` / `interceptor` (PR #78).
+- **Web truyện & Web phim — Tăng cường chặn Popunder và Native Ad Widgets (PR #75, #76, #77):**
+  - Chặn quảng cáo native trong sandboxed `about:blank` iframes, widget `__clb-spot` và lưới 4 thẻ quảng cáo tự nhiên (PR #77).
+  - Chặn bẫy popunder qua `dispatchEvent`, thẻ `<a>` bẫy động, `frames.open` và các mạng popunder toàn cầu (PR #76).
+  - Bảo toàn danh sách chương truyện (`chapter list`) không bị nhận diện nhầm bởi bộ lọc hình thái học và xử lý an toàn URL tương đối (PR #75).
+
 ## [3.1.1] - 2026-11-17
 
 ### Fixed
