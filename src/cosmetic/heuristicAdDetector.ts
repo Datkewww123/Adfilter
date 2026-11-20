@@ -1,4 +1,8 @@
 import {
+  isSecurityChallengeUrl,
+  isSecurityWidgetElement,
+} from '../core/securityChallenge';
+import {
   isCrossOriginUrl,
   isGamblingMorphologyMatch,
 } from '../stealth/gamblingMorphology';
@@ -17,7 +21,7 @@ export const IAB_SIZES = [
 
 const EXTERNAL_BANNER_CDN_REGEX = /mplmncb\.com|yougetwhatyoupayfor\.net|bncloudfl\.com/i;
 const PROTECTED_PLAYER_IFRAME_REGEX =
-  /(?:player|embed|youtube|vimeo|stream|captcha|recaptcha|hcaptcha|turnstile)/i;
+  /(?:player|embed|youtube|vimeo|stream|captcha|recaptcha|hcaptcha|turnstile|cloudflare|arkoselabs|funcaptcha|datadome|captcha-delivery|geetest|awswaf|ddos-guard|challenge)/i;
 const AD_NETWORK_IFRAME_REGEX =
   /exoclick|exosrv|magsrv|realsrv|pemsrv|tsyndicate|juicyads|jads\.co|trafficjunky|trafficstars|betteradsystem|adsterra|a-ads|adskeeper|plugrush|bncloudfl|vandalcuculla/i;
 const TRACKING_QUERY_REGEX =
@@ -53,7 +57,11 @@ function isAdWidgetIframe(
   currentHost: string
 ): boolean {
   const src = (iframe.getAttribute('src') || '').trim();
-  if (PROTECTED_PLAYER_IFRAME_REGEX.test(src)) {
+  if (
+    PROTECTED_PLAYER_IFRAME_REGEX.test(src) ||
+    isSecurityChallengeUrl(src) ||
+    isSecurityWidgetElement(iframe)
+  ) {
     return false;
   }
 

@@ -1,10 +1,11 @@
+import { isSecurityWidgetElement } from '../../core/securityChallenge';
 import { disguise } from '../anti-detect';
 import { isGamblingMorphologyMatch } from '../gamblingMorphology';
 import { isSuspiciousUrl } from '../urlBlockRegistry';
 
 const DOM_SHIELD_INSTALLED = Symbol.for('adfilter.domAppendShieldInstalled');
 const SAFE_MODAL_OR_NAV_REGEX =
-  /login|signin|sign-in|register|search|chapter|menu|nav|player|video|episode|comment|cookie-settings/i;
+  /login|signin|sign-in|register|search|chapter|menu|nav|player|video|episode|comment|cookie-settings|captcha|recaptcha|hcaptcha|turnstile|challenge|cloudflare|verify|security|ddos|awswaf|datadome|arkose|geetest|px-captcha/i;
 const CLOSE_TEXT_REGEX = /^[×✕✖xX]$|^đóng(?:\s*quảng\s*cáo)?$|^close$/i;
 
 function hideBeforeInsert(el: HTMLElement): void {
@@ -66,6 +67,7 @@ function hasCloseControlOrBackdrop(el: HTMLElement): boolean {
 export function shouldPreblockInsertedNode(node: unknown, currentHost: string = ''): node is HTMLElement {
   if (!node || typeof node !== 'object' || (node as Node).nodeType !== 1) return false;
   const el = node as HTMLElement;
+  if (isSecurityWidgetElement(el)) return false;
   const tag = el.tagName;
   if (tag !== 'DIV' && tag !== 'ASIDE' && tag !== 'SECTION') return false;
 
@@ -109,14 +111,15 @@ export function shouldPreblockInsertedNode(node: unknown, currentHost: string = 
  * chặn và ẩn popup/catfish ngay tại thời điểm `appendChild` / `insertBefore` / `append` được gọi
  * trước khi browser render (0ms Zero-Flash).
  */
-export function installDomAppendShield(win: Window = window): void {
+export function installDomAppendShield(win: Window = window): () => void {
   try {
     const store = win as unknown as Record<symbol, unknown>;
-    if (store[DOM_SHIELD_INSTALLED]) return;
+    if (store[DOM_SHIELD_INSTALLED]) return () => {};
 
     const currentHost = win.location?.hostname || '';
     const nodeProto = (win as unknown as { Node?: typeof Node }).Node?.prototype;
     const elProto = (win as unknown as { Element?: typeof Element }).Element?.prototype;
+    const restorers: Array<() => void> = [];
 
     if (nodeProto?.appendChild) {
       const origAppendChild = nodeProto.appendChild;
@@ -131,6 +134,11 @@ export function installDomAppendShield(win: Window = window): void {
         origAppendChild as (...args: unknown[]) => unknown
       );
       nodeProto.appendChild = patchedAppendChild;
+      restorers.push(() => {
+        if (nodeProto.appendChild === patchedAppendChild) {
+          nodeProto.appendChild = origAppendChild;
+        }
+      });
     }
 
     if (nodeProto?.insertBefore) {
@@ -150,6 +158,11 @@ export function installDomAppendShield(win: Window = window): void {
         origInsertBefore as (...args: unknown[]) => unknown
       );
       nodeProto.insertBefore = patchedInsertBefore;
+      restorers.push(() => {
+        if (nodeProto.insertBefore === patchedInsertBefore) {
+          nodeProto.insertBefore = origInsertBefore;
+        }
+      });
     }
 
     if (elProto?.append) {
@@ -167,10 +180,24 @@ export function installDomAppendShield(win: Window = window): void {
         origAppend as (...args: unknown[]) => unknown
       );
       elProto.append = patchedAppend;
+      restorers.push(() => {
+        if (elProto.append === patchedAppend) {
+          elProto.append = origAppend;
+        }
+      });
     }
 
     store[DOM_SHIELD_INSTALLED] = true;
+    return () => {
+      try {
+        while (restorers.length > 0) {
+          restorers.pop()?.();
+        }
+        delete store[DOM_SHIELD_INSTALLED];
+      } catch {}
+    };
   } catch {
     // Im lặng nếu context không cho override DOM prototype
   }
+  return () => {};
 }

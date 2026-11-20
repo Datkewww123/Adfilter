@@ -66,4 +66,30 @@ describe('attachShadow Shield (Closed Shadow DOM Ad Widget Defense)', () => {
     expect(widget.getAttribute('data-adfilter-shadow-ad')).toBeNull();
     expect(widget.style.getPropertyValue('display')).not.toBe('none');
   });
+
+  it('không ẩn hoặc bọc ShadowRoot của widget xác thực (Cloudflare Turnstile / captcha) và restore() khôi phục attachShadow gốc', () => {
+    const turnstileHost = document.createElement('div');
+    turnstileHost.id = 'turnstile-wrapper';
+    turnstileHost.className = 'cf-turnstile';
+    turnstileHost.setAttribute('style', 'position:fixed;inset:0;z-index:2147483001;');
+    document.body.appendChild(turnstileHost);
+
+    expect(isSuspiciousShadowHost(turnstileHost, 'closed')).toBe(false);
+    const root = turnstileHost.attachShadow({ mode: 'closed' });
+    const frame = document.createElement('iframe');
+    frame.setAttribute('src', 'https://challenges.cloudflare.com/turnstile/f/ov2');
+    root.appendChild(frame);
+
+    expect(turnstileHost.getAttribute('data-adfilter-shadow-ad')).toBeNull();
+    expect(turnstileHost.style.getPropertyValue('display')).not.toBe('none');
+
+    // Kiểm chứng restore() gỡ hoàn toàn hook attachShadow
+    const fakeElProto = { attachShadow: function origAttach() { return {} as ShadowRoot; } };
+    const origFn = fakeElProto.attachShadow;
+    const fakeWin = { Element: { prototype: fakeElProto } } as unknown as Window;
+    const restore = installShadowShield(fakeWin);
+    expect(fakeElProto.attachShadow).not.toBe(origFn);
+    restore();
+    expect(fakeElProto.attachShadow).toBe(origFn);
+  });
 });

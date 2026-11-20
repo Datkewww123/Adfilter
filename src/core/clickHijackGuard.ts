@@ -1,3 +1,5 @@
+import { isSecurityWidgetElement } from './securityChallenge';
+
 export interface ClickHijackOptions {
   onNeutralized?: (element: HTMLElement) => void;
 }
@@ -45,7 +47,7 @@ export function isCoveringScreen(el: HTMLElement, win: Window = window): boolean
   if (!el || el === win.document.body || el === win.document.documentElement) {
     return false;
   }
-  if (isOfficialPlayerControl(el)) {
+  if (isOfficialPlayerControl(el) || isSecurityWidgetElement(el)) {
     return false;
   }
 
