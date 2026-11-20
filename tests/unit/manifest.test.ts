@@ -44,6 +44,11 @@ describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
     for (const cs of universalScripts) {
       expect(cs.all_frames).toBe(true);
       expect((cs as { match_about_blank?: boolean }).match_about_blank).toBe(true);
+      const excluded = (cs as { exclude_matches?: string[] }).exclude_matches ?? [];
+      expect(excluded).toContain('*://challenges.cloudflare.com/*');
+      expect(excluded).toContain('*://*.hcaptcha.com/*');
+      expect(excluded).toContain('*://*.recaptcha.net/*');
+      expect(excluded).toContain('*://*/cdn-cgi/challenge-platform/*');
     }
   });
 });

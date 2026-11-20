@@ -20,7 +20,16 @@ import { isContentListOrLayoutContainer } from '../cosmetic/contentSafety';
 import { bypassAdblockModals } from '../core/adblockModalBypass';
 import { resolveLazyImages, startLazyLoadProtector } from '../core/lazyLoadProtector';
 import { autoCloseMovieOverlays, purgeMoviePlayerAdOverlays } from '../core/videoOverlayCloser';
-import { isDomainWhitelisted } from '../core/siteWhitelist';
+import {
+  isSecurityInterstitialDocument,
+  SECURITY_CHALLENGE_MSG_TYPE,
+} from '../core/securityChallenge';
+import {
+  isDomainWhitelisted,
+  readCachedSitePaused,
+  SITE_WHITELIST_MSG_TYPE,
+  writeCachedSitePaused,
+} from '../core/siteWhitelist';
 import { startElementPicker } from './elementPicker';
 
 // Danh sách các quy tắc CSS ẩn quảng cáo phổ biến trên web đọc truyện & web phim
@@ -234,6 +243,9 @@ export function runCosmeticSweep(
   userSelectors: string[] = [],
   customProcedural: ProceduralCosmeticRule[] = []
 ): void {
+  if (isSecurityInterstitialDocument(typeof window !== 'undefined' ? window : undefined, doc)) {
+    return;
+  }
   const host = typeof window !== 'undefined' ? window.location?.hostname ?? '' : '';
   scanAndHideHeuristicAds(doc);
   purgeFloatingAds(doc);
@@ -251,6 +263,16 @@ export function runCosmeticSweep(
   applyUserBlockedSelectors(doc, userSelectors);
 }
 
+function postSiteWhitelistState(paused: boolean): void {
+  try {
+    const origin =
+      window.location?.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : '*';
+    window.postMessage({ type: SITE_WHITELIST_MSG_TYPE, paused }, origin);
+  } catch {}
+}
+
 /**
  * Khởi động toàn bộ Universal Content Engine
  */
@@ -261,43 +283,67 @@ export function initUniversalContent(
   if (isYouTubeContext(window, doc)) {
     return null; // Đã có src/content/index.ts chuyên dụng cho YouTube (gồm cả iframe about:blank bên trong)
   }
+  if (isSecurityInterstitialDocument(window, doc)) {
+    return null;
+  }
   const host = window.location.hostname;
 
   // 0. Bỏ qua nếu website nằm trong danh sách ngoại lệ (Per-Site Whitelist)
   if (isDomainWhitelisted(host, whitelist)) {
+    writeCachedSitePaused(true);
+    return null;
+  }
+
+  if (whitelist.length === 0 && readCachedSitePaused()) {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      try {
+        chrome.storage.local.get(['whitelist_domains'], (data: { [key: string]: any }) => {
+          const stored: string[] = Array.isArray(data?.whitelist_domains)
+            ? data.whitelist_domains
+            : [];
+          writeCachedSitePaused(isDomainWhitelisted(host, stored));
+        });
+      } catch {}
+    }
     return null;
   }
 
   // 1. Chống Click Hijacking & Lớp phủ tàng hình
-  installClickHijackGuard(doc);
+  const stopClickHijack = installClickHijackGuard(doc);
 
   // 2. Tiêm CSS ẩn quảng cáo tức thì tại document_start (Zero FOUC)
   injectCosmeticStyle(doc);
 
   let activeCustomSelectors: string[] = [];
   let activeCustomProcedural: ProceduralCosmeticRule[] = [];
+  let cleanedUp = false;
 
   // 3. Quét dọn ban đầu
   runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
 
   // 4. Lắng nghe sự kiện DOMContentLoaded và Window load
+  const onReadyOrLoad = () => {
+    if (cleanedUp) return;
+    if (isSecurityInterstitialDocument(window, doc)) {
+      cleanup();
+      return;
+    }
+    runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
+  };
+
   if (doc.readyState === 'loading') {
-    doc.addEventListener(
-      'DOMContentLoaded',
-      () => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural),
-      { once: true }
-    );
+    doc.addEventListener('DOMContentLoaded', onReadyOrLoad, { once: true });
   }
-  window.addEventListener(
-    'load',
-    () => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural),
-    { once: true }
-  );
+  window.addEventListener('load', onReadyOrLoad, { once: true });
 
   // Quét trễ nhẹ cho script async (<script async src=".../bn.js">) dựng iframe muộn sau load
   const delayedTimers = [
-    setTimeout(() => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural), 500),
-    setTimeout(() => runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural), 1500),
+    setTimeout(() => {
+      if (!cleanedUp) onReadyOrLoad();
+    }, 500),
+    setTimeout(() => {
+      if (!cleanedUp) onReadyOrLoad();
+    }, 1500),
   ];
 
   // 5. Khởi động bộ bảo vệ tải ảnh lười cho truyện tranh
@@ -306,20 +352,32 @@ export function initUniversalContent(
   // 6. Thiết lập MutationObserver + bắt sự kiện Pause video để diệt Pause-Ad & Popup định kỳ tức thì
   let sweepTimer: any = null;
   const scheduleSweep = (delayMs = 150) => {
-    if (sweepTimer) return;
+    if (sweepTimer || cleanedUp) return;
     sweepTimer = setTimeout(() => {
       sweepTimer = null;
+      if (cleanedUp) return;
+      if (isSecurityInterstitialDocument(window, doc)) {
+        cleanup();
+        return;
+      }
       runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
     }, delayMs);
   };
 
   const handleVideoPause = () => {
+    if (cleanedUp || isSecurityInterstitialDocument(window, doc)) return;
     purgeMoviePlayerAdOverlays(doc);
     runCosmeticSweep(doc, activeCustomSelectors, activeCustomProcedural);
   };
   doc.addEventListener('pause', handleVideoPause, true);
 
   const observer = new MutationObserver((mutations) => {
+    if (cleanedUp) return;
+    if (isSecurityInterstitialDocument(window, doc)) {
+      cleanup();
+      return;
+    }
+
     let shouldScheduleFallback = false;
     let needsPauseSweep = false;
 
@@ -365,8 +423,40 @@ export function initUniversalContent(
     });
   }
 
+  const onWindowMessage = (event: MessageEvent) => {
+    if (event.source !== window) return;
+    const data = event.data as Record<string, unknown> | null | undefined;
+    if (data && typeof data === 'object' && data.type === SECURITY_CHALLENGE_MSG_TYPE) {
+      cleanup();
+    }
+  };
+  window.addEventListener('message', onWindowMessage);
+
+  const onStorageChanged = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+    if (areaName !== 'local' || !changes.whitelist_domains) return;
+    const nextList = Array.isArray(changes.whitelist_domains.newValue)
+      ? (changes.whitelist_domains.newValue as string[])
+      : [];
+    const paused = isDomainWhitelisted(host, nextList);
+    writeCachedSitePaused(paused);
+    postSiteWhitelistState(paused);
+    if (paused) {
+      cleanup();
+    }
+  };
+
+  let storageListenerAttached = false;
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged?.addListener) {
+    try {
+      chrome.storage.onChanged.addListener(onStorageChanged);
+      storageListenerAttached = true;
+    } catch {}
+  }
+
   // 7. Cơ chế dọn dẹp chống rò rỉ bộ nhớ (Memory Leak Protection) khi người dùng đổi trang / đọc chapter mới
-  const cleanup = () => {
+  function cleanup(): void {
+    if (cleanedUp) return;
+    cleanedUp = true;
     for (const t of delayedTimers) {
       clearTimeout(t);
     }
@@ -374,12 +464,21 @@ export function initUniversalContent(
       clearTimeout(sweepTimer);
       sweepTimer = null;
     }
+    doc.removeEventListener('DOMContentLoaded', onReadyOrLoad);
+    window.removeEventListener('load', onReadyOrLoad);
+    window.removeEventListener('message', onWindowMessage);
     doc.removeEventListener('pause', handleVideoPause, true);
+    if (storageListenerAttached && typeof chrome !== 'undefined' && chrome.storage?.onChanged?.removeListener) {
+      try {
+        chrome.storage.onChanged.removeListener(onStorageChanged);
+      } catch {}
+    }
     observer.disconnect();
+    stopClickHijack();
     stopLazyLoad();
     const styleEl = doc.getElementById('adfilter-cosmetic-styles');
     if (styleEl) styleEl.remove();
-  };
+  }
 
   // 8. Đồng bộ whitelist, custom cosmetic rules và user picker selectors từ chrome.storage.local
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
@@ -387,10 +486,14 @@ export function initUniversalContent(
       chrome.storage.local.get(
         ['whitelist_domains', 'user_blocked_selectors', 'user_custom_cosmetic_rules'],
         (data: { [key: string]: any }) => {
+          if (cleanedUp) return;
           const stored: string[] = Array.isArray(data?.whitelist_domains)
             ? data.whitelist_domains
             : [];
-          if (isDomainWhitelisted(host, stored)) {
+          const paused = isDomainWhitelisted(host, stored);
+          writeCachedSitePaused(paused);
+          if (paused) {
+            postSiteWhitelistState(true);
             cleanup();
             return;
           }

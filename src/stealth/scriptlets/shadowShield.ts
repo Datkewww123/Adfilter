@@ -1,3 +1,4 @@
+import { isSecurityChallengeUrl, isSecurityWidgetElement } from '../../core/securityChallenge';
 import { disguise } from '../anti-detect';
 import { isSuspiciousUrl } from '../urlBlockRegistry';
 
@@ -27,6 +28,10 @@ function hideAdShadowHost(host: Element): void {
 }
 
 export function isSuspiciousShadowHost(host: Element, mode: ShadowRootMode): boolean {
+  if (isSecurityWidgetElement(host)) {
+    return false;
+  }
+
   const className = typeof host.className === 'string' ? host.className : '';
   const id = host.id || '';
   const styleAttr = host.getAttribute('style') || '';
@@ -54,6 +59,18 @@ function containsSuspiciousAdContent(node: Node | string): boolean {
 
   if (node && typeof node === 'object' && 'outerHTML' in node) {
     const el = node as Element;
+    if (isSecurityWidgetElement(el)) return false;
+
+    const frames = el.querySelectorAll?.('iframe[src]');
+    if (frames) {
+      for (const frame of Array.from(frames)) {
+        const src = frame.getAttribute('src') || '';
+        if (src && isSecurityChallengeUrl(src)) {
+          return false;
+        }
+      }
+    }
+
     const serialized = el.outerHTML || '';
     if (isSuspiciousUrl(serialized)) return true;
     const anchors = el.querySelectorAll?.('a[href]');
@@ -69,6 +86,7 @@ function containsSuspiciousAdContent(node: Node | string): boolean {
 }
 
 function instrumentShadowRoot(host: Element, root: ShadowRoot, mode: ShadowRootMode): void {
+  if (isSecurityWidgetElement(host)) return;
   const shouldWatchContent = mode === 'closed' || !host.tagName.includes('-');
   if (!shouldWatchContent) return;
 
@@ -117,14 +135,14 @@ function instrumentShadowRoot(host: Element, root: ShadowRoot, mode: ShadowRootM
  * Phát hiện mọi widget quảng cáo tạo Closed Shadow DOM (bất kể class hash ngẫu nhiên)
  * và đánh dấu/ẩn ngay phần tử host bên ngoài light DOM.
  */
-export function installShadowShield(win: Window = window): void {
+export function installShadowShield(win: Window = window): () => void {
   try {
     const store = win as unknown as Record<symbol, unknown>;
-    if (store[SHADOW_SHIELD_INSTALLED]) return;
+    if (store[SHADOW_SHIELD_INSTALLED]) return () => {};
 
     const elProto = (win as unknown as { Element?: typeof Element }).Element?.prototype;
     const originalAttachShadow = elProto?.attachShadow;
-    if (!elProto || !originalAttachShadow) return;
+    if (!elProto || !originalAttachShadow) return () => {};
 
     const patchedAttachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
       const mode: ShadowRootMode = init?.mode ?? 'open';
@@ -144,7 +162,17 @@ export function installShadowShield(win: Window = window): void {
     );
     elProto.attachShadow = patchedAttachShadow;
     store[SHADOW_SHIELD_INSTALLED] = true;
+
+    return () => {
+      try {
+        if (elProto.attachShadow === patchedAttachShadow) {
+          elProto.attachShadow = originalAttachShadow;
+        }
+        delete store[SHADOW_SHIELD_INSTALLED];
+      } catch {}
+    };
   } catch {
     // Im lặng để không làm lỗi trang web bình thường
   }
+  return () => {};
 }

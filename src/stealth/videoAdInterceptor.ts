@@ -51,14 +51,19 @@ export function cleanVastXml(xmlString: string): string {
 /**
  * Cài đặt bộ bẫy VAST/VPAID trên window (fetch và XMLHttpRequest)
  */
-export function installVastInterceptor(win: Window = window): void {
+export function installVastInterceptor(win: Window = window): () => void {
+  const restorers: Array<() => void> = [];
   try {
     const anyWin = win as any;
 
     // 1. Bẫy window.fetch
     if (typeof anyWin.fetch === 'function') {
       const originalFetch = anyWin.fetch;
-      anyWin.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+      const patchedFetch = async function (
+        this: unknown,
+        input: RequestInfo | URL,
+        init?: RequestInit,
+      ): Promise<Response> {
         if (!input) {
           return originalFetch.call(this, input, init);
         }
@@ -84,6 +89,14 @@ export function installVastInterceptor(win: Window = window): void {
 
         return originalFetch.call(this, input, init);
       };
+      anyWin.fetch = patchedFetch;
+      restorers.push(() => {
+        try {
+          if (anyWin.fetch === patchedFetch) {
+            anyWin.fetch = originalFetch;
+          }
+        } catch {}
+      });
     }
 
     // 2. Bẫy XMLHttpRequest
@@ -92,13 +105,13 @@ export function installVastInterceptor(win: Window = window): void {
       const originalOpen = OriginalXHR.prototype.open;
       const originalSend = OriginalXHR.prototype.send;
 
-      OriginalXHR.prototype.open = function (this: XMLHttpRequest, ...args: any[]) {
+      const patchedOpen = function (this: XMLHttpRequest, ...args: any[]) {
         const url = String(args[1] || '');
         (this as any).__isVastAdUrl = isVastAdUrl(url);
         return (originalOpen as any)?.apply(this, args);
       };
 
-      OriginalXHR.prototype.send = function (this: XMLHttpRequest, ...args: any[]) {
+      const patchedSend = function (this: XMLHttpRequest, ...args: any[]) {
         if ((this as any).__isVastAdUrl) {
           // Giả lập phản hồi VAST XML rỗng ngay lập tức
           Object.defineProperty(this, 'readyState', { value: 4, configurable: true, writable: true });
@@ -116,8 +129,26 @@ export function installVastInterceptor(win: Window = window): void {
         }
         return (originalSend as any)?.apply(this, args);
       };
+
+      OriginalXHR.prototype.open = patchedOpen;
+      OriginalXHR.prototype.send = patchedSend;
+      restorers.push(() => {
+        try {
+          if (OriginalXHR.prototype.open === patchedOpen) {
+            OriginalXHR.prototype.open = originalOpen;
+          }
+          if (OriginalXHR.prototype.send === patchedSend) {
+            OriginalXHR.prototype.send = originalSend;
+          }
+        } catch {}
+      });
     }
   } catch {
     // Bỏ qua nếu môi trường khóa can thiệp
   }
+  return () => {
+    while (restorers.length > 0) {
+      restorers.pop()?.();
+    }
+  };
 }

@@ -34,7 +34,7 @@ function isPlayerControlTarget(el: Element | null): boolean {
 }
 
 // Ghi nhận tương tác chuột và ngữ cảnh phần tử thực tế mà người dùng vừa bấm
-export function trackUserGesture(targetWindow: Window = window): void {
+export function trackUserGesture(targetWindow: Window = window): () => void {
   try {
     const onPointerInput = (e?: Event) => {
       const now = Date.now();
@@ -57,21 +57,28 @@ export function trackUserGesture(targetWindow: Window = window): void {
       };
     };
 
+    const onKeyDown = (e?: Event) => {
+      const key = (e as KeyboardEvent | undefined)?.key;
+      if (key === 'Enter' || key === ' ') {
+        lastClickIntent = null;
+      }
+    };
+
     targetWindow.addEventListener('pointerdown', onPointerInput, { capture: true, passive: true });
     targetWindow.addEventListener('touchstart', onPointerInput, { capture: true, passive: true });
-    targetWindow.addEventListener(
-      'keydown',
-      (e?: Event) => {
-        const key = (e as KeyboardEvent | undefined)?.key;
-        if (key === 'Enter' || key === ' ') {
-          lastClickIntent = null;
-        }
-      },
-      { capture: true, passive: true }
-    );
+    targetWindow.addEventListener('keydown', onKeyDown, { capture: true, passive: true });
+
+    return () => {
+      try {
+        targetWindow.removeEventListener('pointerdown', onPointerInput, { capture: true });
+        targetWindow.removeEventListener('touchstart', onPointerInput, { capture: true });
+        targetWindow.removeEventListener('keydown', onKeyDown, { capture: true });
+      } catch {}
+    };
   } catch {
     // Bỏ qua lỗi context
   }
+  return () => {};
 }
 
 export function isUserGestureRecent(thresholdMs: number = 1000): boolean {
@@ -174,67 +181,71 @@ function isHiddenTrapAnchor(anchor: HTMLElement, targetWindow: Window): boolean 
 function installNativeAnchorClickTrap(
   targetWindow: Window,
   options: AntiPopupOptions
-): void {
+): () => void {
   const doc = (targetWindow as unknown as { document?: Document }).document;
-  if (!doc || typeof doc.addEventListener !== 'function') return;
+  if (!doc || typeof doc.addEventListener !== 'function') return () => {};
 
-  doc.addEventListener(
-    'click',
-    (e: Event) => {
-      const target = (e.target as Element | null) ?? null;
-      const anchor = target?.closest?.('a[href]') as HTMLElement | null;
-      if (!anchor) return;
+  const onClickTrap = (e: Event) => {
+    const target = (e.target as Element | null) ?? null;
+    const anchor = target?.closest?.('a[href]') as HTMLElement | null;
+    if (!anchor) return;
 
-      const rawHref = anchor.getAttribute('href') || (anchor as HTMLAnchorElement).href || '';
-      const fullHref = (anchor as HTMLAnchorElement).href || rawHref;
-      const targetAttr = (anchor.getAttribute('target') || '').toLowerCase();
+    const rawHref = anchor.getAttribute('href') || (anchor as HTMLAnchorElement).href || '';
+    const fullHref = (anchor as HTMLAnchorElement).href || rawHref;
+    const targetAttr = (anchor.getAttribute('target') || '').toLowerCase();
 
-      const wasHrefSwapped =
-        Boolean(lastClickIntent) &&
-        lastClickIntent!.clickedAnchorElement === anchor &&
-        lastClickIntent!.clickedAnchorHref !== rawHref &&
-        lastClickIntent!.clickedAnchorHref !== fullHref;
+    const wasHrefSwapped =
+      Boolean(lastClickIntent) &&
+      lastClickIntent!.clickedAnchorElement === anchor &&
+      lastClickIntent!.clickedAnchorHref !== rawHref &&
+      lastClickIntent!.clickedAnchorHref !== fullHref;
 
-      const baseHref = targetWindow.location?.href;
-      const currentOrigin = targetWindow.location?.origin;
-      const destParsed = tryParseUrl(fullHref || rawHref, baseHref);
-      const isCrossOriginDest = Boolean(currentOrigin && destParsed && destParsed.origin !== currentOrigin);
+    const baseHref = targetWindow.location?.href;
+    const currentOrigin = targetWindow.location?.origin;
+    const destParsed = tryParseUrl(fullHref || rawHref, baseHref);
+    const isCrossOriginDest = Boolean(currentOrigin && destParsed && destParsed.origin !== currentOrigin);
 
-      const isSuspicious = isSuspiciousUrl(fullHref) || isSuspiciousUrl(rawHref);
-      const isHiddenTargetBlank =
-        targetAttr === '_blank' && isHiddenTrapAnchor(anchor, targetWindow);
-      const isUntrustedBlank =
-        targetAttr === '_blank' && e.isTrusted === false && (isCrossOriginDest || isSuspicious);
-      const wasInjectedUnderPointer =
-        targetAttr === '_blank' &&
-        isCrossOriginDest &&
-        Boolean(lastClickIntent) &&
-        Date.now() - lastClickIntent!.timestamp <= 1000 &&
-        lastClickIntent!.clickedAnchorElement !== anchor;
+    const isSuspicious = isSuspiciousUrl(fullHref) || isSuspiciousUrl(rawHref);
+    const isHiddenTargetBlank =
+      targetAttr === '_blank' && isHiddenTrapAnchor(anchor, targetWindow);
+    const isUntrustedBlank =
+      targetAttr === '_blank' && e.isTrusted === false && (isCrossOriginDest || isSuspicious);
+    const wasInjectedUnderPointer =
+      targetAttr === '_blank' &&
+      isCrossOriginDest &&
+      Boolean(lastClickIntent) &&
+      Date.now() - lastClickIntent!.timestamp <= 1000 &&
+      lastClickIntent!.clickedAnchorElement !== anchor;
 
-      if (
-        isSuspicious ||
-        wasHrefSwapped ||
-        isHiddenTargetBlank ||
-        isUntrustedBlank ||
-        wasInjectedUnderPointer
-      ) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        if (wasHrefSwapped && lastClickIntent?.clickedAnchorHref) {
-          anchor.setAttribute('href', lastClickIntent.clickedAnchorHref);
-        }
-        options.onBlocked?.(fullHref || rawHref);
+    if (
+      isSuspicious ||
+      wasHrefSwapped ||
+      isHiddenTargetBlank ||
+      isUntrustedBlank ||
+      wasInjectedUnderPointer
+    ) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (wasHrefSwapped && lastClickIntent?.clickedAnchorHref) {
+        anchor.setAttribute('href', lastClickIntent.clickedAnchorHref);
       }
-    },
-    { capture: true }
-  );
+      options.onBlocked?.(fullHref || rawHref);
+    }
+  };
+
+  doc.addEventListener('click', onClickTrap, { capture: true });
+  return () => {
+    try {
+      doc.removeEventListener('click', onClickTrap, { capture: true });
+    } catch {}
+  };
 }
 
 function installSyntheticAnchorTrap(
   targetWindow: Window,
   options: AntiPopupOptions
-): void {
+): () => void {
+  const restorers: Array<() => void> = [];
   const anchorCtor = (targetWindow as unknown as { HTMLAnchorElement?: typeof HTMLAnchorElement })
     .HTMLAnchorElement;
   const anchorProto = anchorCtor?.prototype;
@@ -258,6 +269,13 @@ function installSyntheticAnchorTrap(
       originalAnchorClick as (...args: unknown[]) => unknown
     );
     anchorProto.click = patchedAnchorClick;
+    restorers.push(() => {
+      try {
+        if (anchorProto.click === patchedAnchorClick) {
+          anchorProto.click = originalAnchorClick;
+        }
+      } catch {}
+    });
   }
 
   // Bắt luôn chiêu a.dispatchEvent(new MouseEvent('click')) kể cả trên thẻ <a> chưa gắn DOM
@@ -291,17 +309,31 @@ function installSyntheticAnchorTrap(
     );
     eventTargetProto.dispatchEvent = patchedDispatch;
     store[DISPATCH_PATCHED_SYMBOL] = true;
+    restorers.push(() => {
+      try {
+        if (eventTargetProto.dispatchEvent === patchedDispatch) {
+          eventTargetProto.dispatchEvent = origDispatch;
+        }
+        delete store[DISPATCH_PATCHED_SYMBOL];
+      } catch {}
+    });
   }
+
+  return () => {
+    while (restorers.length > 0) {
+      restorers.pop()?.();
+    }
+  };
 }
 
 function installFormSubmitTrap(
   targetWindow: Window,
   options: AntiPopupOptions
-): void {
+): () => void {
+  const restorers: Array<() => void> = [];
   const doc = (targetWindow as unknown as { document?: Document }).document;
-  doc?.addEventListener?.(
-    'submit',
-    (e: Event) => {
+  if (doc?.addEventListener) {
+    const onSubmitTrap = (e: Event) => {
       const form = e.target as HTMLFormElement | null;
       if (!form) return;
       const target = (form.getAttribute('target') || form.target || '').toLowerCase();
@@ -311,14 +343,23 @@ function installFormSubmitTrap(
         e.stopImmediatePropagation();
         options.onBlocked?.(action);
       }
-    },
-    { capture: true }
-  );
+    };
+    doc.addEventListener('submit', onSubmitTrap, { capture: true });
+    restorers.push(() => {
+      try {
+        doc.removeEventListener('submit', onSubmitTrap, { capture: true });
+      } catch {}
+    });
+  }
 
   const formProto = (targetWindow as unknown as { HTMLFormElement?: typeof HTMLFormElement })
     .HTMLFormElement?.prototype;
   const origSubmit = formProto?.submit;
-  if (!formProto || !origSubmit) return;
+  if (!formProto || !origSubmit) {
+    return () => {
+      while (restorers.length > 0) restorers.pop()?.();
+    };
+  }
 
   const patchedSubmit = function (this: HTMLFormElement): void {
     const target = (this.getAttribute('target') || this.target || '').toLowerCase();
@@ -335,23 +376,37 @@ function installFormSubmitTrap(
     origSubmit as (...args: unknown[]) => unknown
   );
   formProto.submit = patchedSubmit;
+  restorers.push(() => {
+    try {
+      if (formProto.submit === patchedSubmit) {
+        formProto.submit = origSubmit;
+      }
+    } catch {}
+  });
+
+  return () => {
+    while (restorers.length > 0) {
+      restorers.pop()?.();
+    }
+  };
 }
 
 function installIframeContentWindowOpenGuard(
   targetWindow: Window,
   createOpenWrapper: (win: Window, orig: Window['open']) => Window['open']
-): void {
+): () => void {
+  const restorers: Array<() => void> = [];
   try {
     const store = targetWindow as unknown as Record<symbol, unknown>;
-    if (store[IFRAME_HOOKED_SYMBOL]) return;
+    if (store[IFRAME_HOOKED_SYMBOL]) return () => {};
 
     const iframeProto = (
       targetWindow as unknown as { HTMLIFrameElement?: typeof HTMLIFrameElement }
     ).HTMLIFrameElement?.prototype;
-    if (!iframeProto) return;
+    if (!iframeProto) return () => {};
 
     const desc = Object.getOwnPropertyDescriptor(iframeProto, 'contentWindow');
-    if (!desc?.get || desc.configurable === false) return;
+    if (!desc?.get || desc.configurable === false) return () => {};
 
     const originalGet = desc.get;
     const hookChildWindow = (childWin: Window | null | undefined) => {
@@ -359,8 +414,18 @@ function installIframeContentWindowOpenGuard(
         if (childWin && typeof childWin.open === 'function') {
           const childStore = childWin as unknown as Record<symbol, unknown>;
           if (!childStore[PATCHED_OPEN_SYMBOL]) {
-            childWin.open = createOpenWrapper(childWin, childWin.open);
+            const origChildOpen = childWin.open;
+            const wrappedChildOpen = createOpenWrapper(childWin, origChildOpen);
+            childWin.open = wrappedChildOpen;
             childStore[PATCHED_OPEN_SYMBOL] = true;
+            restorers.push(() => {
+              try {
+                if (childWin.open === wrappedChildOpen) {
+                  childWin.open = origChildOpen;
+                }
+                delete childStore[PATCHED_OPEN_SYMBOL];
+              } catch {}
+            });
           }
         }
       } catch {
@@ -377,6 +442,12 @@ function installIframeContentWindowOpenGuard(
       },
     });
     store[IFRAME_HOOKED_SYMBOL] = true;
+    restorers.push(() => {
+      try {
+        Object.defineProperty(iframeProto, 'contentWindow', desc);
+        delete store[IFRAME_HOOKED_SYMBOL];
+      } catch {}
+    });
 
     // Bắt luôn chiêu appendChild(iframe) rồi gọi window.frames[i].open(...)
     const nodeProto = (targetWindow as unknown as { Node?: typeof Node }).Node?.prototype;
@@ -405,6 +476,13 @@ function installIframeContentWindowOpenGuard(
           origAppendChild as (...args: unknown[]) => unknown
         );
         nodeProto.appendChild = patchedAppendChild;
+        restorers.push(() => {
+          try {
+            if (nodeProto.appendChild === patchedAppendChild) {
+              nodeProto.appendChild = origAppendChild;
+            }
+          } catch {}
+        });
       }
 
       if (nodeProto.insertBefore) {
@@ -423,25 +501,44 @@ function installIframeContentWindowOpenGuard(
           origInsertBefore as (...args: unknown[]) => unknown
         );
         nodeProto.insertBefore = patchedInsertBefore;
+        restorers.push(() => {
+          try {
+            if (nodeProto.insertBefore === patchedInsertBefore) {
+              nodeProto.insertBefore = origInsertBefore;
+            }
+          } catch {}
+        });
       }
 
       store[FRAME_INSERT_HOOKED_SYMBOL] = true;
+      restorers.push(() => {
+        try {
+          delete store[FRAME_INSERT_HOOKED_SYMBOL];
+        } catch {}
+      });
     }
   } catch {
     // Môi trường không hỗ trợ override
   }
+
+  return () => {
+    while (restorers.length > 0) {
+      restorers.pop()?.();
+    }
+  };
 }
 
-export function installAntiPopup(targetWindow: Window = window, options: AntiPopupOptions = {}): void {
+export function installAntiPopup(targetWindow: Window = window, options: AntiPopupOptions = {}): () => void {
   const originalOpen = targetWindow.open;
-  if (!originalOpen) return;
+  if (!originalOpen) return () => {};
 
+  const restorers: Array<() => void> = [];
   lastUserClickTime = 0;
   lastClickIntent = null;
-  trackUserGesture(targetWindow);
-  installNativeAnchorClickTrap(targetWindow, options);
-  installSyntheticAnchorTrap(targetWindow, options);
-  installFormSubmitTrap(targetWindow, options);
+  restorers.push(trackUserGesture(targetWindow));
+  restorers.push(installNativeAnchorClickTrap(targetWindow, options));
+  restorers.push(installSyntheticAnchorTrap(targetWindow, options));
+  restorers.push(installFormSubmitTrap(targetWindow, options));
 
   const createOpenWrapper = (ownerWin: Window, origOpen: Window['open']): Window['open'] => {
     function patchedOpen(
@@ -467,17 +564,40 @@ export function installAntiPopup(targetWindow: Window = window, options: AntiPop
   const mainPatchedOpen = createOpenWrapper(targetWindow, originalOpen);
   targetWindow.open = mainPatchedOpen;
   (targetWindow as unknown as Record<symbol, unknown>)[PATCHED_OPEN_SYMBOL] = true;
+  restorers.push(() => {
+    try {
+      if (targetWindow.open === mainPatchedOpen) {
+        targetWindow.open = originalOpen;
+      }
+      delete (targetWindow as unknown as Record<symbol, unknown>)[PATCHED_OPEN_SYMBOL];
+    } catch {}
+  });
 
   // Chặn chiêu `delete window.open` quay về Window.prototype.open
   try {
     const winProto = (targetWindow as unknown as { Window?: { prototype?: Window } }).Window
       ?.prototype;
     if (winProto && typeof winProto.open === 'function' && winProto.open !== mainPatchedOpen) {
-      winProto.open = createOpenWrapper(targetWindow, winProto.open);
+      const origWinProtoOpen = winProto.open;
+      const protoPatchedOpen = createOpenWrapper(targetWindow, origWinProtoOpen);
+      winProto.open = protoPatchedOpen;
+      restorers.push(() => {
+        try {
+          if (winProto.open === protoPatchedOpen) {
+            winProto.open = origWinProtoOpen;
+          }
+        } catch {}
+      });
     }
   } catch {
     // Bỏ qua nếu Window.prototype bị đóng băng
   }
 
-  installIframeContentWindowOpenGuard(targetWindow, createOpenWrapper);
+  restorers.push(installIframeContentWindowOpenGuard(targetWindow, createOpenWrapper));
+
+  return () => {
+    while (restorers.length > 0) {
+      restorers.pop()?.();
+    }
+  };
 }
