@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.3] - 2026-11-20
+
+### Fixed
+- **Sửa triệt để lỗi lặp xác thực bảo mật trên mọi website (Cloudflare Turnstile / Managed Challenge *"Performing security verification"*, hCaptcha, reCAPTCHA, AWS WAF, DDoS-Guard, DataDome, Arkose, Imperva, PerimeterX, GeeTest):**
+  - Bổ sung `exclude_matches` trong `src/manifest.json` cho `universalDefuser.js` & `universalContent.js` để không tiêm script vào iframe/endpoint xác thực chống bot.
+  - Tạo module [src/core/securityChallenge.ts](src/core/securityChallenge.ts) nhận diện an toàn ngữ cảnh & trang chờ xác thực (xác thực hostname/URL qua `new URL()` chuẩn CodeQL, phát hiện `_cf_chl_opt`, `/cdn-cgi/challenge-platform`, `#challenge-running`...) kèm cooldown `sessionStorage` 30 giây khi trình duyệt tự tải lại sau kiểm tra.
+  - Bổ sung cơ chế khôi phục sạch toàn bộ hook nguyên bản theo thứ tự LIFO (`shadowShield`, `domShield`, `antiAdblockDefuser`, `unlockContextMenu`, `vastInterceptor`, `antiPopup`, `antiRedirect`) khi phát hiện trang chờ xác thực hoặc khi bấm nút `Tạm dừng`.
+  - Bảo vệ Closed Shadow DOM của widget xác thực (Turnstile/captcha) trong `shadowShield.ts`, `domShield.ts`, `heuristicAdDetector.ts` và `clickHijackGuard.ts`.
+  - Cho phép chuyển hướng cùng tên miền (`same-origin`) sau xác thực trong `antiRedirect.ts` (vẫn giữ chặn `cross-origin` ngầm và URL độc hại).
+  - Đồng bộ nút **`Tạm dừng`** (Per-Site Whitelist) xuống `MAIN` world (`universalDefuser.ts`) ngay ở `0ms` và gỡ `clickHijackGuard` trong `cleanup()` của `universalEngine.ts`.
+
 ## [3.1.2] - 2026-11-19
 
 ### Added
