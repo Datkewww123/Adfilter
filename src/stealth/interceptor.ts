@@ -63,16 +63,13 @@ export const AD_NETWORK_BLOCK_PATTERNS = [
 
 const AD_SIGNAL_HINT_REGEX =
   /adPlacements|playerAds|adSlots|adBreak|RemarketingUrl|reelWatchEndpoint/;
-const FAST_SKIP_SIGNAL_HINT_REGEX = /RemarketingUrl|reelWatchEndpoint/;
 
 export function containsAdSignalText(
   text: string,
-  mode: YouTubeAdMode = 'strict-defuser',
+  _mode: YouTubeAdMode = 'strict-defuser',
 ): boolean {
   if (text.length < 16) return false;
-  return mode === 'fast-skip'
-    ? FAST_SKIP_SIGNAL_HINT_REGEX.test(text)
-    : AD_SIGNAL_HINT_REGEX.test(text);
+  return AD_SIGNAL_HINT_REGEX.test(text);
 }
 
 export function extractRequestUrl(input: unknown): string {
@@ -151,22 +148,20 @@ export function purge(
   }
 
   const record = obj as Record<string, unknown>;
-  // Ở chế độ fast-skip, giữ nguyên adPlacements/playerAds/adSlots/adBreaks để video đầu
-  // vào fast-skip + VisualMask (~0.3s) và các video kế tiếp trong phiên sạch QC (<1s).
-  if (mode === 'strict-defuser') {
-    for (const key of AD_KEYS) {
-      if (key in record) {
-        const val = record[key];
-        if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-          const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
-          if (!Array.isArray(val) || val.length > 0) {
-            record[key] = [];
-          }
-          if (hadAds) modified = true;
-        } else {
-          delete record[key];
-          modified = true;
+  // Luôn xóa trắng adPlacements/playerAds/adSlots/adBreaks ngay từ gói JSON nguồn ở cả 2 chế độ
+  // để YouTube không bao giờ nạp hay chạy video quảng cáo ngầm phía sau màn hình đen.
+  for (const key of AD_KEYS) {
+    if (key in record) {
+      const val = record[key];
+      if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+        const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
+        if (!Array.isArray(val) || val.length > 0) {
+          record[key] = [];
         }
+        if (hadAds) modified = true;
+      } else {
+        delete record[key];
+        modified = true;
       }
     }
   }

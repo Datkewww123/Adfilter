@@ -180,24 +180,17 @@ function resumePlay(): void {
 
 function trySeekAdOnce(v: HTMLVideoElement): boolean {
   if (!cfg.allowSeek || !Number.isFinite(v.duration) || v.duration <= 0) return false;
+  const targetTime = Math.max(0, v.duration - 0.1);
+  if (v.currentTime >= targetTime - 0.3) {
+    lastSoughtDuration = v.duration;
+    return false;
+  }
   if (lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5) {
     return false;
   }
   lastSoughtDuration = v.duration;
-  let targetTime = Math.max(0, v.duration - 0.1);
-  try {
-    if (v.seekable && v.seekable.length > 0) {
-      const seekableEnd = v.seekable.end(v.seekable.length - 1);
-      if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
-        targetTime = Math.min(targetTime, Math.max(0, seekableEnd - 0.05));
-      }
-    }
-  } catch {}
-  if (targetTime > v.currentTime + 0.2) {
-    v.currentTime = targetTime;
-    return true;
-  }
-  return false;
+  v.currentTime = targetTime;
+  return true;
 }
 
 /**

@@ -31,6 +31,8 @@ html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-player-overlay-lay
 html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-action-interstitial,
 html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-module,
 html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-image-overlay,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-persistent-progress-bar-container,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-persistent-progress-bar,
 html:not(.adfilter-inactive) .ytp-ad-player-overlay,
 html:not(.adfilter-inactive) .ytp-ad-player-overlay-layout,
 html:not(.adfilter-inactive) .ytp-ad-action-interstitial {
