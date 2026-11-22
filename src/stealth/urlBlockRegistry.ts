@@ -1,70 +1,23 @@
 import { isGamblingMorphologyMatch } from './gamblingMorphology';
 
-// Danh sách từ khóa/mẫu URL quảng cáo, cờ bạc, popunder & redirector ngụy trang dùng chung
-const BASE_SUSPICIOUS_URL_PATTERNS: RegExp[] = [
-  /shopee\.vn/i,
-  /lazada\.vn/i,
-  /bet\d+/i,
-  /debet/i,
-  /kubet/i,
-  /big\d+/i,
-  /five\d+/i,
-  /red\d+/i,
-  /win\d+/i,
-  /88/i,
-  /casino/i,
-  /game.*bai/i,
-  /nohu/i,
-  /taixiu/i,
-  /sunwin/i,
-  /gemwin/i,
-  /rikvip/i,
-  /zowin/i,
-  /nhatvip/i,
-  /go88/i,
-  /hitclub/i,
-  /789club/i,
-  /b52/i,
-  /chinhhang/i,
-  /vsbet/i,
-  /bom88/i,
+// Mẫu khớp trên hostname thật (tên miền đã phân giải qua new URL), tránh quét nhầm vào path/query.
+const SUSPICIOUS_HOST_PATTERNS: RegExp[] = [
+  /(?:debet|kubet|big88|five88|red88|win79|sunwin|gemwin|rikvip|zowin|nhatvip|go88|hitclub|789club|vsbet|bom88|hdbet|sun88|yo88|zo88|8xbet|shbet|jun88|789bet|new88|fb88|fun88|sin88|sv88|ta88|uk88|lu88|f8bet|mb66|qq88)/i,
+  /\b(?:w88|3bet|ok9|casino|nohu|taixiu)\b/i,
   /adqc\.net/i,
-  /hdbet/i,
-  /3bet/i,
-  /sun88/i,
-  /yo88/i,
-  /zo88/i,
-  /hit\.?club/i,
-  /8xbet/i,
-  /shbet/i,
-  /jun88/i,
-  /789bet/i,
-  /new88/i,
-  /fb88/i,
-  /w88/i,
-  /fun88/i,
-  /sin88/i,
-  /sv88/i,
-  /ta88/i,
-  /uk88/i,
-  /lu88/i,
-  /f8bet/i,
-  /mb66/i,
-  /qq88/i,
-  /\bok9\b/i,
+  /hit\.club/i,
+  /\bbet\d+\b/i,
   /mplmncb/i,
   /clickadu/i,
   /popunder/i,
-  /ad.*click/i,
-  /pop.*cash/i,
-  /propeller/i,
-  /traffic/i,
-  /redirect/i,
+  /popcash/i,
+  /propellerads/i,
+  /\bpropeller\b/i,
+  /adclick/i,
+  /megaredirect/i,
   /bondeddarkenedswerve/i,
   /magiamgia\.space/i,
-  /bit\.ly\/adudr/i,
   /yougetwhatyoupayfor/i,
-  /\/sklnk\//i,
   // Mạng popunder & ad server quốc tế (ExoClick, JuicyAds, PopAds, MagSrv...)
   /exoclick/i,
   /exosrv/i,
@@ -102,7 +55,13 @@ const BASE_SUSPICIOUS_URL_PATTERNS: RegExp[] = [
   /trafficforce/i,
   /admaven/i,
   /adxpansion/i,
-  /\.click\/tsk\//i,
+];
+
+// Đường dẫn / query đặc thù của chuỗi chuyển hướng popunder thật sự
+const SUSPICIOUS_PATH_QUERY_PATTERNS: RegExp[] = [
+  /\/sklnk\//i,
+  /utm_medium=popunder/i,
+  /popunder/i,
 ];
 
 const dynamicPatterns: RegExp[] = [];
@@ -148,15 +107,68 @@ export function clearDynamicBlockedUrlPatterns(): void {
   dynamicPatterns.length = 0;
 }
 
+function tryParseSuspiciousCandidate(rawUrl: string): URL | null {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  try {
+    const base =
+      typeof window !== 'undefined' &&
+      window.location?.href &&
+      !window.location.href.startsWith('about:')
+        ? window.location.href
+        : 'https://localhost';
+    const parsed = new URL(trimmed.startsWith('//') ? `https:${trimmed}` : trimmed, base);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export function isSuspiciousUrl(url: string): boolean {
   if (!url || url === 'about:blank') return false;
-  if (
-    BASE_SUSPICIOUS_URL_PATTERNS.some((pattern) => pattern.test(url)) ||
-    dynamicPatterns.some((pattern) => pattern.test(url))
-  ) {
+
+  if (dynamicPatterns.some((pattern) => pattern.test(url))) {
     return true;
   }
 
-  // Kiểm tra thêm hình thái domain nhà cái (*bet, *88, *win, *club, *vip) không phân biệt tên brand mới
+  const parsed = tryParseSuspiciousCandidate(url);
+  if (parsed) {
+    const host = parsed.hostname.toLowerCase();
+    const pathLower = parsed.pathname.toLowerCase();
+    const pathAndQuery = `${parsed.pathname}${parsed.search}`;
+
+    if (
+      (host === 'bit.ly' || host.endsWith('.bit.ly')) &&
+      pathLower.startsWith('/adudr')
+    ) {
+      return true;
+    }
+
+    if (
+      (host === 'shopee.vn' || host.endsWith('.shopee.vn')) &&
+      pathLower.startsWith('/universal-link')
+    ) {
+      return true;
+    }
+
+    if (host.endsWith('.click') && pathLower.startsWith('/tsk/')) {
+      return true;
+    }
+
+    if (SUSPICIOUS_HOST_PATTERNS.some((pattern) => pattern.test(host))) {
+      return true;
+    }
+
+    if (SUSPICIOUS_PATH_QUERY_PATTERNS.some((pattern) => pattern.test(pathAndQuery))) {
+      return true;
+    }
+  } else if (SUSPICIOUS_PATH_QUERY_PATTERNS.some((pattern) => pattern.test(url))) {
+    return true;
+  }
+
+  // Kiểm tra thêm hình thái domain nhà cái (*bet, *88, *win, *club, *vip) trên hostname
   return isGamblingMorphologyMatch(url, '', '', '', '');
 }

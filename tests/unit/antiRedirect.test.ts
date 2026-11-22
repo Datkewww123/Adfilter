@@ -49,6 +49,12 @@ describe('AntiRedirect', () => {
     fakeWin.location.replace('https://adclick.megaredirect.com/traffic');
     expect(origReplace).toHaveBeenCalledTimes(1);
 
+    // Chuyển hướng cross-origin hợp lệ như OAuth / SSO trên ChatGPT được phép khi không phải click vào player video
+    fakeWin.location.assign(
+      'https://auth.openai.com/authorize?client_id=abc&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback',
+    );
+    expect(origAssign).toHaveBeenCalledTimes(2);
+
     restore();
     expect(fakeWin.location.assign).toBe(origAssign);
     expect(fakeWin.location.replace).toBe(origReplace);

@@ -1,5 +1,5 @@
 import { disguise } from './anti-detect';
-import { isSuspiciousUrl, isUnintendedPopupAttempt, isUserGestureRecent } from './antiPopup';
+import { isRecentPlayerInteraction, isSuspiciousUrl } from './antiPopup';
 
 export function isSameOriginUrl(url: string, win: Window = window): boolean {
   if (!url || typeof url !== 'string') return false;
@@ -26,8 +26,7 @@ export function installAntiRedirect(win: Window = window): () => void {
   function shouldBlockNavigation(url: string): boolean {
     if (isSuspiciousUrl(url)) return true;
     if (isSameOriginUrl(url, win)) return false;
-    if (!isUserGestureRecent(1000)) return true;
-    return isUnintendedPopupAttempt(url, win);
+    return isRecentPlayerInteraction(1000);
   }
 
   function safeAssign(this: Location, url: string): void {

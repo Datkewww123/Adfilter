@@ -85,6 +85,13 @@ export function isUserGestureRecent(thresholdMs: number = 1000): boolean {
   return Date.now() - lastUserClickTime <= thresholdMs;
 }
 
+export function isRecentPlayerInteraction(thresholdMs: number = 1000): boolean {
+  return Boolean(
+    lastClickIntent?.isPlayerInteraction &&
+      Date.now() - lastClickIntent.timestamp <= thresholdMs,
+  );
+}
+
 function tryParseUrl(raw: string, base?: string): URL | null {
   try {
     return base ? new URL(raw, base) : new URL(raw);

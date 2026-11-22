@@ -71,6 +71,37 @@ describe('Background Popunder Tab Guard', () => {
     expect(removeSpy).not.toHaveBeenCalled();
   });
 
+  it('không đóng tab hợp lệ (ChatGPT OAuth redirect_uri, GitHub issues/88 hoặc tên miền trong whitelist)', async () => {
+    const t0 = 3_000_000;
+    await handlePopunderTabNavigation(60, 'https://chatgpt.com/', 10, t0);
+    expect(
+      await handlePopunderTabNavigation(
+        60,
+        'https://auth.openai.com/authorize?client_id=abc&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback',
+        undefined,
+        t0 + 150,
+      ),
+    ).toBe(false);
+    expect(
+      await handlePopunderTabNavigation(
+        61,
+        'https://github.com/org/repo/issues/88',
+        10,
+        t0 + 150,
+      ),
+    ).toBe(false);
+    expect(
+      await handlePopunderTabNavigation(
+        62,
+        'https://bom88.adqc.net/cpd/test',
+        10,
+        t0 + 150,
+        ['bom88.adqc.net'],
+      ),
+    ).toBe(false);
+    expect(removeSpy).not.toHaveBeenCalled();
+  });
+
   it('từ chối URL non-http khi kiểm tra điều hướng', () => {
     expect(isHttpOrHttpsUrl('https://bom88.adqc.net/')).toBe(true);
     expect(isHttpOrHttpsUrl('chrome://extensions/')).toBe(false);
