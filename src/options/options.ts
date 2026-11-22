@@ -12,7 +12,6 @@ import {
 
 const speed = document.getElementById('maxSpeed') as HTMLInputElement | null;
 const seek = document.getElementById('allowSeek') as HTMLInputElement | null;
-const telemetry = document.getElementById('telemetry') as HTMLInputElement | null;
 
 const youtubeAdModeEl = document.getElementById('youtubeAdMode') as HTMLSelectElement | null;
 const youtubeAdModeHintEl = document.getElementById('youtubeAdModeHint');
@@ -83,7 +82,6 @@ async function init(): Promise<void> {
   const c = await loadConfig();
   if (speed) speed.value = String(c.maxSpeed);
   if (seek) seek.checked = c.allowSeek;
-  if (telemetry) telemetry.checked = c.telemetry;
   if (youtubeAdModeEl) youtubeAdModeEl.value = c.youtubeAdMode;
   renderYouTubeAdModeHint(c.youtubeAdMode);
 
@@ -110,7 +108,6 @@ speed?.addEventListener('change', () => {
   if (Number.isFinite(v)) void saveConfig({ maxSpeed: v }).then(init);
 });
 seek?.addEventListener('change', () => void saveConfig({ allowSeek: seek.checked }));
-telemetry?.addEventListener('change', () => void saveConfig({ telemetry: telemetry.checked }));
 
 youtubeAdModeEl?.addEventListener('change', () => {
   const mode: YouTubeAdMode =

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.5] - 2026-11-22
+
+### Added
+- **Tích hợp bộ logo & icon thương hiệu chính thức (`16x16`, `32x32`, `48x48`, `128x128`, `300x300`):**
+  - Tạo bộ icon chuẩn Chrome Web Store trong `src/icons/` (`icon16.png`, `icon32.png`, `icon48.png`, `icon128.png`) và `docs/assets/logo-300.png` cho trang giới thiệu & Store listing.
+  - Khai báo đầy đủ `"icons"` và `"action.default_icon"` trong `src/manifest.json`, đồng thời cập nhật `scripts/build.ts` sao chép `src/icons` vào thư mục đóng gói đầu ra.
+  - Hiển thị logo thương hiệu trực tiếp trên tiêu đề Popup (`src/popup/popup.html`), Options (`src/options/options.html`) và `README.md`.
+
+### Changed
+- **Chuẩn hóa tuân thủ chính sách Chrome Web Store (Nhóm 1 & Nhóm 2):**
+  - Cập nhật `"description"` trong `src/manifest.json` và `package.json` theo hướng trung tính, loại bỏ tên thương hiệu bên thứ ba (`Brave`, `YouTube` / `Stealth`) khỏi metadata và nhãn giao diện (`Popup` / `Options`).
+  - Tinh gọn `"host_permissions"` trong `src/manifest.json` thành `["<all_urls>"]` (loại bỏ khai báo dư thừa trùng với `<all_urls>`).
+  - Gỡ bỏ checkbox telemetry chưa nối mạch (`#telemetry`) khỏi `src/options/options.html` và `src/options/options.ts` để thống nhất hoàn toàn với cam kết không thu thập dữ liệu người dùng.
+  - Cấu hình `sourcemap: dev` trong `scripts/build.ts` để bản phát hành chính thức (`dist/` & `release/*.zip`) không chứa file `.js.map` mang đường dẫn nội bộ máy phát triển.
+
 ## [3.1.4] - 2026-11-22
 
 ### Fixed
