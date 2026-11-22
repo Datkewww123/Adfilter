@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Gỡ bỏ checkbox telemetry chưa nối mạch (`#telemetry`) khỏi `src/options/options.html` và `src/options/options.ts` để thống nhất hoàn toàn với cam kết không thu thập dữ liệu người dùng.
   - Cấu hình `sourcemap: dev` trong `scripts/build.ts` để bản phát hành chính thức (`dist/` & `release/*.zip`) không chứa file `.js.map` mang đường dẫn nội bộ máy phát triển.
 
+### Fixed
+- **Sửa lỗi báo nhầm kẹt video (`[AdFilter] video có vẻ bị kẹt sau can thiệp`) và ngắt mạch sớm khi video YouTube đang nạp đệm SABR (`DcCISK3sCYg`):**
+  - Cập nhật `watchPlayback()` trong `src/content/index.ts` đo thời gian phát thực tế qua `extractSignals(document, Date.now())` thay vì đọc `lastSignals` cũ, bỏ qua khi `v.readyState < 3` (đang tải đệm SABR) hoặc đang ở lượt quảng cáo (`adShowing`), tự động gọi `resumePlay()`, và dùng `recordFailure()` (ngưỡng 3 lần) thay vì `trip()` khóa cứng 30 phút ngay lần đầu.
+  - Cập nhật `isStuck()` trong `src/core/playbackGuard.ts` trả về `false` khi `next.adShowing` đang bật.
+  - Định tuyến `log.warn` / `log.error` qua `console.info` gắn nhãn `[WARN]` / `[ERROR]` trong `src/core/log.ts` và dùng chung trong `src/background/index.ts` để trang `chrome://extensions` không gắn cờ **"Lỗi"** cho log vận hành thông thường.
+
 ## [3.1.4] - 2026-11-22
 
 ### Fixed

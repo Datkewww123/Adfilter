@@ -1,6 +1,6 @@
 import { ext } from '../platform/api';
 import { log } from '../core/log';
-import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
+import { canAct, emptyBreaker, recordFailure, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
 import { plan, SEEK_AFTER_MS, type Action, type ActionType } from '../core/intervention';
 import { emptyStatus, type Msg, type TabStatus } from '../core/messages';
@@ -233,12 +233,16 @@ function verifyLater(a: Action, startedAt: number): void {
 }
 
 function watchPlayback(): void {
-  const first = lastSignals;
-  if (!first) return;
+  const first = extractSignals(document, Date.now());
   window.setTimeout(() => {
-    const second = lastSignals;
-    if (second && isStuck(first, second)) {
-      log.warn('video có vẻ bị kẹt sau can thiệp');
+    const v = getActiveVideo(document);
+    // Không báo kẹt nếu video đang nạp dữ liệu mạng / SABR buffer (readyState < 3) hoặc đã kết thúc
+    if (!v || v.ended || v.readyState < 3) return;
+    const second = extractSignals(document, Date.now());
+    lastSignals = second;
+    if (!second.adShowing && isStuck(first, second)) {
+      log.warn('video có vẻ bị kẹt sau can thiệp, thử kích phát lại');
+      resumePlay();
       recordAction({
         at: second.t,
         action: 'PLAYBACK_STUCK',
@@ -246,7 +250,7 @@ function watchPlayback(): void {
         ok: false,
         error: 'playback-stuck',
       });
-      breaker = trip(second.t);
+      breaker = recordFailure(breaker, second.t);
       void saveBreaker(breaker).catch(() => undefined);
     }
   }, 3000);
