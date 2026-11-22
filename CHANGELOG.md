@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.4] - 2026-11-22
+
+### Fixed
+- **Sửa lỗi chặn nhầm website hợp lệ (`ChatGPT`, đăng nhập `OAuth/SSO` chứa `redirect_uri`, `Shopee`/`Lazada` và các URL có chứa số `88` / `win11` / `/chap68`):**
+  - Siết chặt `src/stealth/urlBlockRegistry.ts`: loại bỏ các mẫu regex quá rộng (`/88/i`, `/redirect/i`, `/traffic/i`, `/win\d+/i`, `/big\d+/i`, `/red\d+/i`, `/b52/i`, `/chinhhang/i`, `/shopee\.vn/i`, `/lazada\.vn/i`) vốn chặn nhầm trang hợp lệ; chỉ đối chiếu tên brand nhà cái/mạng popunder trên **`hostname` thật** đã parse qua `new URL()` (vẫn chặn `/universal-link` trên Shopee, `bit.ly/adudr`, `.click/tsk/`, `/sklnk/` và `utm_medium=popunder`).
+  - Sửa `src/stealth/gamblingMorphology.ts`: chỉ kiểm tra hình thái domain nhà cái (`*bet`, `*88`, `*win`, `*club`, `*vip`) trên **`hostname`**, không quét lên `/path` hay `?query` của URL bài viết.
+  - Sửa `src/stealth/antiRedirect.ts`: cho phép chuyển hướng cross-origin hợp lệ (`chatgpt.com` → `auth.openai.com` → `accounts.google.com`, SSO/thanh toán), chỉ chặn điều hướng tới `isSuspiciousUrl()` hoặc redirect phát sinh khi người dùng đang bấm vào trình phát video.
+  - Miễn trừ tự động các nền tảng ứng dụng & đăng nhập sạch (`chatgpt.com`, `openai.com`, `claude.ai`, `accounts.google.com`, `login.microsoftonline.com`, `login.live.com`, `appleid.apple.com`, `github.com`, `auth0.com`, `okta.com`) trong `exclude_matches` của `src/manifest.json` và `src/core/securityChallenge.ts`.
+  - Cập nhật `src/background/popunderTabGuard.ts` tôn trọng `whitelist_domains` khi kiểm tra đóng tab popunder.
+
 ## [3.1.3] - 2026-11-20
 
 ### Fixed
