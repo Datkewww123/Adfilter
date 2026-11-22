@@ -5,36 +5,36 @@
  * ============================================================ */
 
 /* Ẩn hoàn toàn video stream quảng cáo khỏi tầm nhìn ở mọi chế độ hiển thị */
-.ad-showing video,
-.ad-interrupting video,
-#movie_player.ad-showing video,
-#movie_player.ad-interrupting video,
-.html5-video-player.ad-showing video,
-.ad-showing .html5-main-video {
+html:not(.adfilter-inactive) .ad-showing video,
+html:not(.adfilter-inactive) .ad-interrupting video,
+html:not(.adfilter-inactive) #movie_player.ad-showing video,
+html:not(.adfilter-inactive) #movie_player.ad-interrupting video,
+html:not(.adfilter-inactive) .html5-video-player.ad-showing video,
+html:not(.adfilter-inactive) .ad-showing .html5-main-video {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
 /* Ẩn nút Play lớn và thanh điều khiển lúc đang chiếu quảng cáo */
-.ad-showing .ytp-large-play-button,
-.ad-showing .ytp-play-button,
-#movie_player.ad-showing .ytp-chrome-bottom,
-#movie_player.ad-interrupting .ytp-chrome-bottom {
+html:not(.adfilter-inactive) .ad-showing .ytp-large-play-button,
+html:not(.adfilter-inactive) .ad-showing .ytp-play-button,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-chrome-bottom,
+html:not(.adfilter-inactive) #movie_player.ad-interrupting .ytp-chrome-bottom {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Ẩn toàn bộ overlay quảng cáo video, nhà tài trợ, nút xem thêm (VietnamWorks, interstitial, v.v.) */
-#movie_player.ad-showing .ytp-ad-player-overlay,
-#movie_player.ad-showing .ytp-ad-player-overlay-layout,
-#movie_player.ad-showing .ytp-ad-action-interstitial,
-#movie_player.ad-showing .ytp-ad-module,
-#movie_player.ad-showing .ytp-ad-image-overlay,
-.ytp-ad-player-overlay,
-.ytp-ad-player-overlay-layout,
-.ytp-ad-action-interstitial {
-  display: none !important;
+/* Ẩn toàn bộ overlay quảng cáo video, nhà tài trợ, nút xem thêm (dùng opacity/visibility để không bóp 0x0 nút Skip bên trong) */
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-player-overlay,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-player-overlay-layout,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-action-interstitial,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-module,
+html:not(.adfilter-inactive) #movie_player.ad-showing .ytp-ad-image-overlay,
+html:not(.adfilter-inactive) .ytp-ad-player-overlay,
+html:not(.adfilter-inactive) .ytp-ad-player-overlay-layout,
+html:not(.adfilter-inactive) .ytp-ad-action-interstitial {
+  opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }

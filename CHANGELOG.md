@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cập nhật `watchPlayback()` trong `src/content/index.ts` đo thời gian phát thực tế qua `extractSignals(document, Date.now())` thay vì đọc `lastSignals` cũ, bỏ qua khi `v.readyState < 3` (đang tải đệm SABR) hoặc đang ở lượt quảng cáo (`adShowing`), tự động gọi `resumePlay()`, và dùng `recordFailure()` (ngưỡng 3 lần) thay vì `trip()` khóa cứng 30 phút ngay lần đầu.
   - Cập nhật `isStuck()` trong `src/core/playbackGuard.ts` trả về `false` khi `next.adShowing` đang bật.
   - Định tuyến `log.warn` / `log.error` qua `console.info` gắn nhãn `[WARN]` / `[ERROR]` trong `src/core/log.ts` và dùng chung trong `src/background/index.ts` để trang `chrome://extensions` không gắn cờ **"Lỗi"** cho log vận hành thông thường.
+- **Sửa lỗi nút Skip bị vô hiệu hóa & quảng cáo phát ngầm có tiếng sau màn hình đen trên YouTube (`apqe_u3VJQ4`):**
+  - `src/stealth/cosmetic.css`: đổi `.ytp-ad-module` và `.ytp-ad-player-overlay-layout` từ `display: none !important` sang `opacity: 0 !important; visibility: hidden !important; pointer-events: none !important` để vẫn ẩn hoàn toàn với mắt người dùng nhưng giữ kích thước layout cho nút Skip, đồng thời bọc toàn bộ rule ẩn video `.ad-showing` dưới `html:not(.adfilter-inactive)`.
+  - `src/content/selectors.ts` & `tests/unit/selectors.test.ts`: bổ sung `isSkipElementRendered()` kiểm tra cây cha không `display: none` và bổ sung 2 unit test cho cấu trúc `.ytp-ad-module > .ytp-ad-player-overlay-layout`.
+  - `src/content/index.ts`: thêm `syncMaskActiveState()` đảm bảo chỉ bật `VisualMask` khi extension thực sự đang hoạt động (`enabled && !dryRun && canAct`), ép giữ liên tục `v.muted = true` và `v.playbackRate = cfg.maxSpeed` trong `planStep()`, reset `done` khi chuyển quảng cáo trong cùng cụm và thử bấm lại `CLICK_SKIP` ngay khi nút sẵn sàng.
 
 ## [3.1.4] - 2026-11-22
 

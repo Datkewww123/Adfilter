@@ -93,12 +93,21 @@ function syncMainWorldAdMode(mode: YouTubeAdMode): void {
   } catch {}
 }
 
+function syncMaskActiveState(now = Date.now()): boolean {
+  const active = cfg.enabled && !cfg.dryRun && canAct(breaker, now);
+  document.documentElement?.classList.toggle('adfilter-inactive', !active);
+  if (!active) removeMask();
+  return active;
+}
+
 syncMainWorldAdMode(cfg.youtubeAdMode);
+syncMaskActiveState();
 
 void loadConfig()
   .then((c) => {
     cfg = c;
     syncMainWorldAdMode(cfg.youtubeAdMode);
+    syncMaskActiveState();
     log.info('config', cfg);
   })
   .catch(() => undefined);
@@ -111,6 +120,7 @@ ext.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && ch) {
     cfg = normalizeConfig(ch.newValue);
     syncMainWorldAdMode(cfg.youtubeAdMode);
+    syncMaskActiveState();
     log.info('config đã đổi', cfg);
     if (!cfg.enabled) actuator.restore();
   }
@@ -123,6 +133,7 @@ window.addEventListener('keydown', (e) => {
     breaker = emptyBreaker();
     void saveBreaker(breaker).catch(() => undefined);
     void saveConfig({ enabled: !cfg.enabled }).catch(() => undefined);
+    syncMaskActiveState();
   }
 });
 
@@ -310,6 +321,14 @@ function planStep(s: Signals): void {
 
   const v = getActiveVideo(document);
   if (v && Number.isFinite(v.duration) && v.duration > 0) {
+    const switchedToNextAd =
+      (lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) > 0.5) ||
+      v.currentTime + 1 < lastCurrentTime;
+    if (switchedToNextAd) {
+      done = [];
+      lastSoughtDuration = null;
+    }
+
     if (v.currentTime < v.duration - 0.2) {
       done = done.filter((t) => t !== 'SEEK_TO_END');
       lastSoughtDuration = null;
@@ -319,6 +338,21 @@ function planStep(s: Signals): void {
     if (Number.isFinite(v.currentTime)) {
       lastCurrentTime = v.currentTime;
     }
+  }
+
+  // Ép giữ liên tục trạng thái tắt tiếng + tua tốc độ cao trong suốt cụm quảng cáo
+  if (v && (!v.muted || Math.abs(v.playbackRate - cfg.maxSpeed) > 0.01)) {
+    done = done.filter((t) => t !== 'MUTE_SPEEDUP');
+    if (!cfg.dryRun && cfg.enabled && canAct(breaker, s.t)) {
+      actuator.noteBaseline();
+      v.muted = true;
+      v.playbackRate = cfg.maxSpeed;
+      actuator.touch();
+    }
+  }
+
+  if (s.skipVisible && !cfg.dryRun) {
+    done = done.filter((t) => t !== 'CLICK_SKIP');
   }
 
   const msIntoAd = cfg.allowSeek ? Math.max(SEEK_AFTER_MS, s.t - adStartedAt) : s.t - adStartedAt;
@@ -338,6 +372,7 @@ function planStep(s: Signals): void {
 
 function handle(s: Signals): void {
   lastSignals = s;
+  syncMaskActiveState(s.t);
   const res = step(det, s);
   det = res.next;
 
@@ -353,6 +388,7 @@ function handle(s: Signals): void {
     }
     breaker = trip(s.t);
     void saveBreaker(breaker).catch(() => undefined);
+    syncMaskActiveState(s.t);
     log.warn('phát hiện cảnh báo trang, ngắt mạch tạm khóa can thiệp');
     actuator.restore();
   }
@@ -360,7 +396,9 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
-      onAdStart();
+      if (syncMaskActiveState(e.at)) {
+        onAdStart();
+      }
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;

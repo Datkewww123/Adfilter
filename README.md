@@ -239,7 +239,7 @@ Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/C
 | :--- | :---: | :--- |
 | **Precision & Recall trên tập Fixtures (`n = 17`)** | **Precision = 100.0% (`1.000`)**<br>**Recall = 100.0% (`1.000`)** (`0 FP`, `0 FN`) | [`docs/notes/eval-baseline.md`](docs/notes/eval-baseline.md) & `pnpm eval` |
 | **Phiên dùng thực tế (`n = 53` quảng cáo)** | **Xác minh đạt: 96.2% (51/53)**<br>**Video chính bị kẹt: `0` (0.0%)** | [`docs/notes/week9-metrics.md`](docs/notes/week9-metrics.md) |
-| **Quy mô Kiểm thử Tự động** | **60 Unit Test suites (`400 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**13 kịch bản Playwright E2E** (YouTube, Truyện tranh Closed Shadow DOM, Phim VAST, Tin tức Procedural, Web phim) | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
+| **Quy mô Kiểm thử Tự động** | **60 Unit Test suites (`402 tests`)**<br>**4 Server Test suites (`12 tests`)**<br>**13 kịch bản Playwright E2E** (YouTube, Truyện tranh Closed Shadow DOM, Phim VAST, Tin tức Procedural, Web phim) | [`docs/notes/test-coverage.md`](docs/notes/test-coverage.md) & [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
 | **Thời gian phát hiện sự cố (MTTD — 2 Chaos Drills)** | **Drill 01 (Hỏng DOM): `~45 giây`**<br>**Drill 02 (Ngắt mạch hàng loạt): `~40 giây`** | [`docs/notes/chaos-drill-01.md`](docs/notes/chaos-drill-01.md) & [`docs/notes/chaos-drill-02.md`](docs/notes/chaos-drill-02.md) |
 | **Thời gian Quay lui ( Tự động & Thủ công )** | **`~45 – 60 giây`** (cả Docker image lẫn cấu hình) | [`docs/notes/deploy-runbook.md`](docs/notes/deploy-runbook.md) |
 | **Thời gian Khôi phục Hạ tầng từ Số 0 (RTO)** | **`6 phút 30 giây` (6.5 phút)** | [`docs/notes/rebuild-from-zero.md`](docs/notes/rebuild-from-zero.md) |
@@ -276,7 +276,7 @@ pnpm install
 # Biên dịch bộ lọc ABP/uBO -> DNR JSON + Cosmetic/Scriptlet Index
 pnpm compile:filters
 
-# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 400 Unit Tests + Quality Gate Eval + Multi-target Build)
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 402 Unit Tests + Quality Gate Eval + Multi-target Build)
 pnpm verify:all
 
 # Đóng gói bản Dev và chạy 13 kịch bản kiểm thử đầu cuối Playwright E2E
