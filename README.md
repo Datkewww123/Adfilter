@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo-300.png" alt="AdFilter Logo" width="120" />
+  <img src="docs/assets/logo-banner.png" alt="Adfilter Logo" width="360" />
 </p>
 
 # AdFilter v3.1.5 — Universal AdFilter (Manifest V3) & Cloud Observability
