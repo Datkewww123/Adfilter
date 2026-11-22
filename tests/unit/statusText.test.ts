@@ -7,6 +7,16 @@ describe('describeStatus', () => {
     expect(describeStatus(null)).toEqual(['Chưa có dữ liệu cho tab này. Hãy mở trang YouTube.']);
   });
 
+  it('null nhưng đang ở domain YouTube thì báo sẵn sàng bảo vệ YouTube', () => {
+    const lines = describeStatus(null, 'www.youtube.com');
+    expect(lines[0]).toContain('Đang ở YouTube');
+  });
+
+  it('null nhưng đang ở trang web khác thì báo đang lọc quảng cáo trên trang đó', () => {
+    const lines = describeStatus(null, 'phimmoi.net');
+    expect(lines[0]).toContain('Đang lọc quảng cáo');
+  });
+
   it('trạng thái UNKNOWN hiển thị đang theo dõi', () => {
     const s = emptyStatus(); // phase mặc định là UNKNOWN
     const lines = describeStatus(s);

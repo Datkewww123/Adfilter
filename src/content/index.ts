@@ -58,10 +58,10 @@ const actuator = new Actuator({
     const btn = getSkipButton(document);
     if (!btn) return false;
 
-    // Khi nút Skip xuất hiện, lập tức tua video về cuối và ép play()
+    // Khi nút Skip xuất hiện, giữ tắt tiếng + tốc độ cao và bấm Skip (không gán currentTime gây kẹt SABR)
     const v = getActiveVideo(document);
-    if (v && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
+    if (v) {
+      v.muted = true;
       v.playbackRate = cfg.maxSpeed;
       if (v.paused) void v.play().catch(() => undefined);
     }
@@ -178,6 +178,28 @@ function resumePlay(): void {
   void v.play().catch(() => undefined);
 }
 
+function trySeekAdOnce(v: HTMLVideoElement): boolean {
+  if (!cfg.allowSeek || !Number.isFinite(v.duration) || v.duration <= 0) return false;
+  if (lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5) {
+    return false;
+  }
+  lastSoughtDuration = v.duration;
+  let targetTime = Math.max(0, v.duration - 0.1);
+  try {
+    if (v.seekable && v.seekable.length > 0) {
+      const seekableEnd = v.seekable.end(v.seekable.length - 1);
+      if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
+        targetTime = Math.min(targetTime, Math.max(0, seekableEnd - 0.05));
+      }
+    }
+  } catch {}
+  if (targetTime > v.currentTime + 0.2) {
+    v.currentTime = targetTime;
+    return true;
+  }
+  return false;
+}
+
 /**
  * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
  * tôn trọng hoàn toàn cấu hình maxSpeed, dryRun, allowSeek.
@@ -199,8 +221,7 @@ function instantIntervene(): void {
   for (const v of targetVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
+    if (trySeekAdOnce(v)) {
       resumePlay();
     }
   }
@@ -234,9 +255,8 @@ function verifyLater(a: Action, startedAt: number): void {
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
       if (a.type === 'CLICK_SKIP') {
-        done = done.filter((t) => t !== 'SEEK_TO_END');
-        lastSoughtDuration = null;
-      } else {
+        done = done.filter((t) => t !== 'CLICK_SKIP');
+      } else if (a.type !== 'SEEK_TO_END') {
         done = done.filter((t) => t !== a.type);
       }
     }
@@ -287,19 +307,14 @@ function execute(a: Action, s: Signals): void {
     onSeekExecuted();
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
-      lastSoughtDuration = v.duration;
-      v.currentTime = Math.max(0, v.duration - 0.1);
+      const alreadySought =
+        lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5;
+      trySeekAdOnce(v);
       v.playbackRate = cfg.maxSpeed;
       resumePlay();
-    }
-    const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
-    for (const vid of videos) {
-      if (vid !== v && Number.isFinite(vid.duration) && vid.duration > 0) {
-        vid.currentTime = Math.max(0, vid.duration - 0.1);
-        vid.playbackRate = cfg.maxSpeed;
-        if (vid.paused && !vid.ended) {
-          void vid.play().catch(() => undefined);
-        }
+      if (alreadySought) {
+        recordAction({ at: s.t, action: a.type, dryRun: false, ok: true });
+        return;
       }
     }
   }
@@ -329,10 +344,7 @@ function planStep(s: Signals): void {
       lastSoughtDuration = null;
     }
 
-    if (v.currentTime < v.duration - 0.2) {
-      done = done.filter((t) => t !== 'SEEK_TO_END');
-      lastSoughtDuration = null;
-    } else {
+    if (v.currentTime >= v.duration - 0.2) {
       resumePlay();
     }
     if (Number.isFinite(v.currentTime)) {
@@ -490,6 +502,15 @@ const observer = new PlayerObserver(handle, {
 });
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });
+
+ext.runtime.onMessage?.addListener?.((raw: unknown, _sender, sendResponse) => {
+  if (raw && typeof raw === 'object' && (raw as { kind?: string }).kind === 'GET_STATUS') {
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
+    sendResponse(currentStatus);
+    return false;
+  }
+  return false;
+});
 
 // Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {

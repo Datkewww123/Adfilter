@@ -6,8 +6,22 @@ const PHASE_VI: Record<string, string> = {
   UNKNOWN: '⏳ Đang theo dõi...',
 };
 
-export function describeStatus(s: TabStatus | null): string[] {
-  if (!s) return ['Chưa có dữ liệu cho tab này. Hãy mở trang YouTube.'];
+function isYouTubeHost(hostname?: string): boolean {
+  if (!hostname) return false;
+  const h = hostname.trim().toLowerCase();
+  return h === 'youtube.com' || h.endsWith('.youtube.com');
+}
+
+export function describeStatus(s: TabStatus | null, hostname?: string): string[] {
+  if (!s) {
+    if (isYouTubeHost(hostname)) {
+      return ['🏠 Đang ở YouTube — Sẵn sàng bảo vệ (nhấn F5 nếu bạn vừa tải lại tiện ích).'];
+    }
+    if (hostname) {
+      return ['🛡️ Đang lọc quảng cáo, banner & chống popup trên trang này.'];
+    }
+    return ['Chưa có dữ liệu cho tab này. Hãy mở trang YouTube.'];
+  }
 
   // Hiển thị trạng thái theo ngôn ngữ tự nhiên thay vì số liệu kỹ thuật
   const phaseText = PHASE_VI[s.phase] ?? `Trạng thái: ${s.phase}`;

@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/stealth/cosmetic.css`: đổi `.ytp-ad-module` và `.ytp-ad-player-overlay-layout` từ `display: none !important` sang `opacity: 0 !important; visibility: hidden !important; pointer-events: none !important` để vẫn ẩn hoàn toàn với mắt người dùng nhưng giữ kích thước layout cho nút Skip, đồng thời bọc toàn bộ rule ẩn video `.ad-showing` dưới `html:not(.adfilter-inactive)`.
   - `src/content/selectors.ts` & `tests/unit/selectors.test.ts`: bổ sung `isSkipElementRendered()` kiểm tra cây cha không `display: none` và bổ sung 2 unit test cho cấu trúc `.ytp-ad-module > .ytp-ad-player-overlay-layout`.
   - `src/content/index.ts`: thêm `syncMaskActiveState()` đảm bảo chỉ bật `VisualMask` khi extension thực sự đang hoạt động (`enabled && !dryRun && canAct`), ép giữ liên tục `v.muted = true` và `v.playbackRate = cfg.maxSpeed` trong `planStep()`, reset `done` khi chuyển quảng cáo trong cùng cụm và thử bấm lại `CLICK_SKIP` ngay khi nút sẵn sàng.
+- **Sửa lỗi treo tua quảng cáo ngầm 8–15s trên YouTube SABR & cải thiện nhận diện trạng thái YouTube trên Popup:**
+  - `src/content/playerObserver.ts` & `src/content/index.ts`: thêm `wasAdShowing` chỉ kích hoạt `onInstant` ở sườn lên `.ad-showing` và thêm `trySeekAdOnce()` chỉ thử tua `SEEK_TO_END` tối đa 1 lần mỗi quảng cáo trong vùng `v.seekable` (loại bỏ vòng lặp gán `v.currentTime` mỗi 250ms làm xóa buffer MSE), để quảng cáo lướt mượt ở `16x` tắt tiếng (~0.31s) rồi bấm Skip.
+  - `src/content/index.ts`, `src/popup/popup.ts` & `src/core/statusText.ts`: cho phép Popup truy vấn trực tiếp `GET_STATUS` từ tab YouTube đang mở và hiển thị trạng thái đúng theo tên miền (`www.youtube.com` vs các trang web khác).
 
 ## [3.1.4] - 2026-11-22
 
