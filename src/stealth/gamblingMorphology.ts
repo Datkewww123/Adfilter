@@ -31,7 +31,7 @@ const GAMBLING_LABEL_REGEX =
   /^(?:[a-z]{1,12}(?:88|68|79|66|99|789|365)|(?:[0-9]{1,3}|[a-z]{1,6})(?:bet|win|club|vip)|win\d+|bet\d+|ok\d+)$/i;
 
 const EXPLICIT_GAMBLING_TOKEN_REGEX =
-  /\b(?:casino|nohu|taixiu|lo\s*de|nha\s*cai|ca\s*cuoc|chinhhang|hdbet|3bet|sun88|vsbet|bom88|yo88|zo88|hitclub|sunwin|gemwin|rikvip|win79|debet|kubet|five88|red88|big88|zowin|nhatvip|fb88|w88|fun88|shbet|jun88|789bet|new88|8xbet|ok9)\b/i;
+  /\b(?:casino|nohu|taixiu|lo\s*de|nha\s*cai|ca\s*cuoc|hdbet|3bet|sun88|vsbet|bom88|yo88|zo88|hitclub|sunwin|gemwin|rikvip|win79|debet|kubet|five88|red88|big88|zowin|nhatvip|fb88|w88|fun88|shbet|jun88|789bet|new88|8xbet|ok9)\b/i;
 
 function extractHostnameSafe(rawUrl: string): string | null {
   const trimmed = rawUrl.trim();
@@ -56,8 +56,17 @@ export function isCrossOriginUrl(rawUrl: string, currentHostname: string): boole
 }
 
 function isGamblingHost(host: string): boolean {
-  const labels = host.split('.').filter(Boolean);
-  return labels.some((label) => !SAFE_MORPHOLOGY_WORDS.has(label) && GAMBLING_LABEL_REGEX.test(label));
+  const dotLabels = host.split('.').filter(Boolean);
+  for (const dotLabel of dotLabels) {
+    const segments = dotLabel.split('-').filter(Boolean);
+    for (const seg of segments) {
+      if (/^\d+$/.test(seg) || SAFE_MORPHOLOGY_WORDS.has(seg)) continue;
+      if (GAMBLING_LABEL_REGEX.test(seg)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -91,25 +100,10 @@ export function isGamblingMorphologyMatch(
     return true;
   }
 
-  // 3. Từ khóa nhà cái tường minh trong metadata
-  const combinedMeta = `${href} ${imgSrc} ${imgAlt} ${imgTitle}`;
-  if (EXPLICIT_GAMBLING_TOKEN_REGEX.test(combinedMeta)) {
+  // 3. Từ khóa nhà cái tường minh chỉ kiểm tra trên hostname đích + metadata ảnh (KHÔNG quét lên path bài viết)
+  const hostAndMediaMeta = `${linkHost || ''} ${imgHost || ''} ${imgAlt} ${imgTitle}`;
+  if (EXPLICIT_GAMBLING_TOKEN_REGEX.test(hostAndMediaMeta)) {
     return true;
-  }
-
-  // 4. Với đường dẫn tương đối (/truyen-123-club, chap-68...), dừng ở đây để không xóa nhầm list truyện
-  if (!linkHost) {
-    return false;
-  }
-
-  const tokens = combinedMeta.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  for (const token of tokens) {
-    if (/^\d+$/.test(token)) continue;
-    if (token.length >= 4 && token.length <= 14 && !SAFE_MORPHOLOGY_WORDS.has(token)) {
-      if (GAMBLING_LABEL_REGEX.test(token)) {
-        return true;
-      }
-    }
   }
 
   return false;

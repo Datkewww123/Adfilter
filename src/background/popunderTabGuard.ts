@@ -1,4 +1,5 @@
 import { ext } from '../platform/api';
+import { isDomainWhitelisted } from '../core/siteWhitelist';
 import { isSuspiciousUrl } from '../stealth/urlBlockRegistry';
 
 const POPUNDER_TRACK_TTL_MS = 15_000;
@@ -39,7 +40,8 @@ export async function handlePopunderTabNavigation(
   tabId: number,
   candidateUrl: string | undefined,
   openerTabId?: number,
-  now: number = Date.now()
+  now: number = Date.now(),
+  whitelist: string[] = []
 ): Promise<boolean> {
   pruneExpiredTrackedTabs(now);
 
@@ -53,6 +55,15 @@ export async function handlePopunderTabNavigation(
   }
 
   if (!candidateUrl || !isHttpOrHttpsUrl(candidateUrl) || !isSuspiciousUrl(candidateUrl)) {
+    return false;
+  }
+
+  try {
+    const destHost = new URL(candidateUrl).hostname;
+    if (isDomainWhitelisted(destHost, whitelist)) {
+      return false;
+    }
+  } catch {
     return false;
   }
 
@@ -74,16 +85,32 @@ export async function handlePopunderTabNavigation(
 export function installPopunderTabGuard(): void {
   if (!ext.tabs) return;
 
+  let cachedWhitelist: string[] = [];
+  try {
+    void ext.storage?.local?.get?.(['whitelist_domains'])?.then?.((data: Record<string, unknown>) => {
+      if (Array.isArray(data?.whitelist_domains)) {
+        cachedWhitelist = data.whitelist_domains as string[];
+      }
+    });
+    ext.storage?.onChanged?.addListener?.((changes, area) => {
+      if (area === 'local' && changes.whitelist_domains) {
+        cachedWhitelist = Array.isArray(changes.whitelist_domains.newValue)
+          ? (changes.whitelist_domains.newValue as string[])
+          : [];
+      }
+    });
+  } catch {}
+
   ext.tabs.onCreated?.addListener?.((tab) => {
     if (tab.id === undefined) return;
     const url = tab.pendingUrl || tab.url;
-    void handlePopunderTabNavigation(tab.id, url, tab.openerTabId);
+    void handlePopunderTabNavigation(tab.id, url, tab.openerTabId, Date.now(), cachedWhitelist);
   });
 
   ext.tabs.onUpdated?.addListener?.((tabId, changeInfo, tab) => {
     const url = changeInfo.url || tab.pendingUrl || tab.url;
     if (!url) return;
-    void handlePopunderTabNavigation(tabId, url, tab.openerTabId);
+    void handlePopunderTabNavigation(tabId, url, tab.openerTabId, Date.now(), cachedWhitelist);
   });
 
   ext.tabs.onRemoved?.addListener?.((tabId) => {

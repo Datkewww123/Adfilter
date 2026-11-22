@@ -49,6 +49,10 @@ describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
       expect(excluded).toContain('*://*.hcaptcha.com/*');
       expect(excluded).toContain('*://*.recaptcha.net/*');
       expect(excluded).toContain('*://*/cdn-cgi/challenge-platform/*');
+      expect(excluded).toContain('*://*.chatgpt.com/*');
+      expect(excluded).toContain('*://*.openai.com/*');
+      expect(excluded).toContain('*://accounts.google.com/*');
+      expect(excluded).toContain('*://login.microsoftonline.com/*');
     }
   });
 });

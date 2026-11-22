@@ -20,6 +20,20 @@ export const SECURITY_CHALLENGE_DOMAINS = [
   'incapdns.net',
 ] as const;
 
+export const TRUSTED_APP_AND_AUTH_DOMAINS = [
+  'chatgpt.com',
+  'openai.com',
+  'claude.ai',
+  'anthropic.com',
+  'accounts.google.com',
+  'login.microsoftonline.com',
+  'login.live.com',
+  'appleid.apple.com',
+  'github.com',
+  'auth0.com',
+  'okta.com',
+] as const;
+
 export const SECURITY_WIDGET_MARKER_REGEX =
   /(?:turnstile|cf-chl|cf-turnstile|challenge-running|challenge-stage|challenge-form|cf-wrapper|captcha|recaptcha|hcaptcha|arkose|funcaptcha|datadome|geetest|awswaf|ddos-guard|px-captcha)/i;
 
@@ -62,9 +76,23 @@ function extractSafeBaseHref(rawBase?: string): string {
   return 'https://localhost';
 }
 
+export function isTrustedAppOrAuthHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase();
+  if (!h) return false;
+  for (const domain of TRUSTED_APP_AND_AUTH_DOMAINS) {
+    if (h === domain || h.endsWith(`.${domain}`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function isSecurityChallengeHost(hostname: string, pathname = ''): boolean {
   const h = hostname.trim().toLowerCase();
   if (!h) return false;
+  if (isTrustedAppOrAuthHost(h)) {
+    return true;
+  }
   const p = pathname.toLowerCase();
 
   for (const domain of SECURITY_CHALLENGE_DOMAINS) {

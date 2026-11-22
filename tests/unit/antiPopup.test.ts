@@ -35,6 +35,27 @@ describe('AntiPopup Engine', () => {
     expect(isSuspiciousUrl('')).toBe(false);
   });
 
+  it('không chặn nhầm URL hợp lệ như ChatGPT, OAuth redirect_uri, Shopee/Lazada thường hoặc link có số 88 / win11 / chap68', () => {
+    expect(isSuspiciousUrl('https://chatgpt.com/')).toBe(false);
+    expect(
+      isSuspiciousUrl(
+        'https://auth.openai.com/authorize?client_id=abc&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback',
+      ),
+    ).toBe(false);
+    expect(
+      isSuspiciousUrl(
+        'https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https://example.com/cb',
+      ),
+    ).toBe(false);
+    expect(isSuspiciousUrl('https://shopee.vn/san-pham-tai-nghe-12345')).toBe(false);
+    expect(isSuspiciousUrl('https://lazada.vn/products/chuot-khong-day-88.html')).toBe(false);
+    expect(isSuspiciousUrl('https://github.com/Datkewww123/Adfilter/issues/88')).toBe(false);
+    expect(isSuspiciousUrl('https://vnexpress.net/tin-tuc-4881234.html')).toBe(false);
+    expect(isSuspiciousUrl('https://example.com/download-win11-64bit')).toBe(false);
+    expect(isSuspiciousUrl('https://example.com/fanclub/office365/chap88')).toBe(false);
+    expect(isSuspiciousUrl('https://shopchinhhang.vn/san-pham/dien-thoai')).toBe(false);
+  });
+
   it('chặn popunder ăn theo khi bấm nút Play hoặc bấm card phim tới domain lạ bất kỳ (Intent Matching)', () => {
     let pointerDownCb: ((e?: Event) => void) | undefined;
     fakeWindow.location = { href: 'https://animevietsub.bid/phim/1', origin: 'https://animevietsub.bid' };

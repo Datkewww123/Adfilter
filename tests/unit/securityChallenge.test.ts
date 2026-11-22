@@ -42,6 +42,13 @@ describe('SecurityChallenge: nhận diện và bảo vệ trang xác thực ch�
     expect(isSecurityChallengeUrl('https://evil-cloudflare.com/cdn/ad.js')).toBe(false);
     expect(isSecurityChallengeUrl('https://bad.com/?u=https://challenges.cloudflare.com/')).toBe(false);
     expect(isSecurityChallengeUrl('https://dtv-ebook.com.vn/van-co-toi-cuong-tong_14770.html')).toBe(false);
+
+    // Nền tảng ứng dụng & SSO sạch được miễn trừ an toàn
+    expect(isSecurityChallengeHost('chatgpt.com')).toBe(true);
+    expect(isSecurityChallengeHost('auth.openai.com')).toBe(true);
+    expect(isSecurityChallengeHost('accounts.google.com')).toBe(true);
+    expect(isSecurityChallengeHost('login.microsoftonline.com')).toBe(true);
+    expect(isSecurityChallengeUrl('https://auth.openai.com/authorize?redirect_uri=https://chatgpt.com')).toBe(true);
   });
 
   it('nhận diện trang chờ xác thực toàn trang và không nhận nhầm trang web thường có widget comment', () => {
