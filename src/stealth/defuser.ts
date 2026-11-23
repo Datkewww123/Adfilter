@@ -471,6 +471,12 @@ if (!isLocalTest) {
         player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
     } catch {}
     if (playerState === -1 || playerState === 5) return;
+    // Chỉ sửa live head khi đầu phát thực sự bị kẹt ở đầu DVR (0..1.5s);
+    // nếu YouTube đã đặt sẵn ở cuối live thì tuyệt đối không tua lại để tránh xóa buffer gây lag 15–20s.
+    if (video.currentTime > 1.5) {
+      _liveHeadDone = true;
+      return;
+    }
 
     // 1. Thử qua API chính thức seekToLiveHead() của YouTube Player
     if (typeof player.isAtLiveHead === 'function') {
@@ -495,7 +501,7 @@ if (!isLocalTest) {
         let shouldSeekStream = video.duration === Infinity;
         if (!shouldSeekStream && video.seekable && video.seekable.length > 0) {
           const edge = video.seekable.end(video.seekable.length - 1);
-          if (Number.isFinite(edge) && edge > 0 && edge - video.currentTime > 3) {
+          if (Number.isFinite(edge) && edge > 10 && edge - video.currentTime > 3) {
             shouldSeekStream = true;
           }
         }
@@ -508,12 +514,12 @@ if (!isLocalTest) {
       } catch {}
     }
 
-    // 3. Fallback: Nếu video bị kẹt ở mốc 0:00 của DVR mà mép live đã cách xa > 3s -> tua thẳng tới mép live
+    // 3. Fallback: Nếu video bị kẹt ở mốc 0:00 của DVR mà mép live đã cách xa > 10s -> tua tới edge - 3s để giữ bộ đệm
     try {
       if (video.seekable && video.seekable.length > 0) {
         const edge = video.seekable.end(video.seekable.length - 1);
-        if (Number.isFinite(edge) && edge > 0 && edge - video.currentTime > 3) {
-          video.currentTime = Math.max(0, edge - 0.5);
+        if (Number.isFinite(edge) && edge > 10 && edge - video.currentTime > 3) {
+          video.currentTime = Math.max(0, edge - 3);
           _liveHeadDone = true;
           dbg('seekToLiveEdge fallback', video, { edge, currentTime: video.currentTime });
         }
