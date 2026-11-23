@@ -112,12 +112,13 @@
       <div class="row">
         <label for="youtubeAdMode">Chế độ xử lý quảng cáo YouTube</label>
         <select id="youtubeAdMode">
-          <option value="strict-defuser">Chế độ B: Chặn tuyệt đối tại nguồn (Mặc định)</option>
-          <option value="fast-skip">Chế độ A: Tải nhanh</option>
+          <option value="auto">Tự động thông minh (Mặc định)</option>
+          <option value="strict-defuser">Luôn chặn tuyệt đối tại nguồn (Chế độ B)</option>
+          <option value="fast-skip">Luôn tải nhanh (Chế độ A)</option>
         </select>
       </div>
       <div class="note" id="youtubeAdModeHint" style="margin-bottom: 12px;">
-        Chế độ B (Mặc định): Xóa trắng 100% adPlacements/adSlots/playerAds ngay tại nguồn JSON trước khi trình phát YouTube kịp đọc.
+        Tự động thông minh (Mặc định): Xóa trắng 100% quảng cáo tại nguồn JSON; chỉ tự lùi sang chế độ tải nhanh nếu máy chủ YouTube trả tín hiệu phạt SABR.
       </div>
       <div class="row">
         <label for="cosmeticEnabled">Lớp 2: Cosmetic (Ẩn banner/overlay)</label>

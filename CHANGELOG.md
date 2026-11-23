@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.1.7] - 2026-11-23
 
 ### Changed
-- **Đặt Chế độ B (`strict-defuser` — Chặn tuyệt đối tại nguồn) làm chế độ mặc định cho YouTube:**
-  - Cập nhật `defaultConfig.youtubeAdMode = 'strict-defuser'` trong `src/storage/config.ts`, `src/popup/popup.html`, `src/popup/popup.ts`, `src/options/options.html` và `src/options/options.ts` để người dùng cài mới mặc định chạy ngay Chế độ B (xóa trắng 100% `adPlacements`/`playerAds`/`adSlots` tại nguồn JSON, vào thẳng video gốc không nháy quảng cáo), đồng thời vẫn giữ nút chuyển sang Chế độ A (`fast-skip`) trên Popup khi cần.
+- **Hợp nhất cơ chế xử lý quảng cáo YouTube thành 1 chế độ `Tự động thông minh (auto)` làm mặc định:**
+  - Cập nhật `defaultConfig.youtubeAdMode = 'auto'` trong `src/storage/config.ts`: mặc định chạy **Chặn tuyệt đối tại nguồn (`strict-defuser`)** để xóa trắng 100% `adPlacements`/`playerAds`/`adSlots` tại nguồn JSON (vào thẳng video gốc không nháy quảng cáo).
+  - Bổ sung cơ chế tự động phát hiện SABR backoff (`inspectSabrBackoff` trong `src/stealth/interceptor.ts`): nếu YouTube trả tín hiệu phạt `backoffTimeMs >= 3000` trong phiên, tự động lùi tạm sang `fast-skip` cho phiên đó để không bị xoay vòng chờ 4–8 giây.
+  - Làm gọn Popup (`src/popup/popup.html`, `src/popup/popup.ts`): bỏ thẻ chuyển Chế độ A/B khỏi Popup, chuyển tùy chọn ép thủ công (`Tự động thông minh` / `Luôn chặn tuyệt đối` / `Luôn tải nhanh`) vào trang `⚙️ Cài đặt Bộ lọc` (`src/options/options.html`, `src/options/options.ts`).
 
 ## [3.1.6] - 2026-11-23
 

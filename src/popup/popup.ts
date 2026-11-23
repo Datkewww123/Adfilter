@@ -3,8 +3,6 @@ import { log } from '../core/log';
 import type { Msg, TabStatus } from '../core/messages';
 import { describeStatus } from '../core/statusText';
 import { isDomainWhitelisted, toggleDomainWhitelist } from '../core/siteWhitelist';
-import type { YouTubeAdMode } from '../storage/config';
-import { loadConfig, saveConfig } from '../storage/configStore';
 
 const statusEl = document.getElementById('status');
 const exportBtn = document.getElementById('exportLogs');
@@ -13,22 +11,8 @@ const openOptionsBtn = document.getElementById('openOptionsBtn');
 const siteDomainEl = document.getElementById('siteDomain');
 const siteStatusEl = document.getElementById('siteStatus');
 const siteToggleBtn = document.getElementById('siteToggleBtn') as HTMLButtonElement | null;
-const ytModeStatusEl = document.getElementById('ytModeStatus');
-const ytModeToggleBtn = document.getElementById('ytModeToggleBtn') as HTMLButtonElement | null;
 
 let currentHostname = '';
-let currentYtMode: YouTubeAdMode = 'strict-defuser';
-
-function renderYouTubeMode(mode: YouTubeAdMode): void {
-  currentYtMode = mode;
-  if (ytModeStatusEl) {
-    ytModeStatusEl.textContent =
-      mode === 'fast-skip' ? 'Chế độ A: Tải nhanh (<1s)' : 'Chế độ B: Chặn tuyệt đối';
-  }
-  if (ytModeToggleBtn) {
-    ytModeToggleBtn.textContent = mode === 'fast-skip' ? 'Sang Chế độ B' : 'Sang Chế độ A';
-  }
-}
 
 function show(lines: string[]): void {
   if (statusEl) statusEl.textContent = lines.join(' ');
@@ -60,16 +44,7 @@ siteToggleBtn?.addEventListener('click', async () => {
   await updateSiteCard();
 });
 
-ytModeToggleBtn?.addEventListener('click', async () => {
-  const next: YouTubeAdMode = currentYtMode === 'fast-skip' ? 'strict-defuser' : 'fast-skip';
-  await saveConfig({ youtubeAdMode: next });
-  renderYouTubeMode(next);
-});
-
 async function refresh(): Promise<void> {
-  const cfg = await loadConfig().catch(() => null);
-  if (cfg) renderYouTubeMode(cfg.youtubeAdMode);
-
   const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
   const tabId = tab?.id;
   const url = tab?.url || '';

@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   containsAdSignalText,
   extractRequestUrl,
+  getEffectiveYouTubeAdMode,
   getRuntimeYouTubeAdMode,
   handleYouTubeAdModeMessage,
+  inspectSabrBackoff,
   isAdNetworkUrl,
   isPlayerDataUrl,
+  isSabrBackoffFallbackActive,
   isStreamingWatchUrl,
   purge,
+  resetSabrBackoffFallback,
   setRuntimeYouTubeAdMode,
 } from '../../src/stealth/interceptor';
 import {
@@ -223,7 +227,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     setRuntimeYouTubeAdMode(readCachedYouTubeAdMode(fakeStorage));
     expect(getRuntimeYouTubeAdMode()).toBe('strict-defuser');
 
-    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định strict-defuser
+    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định auto
     const throwingStorage = {
       getItem: () => {
         throw new Error('SecurityError');
@@ -233,7 +237,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       },
     };
     expect(() => writeCachedYouTubeAdMode('strict-defuser', throwingStorage)).not.toThrow();
-    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('strict-defuser');
+    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('auto');
 
     const fakeWin = {};
     const otherWin = {};
@@ -248,5 +252,50 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       fakeWin,
     );
     expect(getRuntimeYouTubeAdMode()).toBe('fast-skip');
+  });
+
+  it('chế độ hợp nhất auto mặc định chạy strict-defuser và tự lùi sang fast-skip khi gặp SABR backoff', () => {
+    resetSabrBackoffFallback();
+    expect(isSabrBackoffFallbackActive()).toBe(false);
+    expect(getEffectiveYouTubeAdMode('auto')).toBe('strict-defuser');
+    expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'auto')).toBe(true);
+
+    const normalPayload = {
+      adPlacements: [{ adPlacementRenderer: {} }],
+      adSlots: [{ slot: 1 }],
+    };
+    expect(purge(normalPayload, 0, 'auto')).toBe(true);
+    expect(normalPayload.adPlacements).toHaveLength(0);
+    expect(normalPayload.adSlots).toHaveLength(0);
+    expect(isSabrBackoffFallbackActive()).toBe(false);
+
+    const backoffPayload = {
+      playerConfig: {
+        mediaCommonConfig: {
+          mediaUstreamerRequestConfig: {
+            nextRequestPolicy: { backoffTimeMs: 4500 },
+          },
+        },
+      },
+      adPlacements: [{ adPlacementRenderer: {} }],
+    };
+    expect(inspectSabrBackoff(backoffPayload)).toBe(4500);
+    purge(backoffPayload, 0, 'auto');
+    expect(isSabrBackoffFallbackActive()).toBe(true);
+    expect(getEffectiveYouTubeAdMode('auto')).toBe('fast-skip');
+    expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'auto')).toBe(false);
+
+    const nextPayload = {
+      adPlacements: [{ adPlacementRenderer: {} }],
+      playbackTracking: {
+        googleRemarketingUrl: { baseUrl: 'https://www.google.com/pagead/1p-user-list/' },
+      },
+    };
+    expect(purge(nextPayload, 0, 'auto')).toBe(true);
+    expect(nextPayload.adPlacements).toHaveLength(1);
+    expect(nextPayload.playbackTracking.googleRemarketingUrl).toBeUndefined();
+
+    resetSabrBackoffFallback();
+    expect(getEffectiveYouTubeAdMode('auto')).toBe('strict-defuser');
   });
 });

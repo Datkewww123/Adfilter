@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig, normalizeConfig } from '../../src/storage/config';
 
 describe('defaultConfig', () => {
-  it('mặc định tối ưu: dry-run tắt, cho phép seek, tốc độ 16x, chế độ strict-defuser (Chế độ B)', () => {
+  it('mặc định tối ưu: dry-run tắt, cho phép seek, tốc độ 16x, chế độ auto (thông minh)', () => {
     expect(defaultConfig.dryRun).toBe(false);
     expect(defaultConfig.allowSeek).toBe(true);
     expect(defaultConfig.maxSpeed).toBe(16);
     expect(defaultConfig.telemetry).toBe(false);
-    expect(defaultConfig.youtubeAdMode).toBe('strict-defuser');
+    expect(defaultConfig.youtubeAdMode).toBe('auto');
   });
 });
 
@@ -16,7 +16,7 @@ describe('normalizeConfig', () => {
     expect(normalizeConfig(raw)).toEqual(defaultConfig);
   });
 
-  it('giữ giá trị hợp lệ kể cả strict-defuser', () => {
+  it('giữ giá trị hợp lệ kể cả strict-defuser và fast-skip', () => {
     const v = {
       enabled: false,
       dryRun: true,
@@ -26,6 +26,7 @@ describe('normalizeConfig', () => {
       youtubeAdMode: 'strict-defuser' as const,
     };
     expect(normalizeConfig(v)).toEqual(v);
+    expect(normalizeConfig({ ...v, youtubeAdMode: 'fast-skip' }).youtubeAdMode).toBe('fast-skip');
   });
 
   it('kẹp tốc độ vào khoảng 1 đến 16', () => {

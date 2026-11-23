@@ -1,4 +1,4 @@
-export type YouTubeAdMode = 'fast-skip' | 'strict-defuser';
+export type YouTubeAdMode = 'auto' | 'fast-skip' | 'strict-defuser';
 
 export const YT_AD_MODE_STORAGE_KEY = 'yt_adf_ad_mode';
 export const YT_AD_MODE_MSG_TYPE = 'ADFILTER_YT_AD_MODE';
@@ -12,18 +12,20 @@ export interface Config {
   youtubeAdMode: YouTubeAdMode;
 }
 
-/** Mặc định tối ưu: can thiệp ngay (dry-run tắt), tua nhanh 16x, cho phép seek, Chế độ B chặn tuyệt đối tại nguồn YouTube. */
+/** Mặc định tối ưu: can thiệp ngay (dry-run tắt), tua nhanh 16x, cho phép seek, Chế độ Tự động thông minh (ưu tiên chặn tận gốc tại nguồn, tự lùi sang tải nhanh nếu bị SABR backoff). */
 export const defaultConfig: Config = {
   enabled: true,
   dryRun: false,
   maxSpeed: 16,
   allowSeek: true,
   telemetry: false,
-  youtubeAdMode: 'strict-defuser',
+  youtubeAdMode: 'auto',
 };
 
 export function normalizeYouTubeAdMode(raw: unknown): YouTubeAdMode {
-  return raw === 'strict-defuser' || raw === 'fast-skip' ? raw : defaultConfig.youtubeAdMode;
+  return raw === 'auto' || raw === 'strict-defuser' || raw === 'fast-skip'
+    ? raw
+    : defaultConfig.youtubeAdMode;
 }
 
 export interface StorageLike {
