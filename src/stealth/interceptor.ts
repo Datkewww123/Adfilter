@@ -139,7 +139,7 @@ export function purge(
   let modified = false;
 
   if (Array.isArray(obj)) {
-    if (depth <= 2) {
+    if (depth < 6) {
       for (const item of obj) {
         if (purge(item, depth + 1, mode)) modified = true;
       }
@@ -192,20 +192,22 @@ export function purge(
     }
   }
 
-  if (depth < 2) {
+  if (depth < 6) {
     for (const k of Object.keys(record)) {
       const val = record[k];
       if (val && typeof val === 'object') {
         if (purge(val, depth + 1, mode)) modified = true;
       }
     }
-  } else {
+  } else if (depth < 8) {
     for (const key of [
       'playerResponse',
       'watchNextResponse',
       'onResponseReceivedEndpoints',
+      'onResponseReceivedActions',
       'data',
       'response',
+      'contents',
     ]) {
       const val = record[key];
       if (val && typeof val === 'object') {
@@ -363,7 +365,12 @@ if (typeof window !== 'undefined') {
       if (this.responseType === '' || this.responseType === 'text') {
         return this.responseText;
       }
-      return super.response;
+      const raw = super.response;
+      const mode = getRuntimeYouTubeAdMode();
+      if (this.responseType === 'json' && isPlayerDataUrl(this._url) && raw && typeof raw === 'object') {
+        purge(raw, 0, mode);
+      }
+      return raw;
     }
   }
 

@@ -49,6 +49,8 @@ let done: ActionType[] = [];
 let breaker: Breaker = emptyBreaker();
 let lastSignals: Signals | null = null;
 let lastSoughtDuration: number | null = null;
+let lastSeekAttemptAt = 0;
+let seekAttemptsThisAd = 0;
 let lastCurrentTime = 0;
 
 const recorder = new Recorder();
@@ -180,15 +182,25 @@ function resumePlay(): void {
 
 function trySeekAdOnce(v: HTMLVideoElement): boolean {
   if (!cfg.allowSeek || !Number.isFinite(v.duration) || v.duration <= 0) return false;
+  // Chờ nạp metadata/frame hiện tại (readyState >= 2) mới tua để tránh bị MSE bỏ qua
+  if (v.readyState < 2) return false;
   const targetTime = Math.max(0, v.duration - 0.1);
   if (v.currentTime >= targetTime - 0.3) {
     lastSoughtDuration = v.duration;
     return false;
   }
-  if (lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5) {
+  const now = Date.now();
+  const sameDuration =
+    lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5;
+  if (sameDuration && (seekAttemptsThisAd >= 3 || now - lastSeekAttemptAt < 400)) {
     return false;
   }
+  if (!sameDuration) {
+    seekAttemptsThisAd = 0;
+  }
   lastSoughtDuration = v.duration;
+  lastSeekAttemptAt = now;
+  seekAttemptsThisAd++;
   v.currentTime = targetTime;
   return true;
 }
@@ -335,9 +347,10 @@ function planStep(s: Signals): void {
     if (switchedToNextAd) {
       done = [];
       lastSoughtDuration = null;
+      seekAttemptsThisAd = 0;
     }
 
-    if (v.currentTime >= v.duration - 0.2) {
+    if (v.currentTime >= v.duration - 0.2 || (v.paused && !v.ended && v.readyState >= 2)) {
       resumePlay();
     }
     if (Number.isFinite(v.currentTime)) {
@@ -345,13 +358,14 @@ function planStep(s: Signals): void {
     }
   }
 
-  // Ép giữ liên tục trạng thái tắt tiếng + tua tốc độ cao trong suốt cụm quảng cáo
-  if (v && (!v.muted || Math.abs(v.playbackRate - cfg.maxSpeed) > 0.01)) {
+  // Ép giữ liên tục trạng thái tắt tiếng + tua tốc độ phù hợp (tránh 16x gây đói buffer khi readyState == 2)
+  const targetAdRate = v && v.readyState < 3 ? Math.min(cfg.maxSpeed, 4) : cfg.maxSpeed;
+  if (v && (!v.muted || Math.abs(v.playbackRate - targetAdRate) > 0.01)) {
     done = done.filter((t) => t !== 'MUTE_SPEEDUP');
     if (!cfg.dryRun && cfg.enabled && canAct(breaker, s.t)) {
       actuator.noteBaseline();
       v.muted = true;
-      v.playbackRate = cfg.maxSpeed;
+      v.playbackRate = targetAdRate;
       actuator.touch();
     }
   }
@@ -407,6 +421,7 @@ function handle(s: Signals): void {
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
+      seekAttemptsThisAd = 0;
       lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
@@ -436,6 +451,7 @@ function handle(s: Signals): void {
       };
       done = [];
       lastSoughtDuration = null;
+      seekAttemptsThisAd = 0;
       lastCurrentTime = 0;
       actuator.restore();
 

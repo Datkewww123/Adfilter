@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sửa lỗi treo tua quảng cáo ngầm 8–15s trên YouTube SABR & cải thiện nhận diện trạng thái YouTube trên Popup:**
   - `src/content/playerObserver.ts` & `src/content/index.ts`: thêm `wasAdShowing` chỉ kích hoạt `onInstant` ở sườn lên `.ad-showing` và thêm `trySeekAdOnce()` chỉ thử tua `SEEK_TO_END` tối đa 1 lần mỗi quảng cáo (loại bỏ vòng lặp gán `v.currentTime` mỗi 250ms làm xóa buffer MSE và bỏ giới hạn `seekableEnd` ở `0ms`), đồng thời luôn bật Lớp 1 (`purge()` trong `src/stealth/interceptor.ts`) xóa sạch `adPlacements`/`playerAds`/`adSlots`/`adBreaks` ngay từ gói JSON nguồn ở cả Chế độ A lẫn Chế độ B để không còn quảng cáo phát ngầm phía sau màn hình đen.
   - `src/content/index.ts`, `src/popup/popup.ts` & `src/core/statusText.ts`: cho phép Popup truy vấn trực tiếp `GET_STATUS` từ tab YouTube đang mở và hiển thị trạng thái đúng theo tên miền (`www.youtube.com` vs các trang web khác).
+  - `src/stealth/interceptor.ts`, `src/stealth/defuser.ts` & `src/content/index.ts`: tăng độ sâu duyệt `purge()` lên `depth < 4` (tối đa `6` trên các key chứa response), bổ sung lọc `PatchedXHR` khi `responseType === 'json'`, bẫy thêm `ytplayer.bootstrapPlayerResponse` & toàn bộ cây `ytInitialData`, và sửa `trySeekAdOnce()` chỉ khóa `lastSoughtDuration` sau khi `v.readyState >= 2` (tối đa 3 lần thử) kèm tự động `resumePlay()` & điều chỉnh tốc độ tua (`4x` khi `readyState < 3`) để quảng cáo không bị treo buffer phía sau màn hình che đen.
 
 ## [3.1.4] - 2026-11-22
 

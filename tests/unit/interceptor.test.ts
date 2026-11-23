@@ -138,6 +138,33 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     expect(dirtyVod.adPlacements).toEqual([]);
   });
 
+  it('purge làm sạch adPlacements/adSlots lồng sâu trong get_watch hoặc onResponseReceivedActions', () => {
+    const deepPayload = [
+      {
+        response: {
+          playerResponse: {
+            adPlacements: [{ adPlacementRenderer: {} }],
+            adSlots: [{ adSlotRenderer: {} }],
+          },
+          onResponseReceivedActions: [
+            {
+              appendContinuationItemsAction: {
+                adSlots: [{ slot: 2 }],
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    expect(purge(deepPayload, 0, 'fast-skip')).toBe(true);
+    expect(deepPayload[0].response.playerResponse.adPlacements).toEqual([]);
+    expect(deepPayload[0].response.playerResponse.adSlots).toEqual([]);
+    expect(
+      deepPayload[0].response.onResponseReceivedActions[0].appendContinuationItemsAction.adSlots,
+    ).toEqual([]);
+  });
+
   it('isStreamingWatchUrl nhận diện riêng endpoint streaming /youtubei/v1/get_watch', () => {
     expect(isStreamingWatchUrl('https://www.youtube.com/youtubei/v1/get_watch?prettyPrint=false')).toBe(
       true,
