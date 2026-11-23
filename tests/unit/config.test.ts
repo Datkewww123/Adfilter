@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig, normalizeConfig } from '../../src/storage/config';
 
 describe('defaultConfig', () => {
-  it('mặc định tối ưu: dry-run tắt, cho phép seek, tốc độ 16x, chế độ fast-skip', () => {
+  it('mặc định tối ưu: dry-run tắt, cho phép seek, tốc độ 16x, chế độ strict-defuser (Chế độ B)', () => {
     expect(defaultConfig.dryRun).toBe(false);
     expect(defaultConfig.allowSeek).toBe(true);
     expect(defaultConfig.maxSpeed).toBe(16);
     expect(defaultConfig.telemetry).toBe(false);
-    expect(defaultConfig.youtubeAdMode).toBe('fast-skip');
+    expect(defaultConfig.youtubeAdMode).toBe('strict-defuser');
   });
 });
 

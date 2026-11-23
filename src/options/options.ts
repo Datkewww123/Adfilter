@@ -23,8 +23,8 @@ function renderYouTubeAdModeHint(mode: YouTubeAdMode): void {
   if (!youtubeAdModeHintEl) return;
   youtubeAdModeHintEl.textContent =
     mode === 'fast-skip'
-      ? 'Chế độ A (khuyến nghị): Che đen + tắt tiếng + tua hết QC video đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s (vẫn chặn 3rd-party DNR, /pagead/ & ad_break).'
-      : 'Chế độ B: Chặn tuyệt đối tại nguồn (không gửi ping /api/stats/ads 1st-party), nhưng server YouTube có thể giữ luồng video 4–8 giây ở từng video có QC.';
+      ? 'Chế độ A: Che đen + tắt tiếng + tua hết QC video đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s (vẫn chặn 3rd-party DNR, /pagead/ & ad_break).'
+      : 'Chế độ B (Mặc định / Khuyến nghị): Chặn tuyệt đối tại nguồn JSON (xóa trắng adPlacements/playerAds/adSlots trước khi trình phát đọc).';
 }
 
 const filterGlobalEl = document.getElementById('filterGlobalEnabled') as HTMLInputElement | null;

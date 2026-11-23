@@ -223,7 +223,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     setRuntimeYouTubeAdMode(readCachedYouTubeAdMode(fakeStorage));
     expect(getRuntimeYouTubeAdMode()).toBe('strict-defuser');
 
-    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định fast-skip
+    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định strict-defuser
     const throwingStorage = {
       getItem: () => {
         throw new Error('SecurityError');
@@ -233,7 +233,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       },
     };
     expect(() => writeCachedYouTubeAdMode('strict-defuser', throwingStorage)).not.toThrow();
-    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('fast-skip');
+    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('strict-defuser');
 
     const fakeWin = {};
     const otherWin = {};

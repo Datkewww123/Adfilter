@@ -17,7 +17,7 @@ const ytModeStatusEl = document.getElementById('ytModeStatus');
 const ytModeToggleBtn = document.getElementById('ytModeToggleBtn') as HTMLButtonElement | null;
 
 let currentHostname = '';
-let currentYtMode: YouTubeAdMode = 'fast-skip';
+let currentYtMode: YouTubeAdMode = 'strict-defuser';
 
 function renderYouTubeMode(mode: YouTubeAdMode): void {
   currentYtMode = mode;

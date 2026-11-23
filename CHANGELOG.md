@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.7] - 2026-11-23
+
+### Changed
+- **Đặt Chế độ B (`strict-defuser` — Chặn tuyệt đối tại nguồn) làm chế độ mặc định cho YouTube:**
+  - Cập nhật `defaultConfig.youtubeAdMode = 'strict-defuser'` trong `src/storage/config.ts`, `src/popup/popup.html`, `src/popup/popup.ts`, `src/options/options.html` và `src/options/options.ts` để người dùng cài mới mặc định chạy ngay Chế độ B (xóa trắng 100% `adPlacements`/`playerAds`/`adSlots` tại nguồn JSON, vào thẳng video gốc không nháy quảng cáo), đồng thời vẫn giữ nút chuyển sang Chế độ A (`fast-skip`) trên Popup khi cần.
+
 ## [3.1.6] - 2026-11-23
 
 ### Changed

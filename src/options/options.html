@@ -112,12 +112,12 @@
       <div class="row">
         <label for="youtubeAdMode">Chế độ xử lý quảng cáo YouTube</label>
         <select id="youtubeAdMode">
-          <option value="fast-skip">Chế độ A: Tải nhanh (Mặc định)</option>
-          <option value="strict-defuser">Chế độ B: Chặn tuyệt đối tại nguồn</option>
+          <option value="strict-defuser">Chế độ B: Chặn tuyệt đối tại nguồn (Mặc định)</option>
+          <option value="fast-skip">Chế độ A: Tải nhanh</option>
         </select>
       </div>
       <div class="note" id="youtubeAdModeHint" style="margin-bottom: 12px;">
-        Chế độ A che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s) và cho phép ping /api/stats/ads 1st-party để các video sau tải &lt;1s (vẫn chặn 3rd-party DNR &amp; /pagead/).
+        Chế độ B (Mặc định): Xóa trắng 100% adPlacements/adSlots/playerAds ngay tại nguồn JSON trước khi trình phát YouTube kịp đọc.
       </div>
       <div class="row">
         <label for="cosmeticEnabled">Lớp 2: Cosmetic (Ẩn banner/overlay)</label>

@@ -12,14 +12,14 @@ export interface Config {
   youtubeAdMode: YouTubeAdMode;
 }
 
-/** Mặc định tối ưu: can thiệp ngay (dry-run tắt), tua nhanh 16x, cho phép seek, Chế độ A tải nhanh YouTube. */
+/** Mặc định tối ưu: can thiệp ngay (dry-run tắt), tua nhanh 16x, cho phép seek, Chế độ B chặn tuyệt đối tại nguồn YouTube. */
 export const defaultConfig: Config = {
   enabled: true,
   dryRun: false,
   maxSpeed: 16,
   allowSeek: true,
   telemetry: false,
-  youtubeAdMode: 'fast-skip',
+  youtubeAdMode: 'strict-defuser',
 };
 
 export function normalizeYouTubeAdMode(raw: unknown): YouTubeAdMode {
