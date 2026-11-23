@@ -93,12 +93,11 @@ Khi đang ở bất kỳ trang web nào, bấm chuột trái vào biểu tượn
 | **Nút `Xuất nhật ký`** | Tải về máy file `adfilter-log-YYYY-MM-DD.json` chứa nhật ký hoạt động kỹ thuật cục bộ (dùng để kiểm tra hoặc đính kèm khi báo lỗi). |
 | **Nút `⚙️ Cài đặt Bộ lọc`** | Mở trang **Cài đặt nâng cao** trong tab mới (bật/tắt bộ lọc Quốc tế/Việt Nam, thêm link filter từ xa, viết quy tắc chặn tùy chỉnh, chỉnh tốc độ tua...). |
 
-#### 2.1. Cơ chế `Tự động thông minh` trên YouTube (Hợp nhất)
+#### 2.1. Chế độ xử lý quảng cáo trên YouTube (`Tải nhanh <1s` mặc định)
 
-AdFilter hợp nhất 2 cơ chế thành **1 chế độ `Tự động thông minh (auto)` mặc định**:
-1. **Bình thường (Chặn tuyệt đối tại nguồn):** Xóa trắng 100% dữ liệu quảng cáo (`adPlacements`, `playerAds`, `adSlots`, `adBreaks`) ngay trong gói JSON để trình phát vào thẳng video gốc, không nháy màn đen.
-2. **Tự thích ứng khi gặp SABR Backoff:** Nếu máy chủ YouTube trả tín hiệu phạt trì hoãn (`backoffTimeMs >= 3000ms`), hệ thống tự động lùi tạm sang cơ chế tua nhanh (`fast-skip`) trong phiên đó để video mở ngay không bị xoay vòng 4–8 giây.
-*(Bạn vẫn có thể ép cố định chế độ trong `⚙️ Cài đặt Bộ lọc` nếu muốn).*
+AdFilter chạy mặc định ở chế độ **`Tải nhanh (<1s)` (`fast-skip`)** chuẩn `v3.1.3`:
+1. **Tải nhanh `<1s` (Mặc định):** Bài đầu phiên lướt QC trong `~0.3s` (che màn đen + tắt tiếng + tua sạch QC), cho phép duy nhất gói tin 1st-party `/api/stats/ads` để toàn bộ các video chuyển tiếp sau đó sạch QC và mở ngay dưới `< 1 giây` (không bị máy chủ YouTube SABR phạt chờ 4–10 giây), đồng thời vẫn chặn 100% tên miền quảng cáo bên thứ 3, `/pagead/`, `ad_break` và quảng cáo Shorts.
+2. **Chặn tuyệt đối tại nguồn (`strict-defuser`):** Tùy chọn nâng cao trong `⚙️ Cài đặt Bộ lọc` dành cho ai muốn xóa trắng 100% dữ liệu quảng cáo ngay trong JSON (lưu ý: máy chủ YouTube SABR có thể giữ luồng chờ 4–10 giây khi chuyển bài).
 
 #### 2.2. Cách dùng công cụ `🎯 Chọn để xóa` (Xóa sạch quảng cáo còn sót)
 Nếu một trang web mới đổi mã nguồn khiến một khung banner hoặc hộp nổi còn sót lại trên màn hình:
@@ -137,7 +136,7 @@ Khi bấm **`⚙️ Cài đặt Bộ lọc`** trong Popup, trang cài đặt chi
   ```
 
 #### Nhóm 2: Cấu hình Trình phát Video (YouTube)
-- **Chế độ xử lý quảng cáo YouTube:** Chọn giữa **`Tự động thông minh (Mặc định)`**, **`Luôn chặn tuyệt đối tại nguồn (Chế độ B)`** và **`Luôn tải nhanh (Chế độ A)`**.
+- **Chế độ xử lý quảng cáo YouTube:** Chọn giữa **`Tải nhanh (<1s) — Mặc định`** và **`Chặn tuyệt đối tại nguồn (Strict Defuser)`**.
 - **Lớp 2 — Cosmetic (`Ẩn banner/overlay`):** Ẩn các khung quảng cáo tĩnh trên giao diện YouTube.
 - **Lớp 3 — Visual Mask (`Che mắt 0ms`):** Tự phủ lớp màn đen mịn trong tích tắc tua quảng cáo để mắt bạn không thấy khung hình quảng cáo nháy lên.
 - **Lớp 4 — Fast-Seek (`Tua 16x dự phòng`):** Tự động tắt tiếng và đẩy tốc độ/thời gian quảng cáo về cuối ngay khi phát hiện luồng quảng cáo.
@@ -271,7 +270,7 @@ pnpm install
 # Biên dịch bộ lọc ABP/uBO -> DNR JSON + Cosmetic/Scriptlet Index
 pnpm compile:filters
 
-# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 404 Unit Tests + Quality Gate Eval + Multi-target Build)
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 403 Unit Tests + Quality Gate Eval + Multi-target Build)
 pnpm verify:all
 
 # Đóng gói bản Dev và chạy 13 kịch bản kiểm thử đầu cuối Playwright E2E
@@ -307,7 +306,7 @@ pnpm --dir server test
   - **Tuần 1–20:** Kiến trúc Pure Core YouTube, Circuit Breaker, Canary Observability & AWS Terraform CD.
   - **Tuần 21–25:** Mở rộng Universal Web (Anti-Popup, IAB Heuristic, VAST Interceptor, Element Picker, Vietnamese Manga Shield).
   - **Tuần 26–29 (`v3.0.0`):** Nâng cấp thành **Brave-Style Universal Engine** (Filter Compiler `filters/*.txt`, `noop.*` Redirects, Scriptlet Engine `+js`, `attachShadow` Shield, Procedural Engine `:has-text`/`:upward`, Dynamic DNR & Remote Filter Updater, tách làn an toàn YouTube).
-  - **Tuần 30 & các bản vá (`v3.1.0` – `v3.1.8`):** Universal Movie Shield (iframe player, anti-popunder, pause-ad), nhận diện banner cờ bạc mọi web phim, Zero-Flash, tự đóng tab popunder, cô lập `#movie_player`, hợp nhất chế độ `Tự động thông minh (auto)` (mặc định chặn tuyệt đối tại nguồn JSON + chống sập `O(1)` SABR check + tự phục hồi pause ngầm), cách ly khung xác thực bảo mật, siết regex chống chặn nhầm ChatGPT / OAuth / URL hợp lệ, tích hợp logo Adfilter + chuẩn hóa Chrome Web Store, và sửa lỗi lag Livestream `tryLiveHead()`.
+  - **Tuần 30 & các bản vá (`v3.1.0` – `v3.1.8`):** Universal Movie Shield (iframe player, anti-popunder, pause-ad), nhận diện banner cờ bạc mọi web phim, Zero-Flash, tự đóng tab popunder, cô lập `#movie_player`, mặc định `fast-skip` tải nhanh YouTube `<1s` chuẩn `v3.1.3` (kèm bảo vệ `try/catch` chống sập, tự phục hồi pause ngầm, tùy chọn `strict-defuser` trong Cài đặt), cách ly khung xác thực bảo mật, siết regex chống chặn nhầm ChatGPT / OAuth / URL hợp lệ, tích hợp logo Adfilter + chuẩn hóa Chrome Web Store, và sửa lỗi lag Livestream `tryLiveHead()`.
 - **Bảo mật & Quyền truy cập:** Xem chi tiết tại **[SECURITY.md](SECURITY.md)** và **[docs/notes/permissions-review.md](docs/notes/permissions-review.md)**.
 
 ---

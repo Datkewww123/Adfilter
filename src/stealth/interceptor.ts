@@ -9,36 +9,13 @@ import {
 const nativeJSONParse = JSON.parse;
 
 let runtimeYouTubeAdMode: YouTubeAdMode = readCachedYouTubeAdMode();
-let sabrBackoffFallbackActive = false;
-
-export const SABR_BACKOFF_THRESHOLD_MS = 3000;
 
 export function getRuntimeYouTubeAdMode(): YouTubeAdMode {
   return runtimeYouTubeAdMode;
 }
 
-export function isSabrBackoffFallbackActive(): boolean {
-  return sabrBackoffFallbackActive;
-}
-
-export function resetSabrBackoffFallback(): void {
-  sabrBackoffFallbackActive = false;
-}
-
-export function getEffectiveYouTubeAdMode(
-  mode: YouTubeAdMode = runtimeYouTubeAdMode,
-): 'strict-defuser' | 'fast-skip' {
-  if (mode === 'fast-skip') return 'fast-skip';
-  if (mode === 'strict-defuser') return 'strict-defuser';
-  return sabrBackoffFallbackActive ? 'fast-skip' : 'strict-defuser';
-}
-
 export function setRuntimeYouTubeAdMode(mode: unknown): void {
-  const next = normalizeYouTubeAdMode(mode);
-  if (next !== runtimeYouTubeAdMode && next === 'auto') {
-    sabrBackoffFallbackActive = false;
-  }
-  runtimeYouTubeAdMode = next;
+  runtimeYouTubeAdMode = normalizeYouTubeAdMode(mode);
 }
 
 export function handleYouTubeAdModeMessage(
@@ -90,10 +67,10 @@ const FAST_SKIP_SIGNAL_HINT_REGEX = /RemarketingUrl|reelWatchEndpoint/;
 
 export function containsAdSignalText(
   text: string,
-  mode: YouTubeAdMode = 'auto',
+  mode: YouTubeAdMode = 'strict-defuser',
 ): boolean {
   if (text.length < 16) return false;
-  return getEffectiveYouTubeAdMode(mode) === 'fast-skip'
+  return mode === 'fast-skip'
     ? FAST_SKIP_SIGNAL_HINT_REGEX.test(text)
     : AD_SIGNAL_HINT_REGEX.test(text);
 }
@@ -129,10 +106,10 @@ function isFirstPartyYouTubeStatsAdsUrl(url: string): boolean {
   }
 }
 
-export function isAdNetworkUrl(url: string, mode: YouTubeAdMode = 'auto'): boolean {
-  // Ở chế độ fast-skip (hoặc khi auto đang né SABR backoff), giữ nguyên chặn mọi 3rd-party, /pagead/ và /player/ad_break;
-  // chỉ cho phép ping 1st-party /api/stats/ads của youtube.com để YouTube ghi nhận phiên và miễn QC các video sau.
-  if (getEffectiveYouTubeAdMode(mode) === 'fast-skip' && isFirstPartyYouTubeStatsAdsUrl(url)) {
+export function isAdNetworkUrl(url: string, mode: YouTubeAdMode = 'strict-defuser'): boolean {
+  // Ở chế độ fast-skip (Mặc định), giữ nguyên chặn mọi 3rd-party, /pagead/ và /player/ad_break;
+  // chỉ cho phép ping 1st-party /api/stats/ads của youtube.com để YouTube ghi nhận phiên và mở video kế tiếp <1s.
+  if (mode === 'fast-skip' && isFirstPartyYouTubeStatsAdsUrl(url)) {
     return false;
   }
   return AD_NETWORK_BLOCK_PATTERNS.some((pattern) => url.includes(pattern));
@@ -156,69 +133,10 @@ export function isStreamingWatchUrl(url: string): boolean {
   return !isAdNetworkUrl(url) && url.includes('/youtubei/v1/get_watch');
 }
 
-function parseBackoffMs(raw: unknown): number {
-  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
-  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw);
-  return 0;
-}
-
-function readKnownSabrBackoff(target: unknown): number {
-  if (target == null || typeof target !== 'object') return 0;
-  try {
-    const rec = target as Record<string, any>;
-    let maxMs = 0;
-    maxMs = Math.max(maxMs, parseBackoffMs(rec.nextRequestPolicy?.backoffTimeMs));
-    maxMs = Math.max(
-      maxMs,
-      parseBackoffMs(
-        rec.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.nextRequestPolicy
-          ?.backoffTimeMs,
-      ),
-    );
-    maxMs = Math.max(maxMs, parseBackoffMs(rec.streamingData?.nextRequestPolicy?.backoffTimeMs));
-    return maxMs;
-  } catch {
-    return 0;
-  }
-}
-
-export function inspectSabrBackoff(obj: unknown): number {
-  if (obj == null || typeof obj !== 'object') return 0;
-  try {
-    if (typeof Node !== 'undefined' && obj instanceof Node) return 0;
-    if (typeof Window !== 'undefined' && obj instanceof Window) return 0;
-
-    if (Array.isArray(obj)) {
-      let maxMs = 0;
-      const limit = Math.min(obj.length, 8);
-      for (let i = 0; i < limit; i++) {
-        const item = obj[i];
-        maxMs = Math.max(maxMs, readKnownSabrBackoff(item));
-        if (item && typeof item === 'object') {
-          maxMs = Math.max(
-            maxMs,
-            readKnownSabrBackoff((item as Record<string, unknown>).playerResponse),
-          );
-        }
-      }
-      return maxMs;
-    }
-
-    const rec = obj as Record<string, unknown>;
-    let maxMs = readKnownSabrBackoff(rec);
-    maxMs = Math.max(maxMs, readKnownSabrBackoff(rec.playerResponse));
-    maxMs = Math.max(maxMs, readKnownSabrBackoff(rec.response));
-    maxMs = Math.max(maxMs, readKnownSabrBackoff(rec.data));
-    return maxMs;
-  } catch {
-    return 0;
-  }
-}
-
 export function purge(
   obj: unknown,
   depth = 0,
-  mode: YouTubeAdMode = 'auto',
+  mode: YouTubeAdMode = 'strict-defuser',
 ): boolean {
   if (obj == null || typeof obj !== 'object') return false;
   try {
@@ -228,27 +146,22 @@ export function purge(
     return false;
   }
 
-  if (depth === 0 && mode === 'auto' && !sabrBackoffFallbackActive) {
-    if (inspectSabrBackoff(obj) >= SABR_BACKOFF_THRESHOLD_MS) {
-      sabrBackoffFallbackActive = true;
-    }
-  }
-  const effectiveMode = getEffectiveYouTubeAdMode(mode);
   let modified = false;
 
   if (Array.isArray(obj)) {
     if (depth <= 2) {
       for (const item of obj) {
-        if (purge(item, depth + 1, effectiveMode)) modified = true;
+        if (purge(item, depth + 1, mode)) modified = true;
       }
     }
     return modified;
   }
 
   const record = obj as Record<string, unknown>;
-  // Ở chế độ strict-defuser, xóa trắng adPlacements/playerAds/adSlots/adBreaks tại nguồn JSON.
-  // Khi tự động hạ cấp sang fast-skip (hoặc ép fast-skip), giữ lại để né SABR backoff và xử lý qua VisualMask + tua/skip.
-  if (effectiveMode === 'strict-defuser') {
+  // Ở chế độ fast-skip (Mặc định), giữ nguyên adPlacements/playerAds/adSlots/adBreaks để video đầu
+  // lướt qua nhanh bằng VisualMask + tua/skip (~0.3s) và các video kế tiếp trong phiên mở <1s (không bị phạt SABR 4-10s).
+  // Ở chế độ strict-defuser, xóa trắng toàn bộ adPlacements/playerAds/adSlots/adBreaks tại nguồn JSON.
+  if (mode === 'strict-defuser') {
     for (const key of AD_KEYS) {
       try {
         if (key in record) {
@@ -309,7 +222,7 @@ export function purge(
       try {
         const val = record[k];
         if (val && typeof val === 'object') {
-          if (purge(val, depth + 1, effectiveMode)) modified = true;
+          if (purge(val, depth + 1, mode)) modified = true;
         }
       } catch {}
     }
@@ -324,7 +237,7 @@ export function purge(
       try {
         const val = record[key];
         if (val && typeof val === 'object') {
-          if (purge(val, depth + 1, effectiveMode)) modified = true;
+          if (purge(val, depth + 1, mode)) modified = true;
         }
       } catch {}
     }

@@ -2,16 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   containsAdSignalText,
   extractRequestUrl,
-  getEffectiveYouTubeAdMode,
   getRuntimeYouTubeAdMode,
   handleYouTubeAdModeMessage,
-  inspectSabrBackoff,
   isAdNetworkUrl,
   isPlayerDataUrl,
-  isSabrBackoffFallbackActive,
   isStreamingWatchUrl,
   purge,
-  resetSabrBackoffFallback,
   setRuntimeYouTubeAdMode,
 } from '../../src/stealth/interceptor';
 import {
@@ -227,7 +223,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     setRuntimeYouTubeAdMode(readCachedYouTubeAdMode(fakeStorage));
     expect(getRuntimeYouTubeAdMode()).toBe('strict-defuser');
 
-    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định auto
+    // Khi storage bị chặn (about:blank), luôn fallback an toàn về mặc định fast-skip
     const throwingStorage = {
       getItem: () => {
         throw new Error('SecurityError');
@@ -237,7 +233,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       },
     };
     expect(() => writeCachedYouTubeAdMode('strict-defuser', throwingStorage)).not.toThrow();
-    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('auto');
+    expect(readCachedYouTubeAdMode(throwingStorage)).toBe('fast-skip');
 
     const fakeWin = {};
     const otherWin = {};
@@ -254,53 +250,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     expect(getRuntimeYouTubeAdMode()).toBe('fast-skip');
   });
 
-  it('chế độ hợp nhất auto mặc định chạy strict-defuser và tự lùi sang fast-skip khi gặp SABR backoff', () => {
-    resetSabrBackoffFallback();
-    expect(isSabrBackoffFallbackActive()).toBe(false);
-    expect(getEffectiveYouTubeAdMode('auto')).toBe('strict-defuser');
-    expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'auto')).toBe(true);
-
-    const normalPayload = {
-      adPlacements: [{ adPlacementRenderer: {} }],
-      adSlots: [{ slot: 1 }],
-    };
-    expect(purge(normalPayload, 0, 'auto')).toBe(true);
-    expect(normalPayload.adPlacements).toHaveLength(0);
-    expect(normalPayload.adSlots).toHaveLength(0);
-    expect(isSabrBackoffFallbackActive()).toBe(false);
-
-    const backoffPayload = {
-      playerConfig: {
-        mediaCommonConfig: {
-          mediaUstreamerRequestConfig: {
-            nextRequestPolicy: { backoffTimeMs: 4500 },
-          },
-        },
-      },
-      adPlacements: [{ adPlacementRenderer: {} }],
-    };
-    expect(inspectSabrBackoff(backoffPayload)).toBe(4500);
-    purge(backoffPayload, 0, 'auto');
-    expect(isSabrBackoffFallbackActive()).toBe(true);
-    expect(getEffectiveYouTubeAdMode('auto')).toBe('fast-skip');
-    expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'auto')).toBe(false);
-
-    const nextPayload = {
-      adPlacements: [{ adPlacementRenderer: {} }],
-      playbackTracking: {
-        googleRemarketingUrl: { baseUrl: 'https://www.google.com/pagead/1p-user-list/' },
-      },
-    };
-    expect(purge(nextPayload, 0, 'auto')).toBe(true);
-    expect(nextPayload.adPlacements).toHaveLength(1);
-    expect(nextPayload.playbackTracking.googleRemarketingUrl).toBeUndefined();
-
-    resetSabrBackoffFallback();
-    expect(getEffectiveYouTubeAdMode('auto')).toBe('strict-defuser');
-  });
-
-  it('inspectSabrBackoff và purge không treo hay ném lỗi trên object vòng lặp, getter lỗi hoặc Object.freeze', () => {
-    resetSabrBackoffFallback();
+  it('purge không treo hay ném lỗi trên object vòng lặp, getter lỗi hoặc Object.freeze', () => {
     const cyclic: Record<string, unknown> = { adPlacements: [{ id: 1 }] };
     for (let i = 0; i < 12; i++) cyclic[`ref${i}`] = cyclic;
     Object.defineProperty(cyclic, 'brokenGetter', {
@@ -309,12 +259,10 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
         throw new Error('SecurityError');
       },
     });
-    expect(() => inspectSabrBackoff(cyclic)).not.toThrow();
-    expect(inspectSabrBackoff(cyclic)).toBe(0);
-    expect(() => purge(cyclic, 0, 'auto')).not.toThrow();
+    expect(() => purge(cyclic, 0, 'strict-defuser')).not.toThrow();
     expect(cyclic.adPlacements).toEqual([]);
 
     const frozen = Object.freeze({ adPlacements: [{ id: 1 }], adBreakParams: 'x' });
-    expect(() => purge(frozen, 0, 'auto')).not.toThrow();
+    expect(() => purge(frozen, 0, 'strict-defuser')).not.toThrow();
   });
 });
