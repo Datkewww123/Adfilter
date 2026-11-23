@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.8] - 2026-11-24
+
+### Fixed
+- **Sửa lỗi không lên nổi video YouTube (màn hình cột trái trống trơn) trên `v3.1.7` (`inspectSabrBackoff` & `purge`):**
+  - Thay thế hàm `inspectSabrBackoff()` trong `src/stealth/interceptor.ts` từ duyệt đệ quy 6 tầng không bảo vệ sang tra cứu trực tiếp `O(1)` đúng nhánh `playerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.nextRequestPolicy.backoffTimeMs`, loại bỏ hoàn toàn nguy cơ treo luồng chính hoặc ném lỗi trên các object sống của YouTube (`ytcfg`, `ytplayer.config`, `Response.prototype.json()`).
+  - Bọc `try/catch` toàn diện và loại trừ `Node`/`Window` cho `purge()` trong `src/stealth/interceptor.ts` và `src/stealth/defuser.ts` để mọi object đóng băng (`Object.freeze`) hay getter lỗi tuyệt đối không bao giờ làm sập script khởi tạo trình phát video.
+- **Sửa lỗi video YouTube tự bị Pause ngầm (Mix/Playlist hoặc sau khi gỡ hộp thoại Enforcement):**
+  - `src/stealth/defuser.ts`: bổ sung `resumeAfterPopup()` gọi `playViaPlayer()` (ngay lập tức + kiểm tra lại sau `250ms`) ngay khi `removeInterruptionPopups()` gỡ `ytd-enforcement-message-view-model`.
+  - `src/stealth/defuser.ts`: nâng cấp listener `pause` trong `attachPlaybackGuard()` bổ sung 2 nhịp kiểm tra phục hồi an toàn ở `250ms` và `700ms` (hủy ngay nếu người dùng tự bấm Space/Click pause trong `1200ms`) khi YouTube tự pause lúc `readyState < 2` hoặc đang buffering (`playerState === 3`).
+
 ## [3.1.7] - 2026-11-23
 
 ### Changed

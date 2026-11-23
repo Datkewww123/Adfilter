@@ -156,32 +156,63 @@ export function isStreamingWatchUrl(url: string): boolean {
   return !isAdNetworkUrl(url) && url.includes('/youtubei/v1/get_watch');
 }
 
-export function inspectSabrBackoff(obj: unknown, depth = 0): number {
-  if (obj == null || typeof obj !== 'object' || depth > 5) return 0;
-  if (Array.isArray(obj)) {
+function parseBackoffMs(raw: unknown): number {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw);
+  return 0;
+}
+
+function readKnownSabrBackoff(target: unknown): number {
+  if (target == null || typeof target !== 'object') return 0;
+  try {
+    const rec = target as Record<string, any>;
     let maxMs = 0;
-    for (const item of obj) {
-      const ms = inspectSabrBackoff(item, depth + 1);
-      if (ms > maxMs) maxMs = ms;
-    }
+    maxMs = Math.max(maxMs, parseBackoffMs(rec.nextRequestPolicy?.backoffTimeMs));
+    maxMs = Math.max(
+      maxMs,
+      parseBackoffMs(
+        rec.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.nextRequestPolicy
+          ?.backoffTimeMs,
+      ),
+    );
+    maxMs = Math.max(maxMs, parseBackoffMs(rec.streamingData?.nextRequestPolicy?.backoffTimeMs));
     return maxMs;
+  } catch {
+    return 0;
   }
-  const record = obj as Record<string, unknown>;
-  let maxMs = 0;
-  const rawBackoff = record.backoffTimeMs;
-  if (typeof rawBackoff === 'number' && Number.isFinite(rawBackoff)) {
-    maxMs = Math.max(maxMs, rawBackoff);
-  } else if (typeof rawBackoff === 'string' && /^\d+$/.test(rawBackoff)) {
-    maxMs = Math.max(maxMs, Number(rawBackoff));
-  }
-  for (const key of Object.keys(record)) {
-    const val = record[key];
-    if (val && typeof val === 'object') {
-      const ms = inspectSabrBackoff(val, depth + 1);
-      if (ms > maxMs) maxMs = ms;
+}
+
+export function inspectSabrBackoff(obj: unknown): number {
+  if (obj == null || typeof obj !== 'object') return 0;
+  try {
+    if (typeof Node !== 'undefined' && obj instanceof Node) return 0;
+    if (typeof Window !== 'undefined' && obj instanceof Window) return 0;
+
+    if (Array.isArray(obj)) {
+      let maxMs = 0;
+      const limit = Math.min(obj.length, 8);
+      for (let i = 0; i < limit; i++) {
+        const item = obj[i];
+        maxMs = Math.max(maxMs, readKnownSabrBackoff(item));
+        if (item && typeof item === 'object') {
+          maxMs = Math.max(
+            maxMs,
+            readKnownSabrBackoff((item as Record<string, unknown>).playerResponse),
+          );
+        }
+      }
+      return maxMs;
     }
+
+    const rec = obj as Record<string, unknown>;
+    let maxMs = readKnownSabrBackoff(rec);
+    maxMs = Math.max(maxMs, readKnownSabrBackoff(rec.playerResponse));
+    maxMs = Math.max(maxMs, readKnownSabrBackoff(rec.response));
+    maxMs = Math.max(maxMs, readKnownSabrBackoff(rec.data));
+    return maxMs;
+  } catch {
+    return 0;
   }
-  return maxMs;
 }
 
 export function purge(
@@ -190,6 +221,13 @@ export function purge(
   mode: YouTubeAdMode = 'auto',
 ): boolean {
   if (obj == null || typeof obj !== 'object') return false;
+  try {
+    if (typeof Node !== 'undefined' && obj instanceof Node) return false;
+    if (typeof Window !== 'undefined' && obj instanceof Window) return false;
+  } catch {
+    return false;
+  }
+
   if (depth === 0 && mode === 'auto' && !sabrBackoffFallbackActive) {
     if (inspectSabrBackoff(obj) >= SABR_BACKOFF_THRESHOLD_MS) {
       sabrBackoffFallbackActive = true;
@@ -212,54 +250,68 @@ export function purge(
   // Khi tự động hạ cấp sang fast-skip (hoặc ép fast-skip), giữ lại để né SABR backoff và xử lý qua VisualMask + tua/skip.
   if (effectiveMode === 'strict-defuser') {
     for (const key of AD_KEYS) {
-      if (key in record) {
-        const val = record[key];
-        if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-          const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
-          if (!Array.isArray(val) || val.length > 0) {
-            record[key] = [];
+      try {
+        if (key in record) {
+          const val = record[key];
+          if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+            const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
+            if (!Array.isArray(val) || val.length > 0) {
+              record[key] = [];
+            }
+            if (hadAds) modified = true;
+          } else {
+            delete record[key];
+            modified = true;
           }
-          if (hadAds) modified = true;
-        } else {
-          delete record[key];
-          modified = true;
         }
-      }
+      } catch {}
     }
   }
 
   // Xóa endpoint remarketing gây redirect 302 + CORS error mà giữ nguyên lịch sử xem
-  const pt = record.playbackTracking;
-  if (pt && typeof pt === 'object' && !Array.isArray(pt)) {
-    const ptRecord = pt as Record<string, unknown>;
-    if ('googleRemarketingUrl' in ptRecord) {
-      delete ptRecord.googleRemarketingUrl;
-      modified = true;
+  try {
+    const pt = record.playbackTracking;
+    if (pt && typeof pt === 'object' && !Array.isArray(pt)) {
+      const ptRecord = pt as Record<string, unknown>;
+      if ('googleRemarketingUrl' in ptRecord) {
+        delete ptRecord.googleRemarketingUrl;
+        modified = true;
+      }
+      if ('youtubeRemarketingUrl' in ptRecord) {
+        delete ptRecord.youtubeRemarketingUrl;
+        modified = true;
+      }
     }
-    if ('youtubeRemarketingUrl' in ptRecord) {
-      delete ptRecord.youtubeRemarketingUrl;
-      modified = true;
-    }
-  }
+  } catch {}
 
   // Triệt tiêu cả entries trong response của Shorts
-  if (Array.isArray(record.entries)) {
-    const origLen = record.entries.length;
-    const filtered = record.entries.filter(
-      (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
-    );
-    if (filtered.length < origLen) {
-      record.entries = filtered;
-      modified = true;
+  try {
+    if (Array.isArray(record.entries)) {
+      const origLen = record.entries.length;
+      const filtered = record.entries.filter(
+        (entry: any) => !entry?.command?.reelWatchEndpoint?.ad,
+      );
+      if (filtered.length < origLen) {
+        record.entries = filtered;
+        modified = true;
+      }
     }
-  }
+  } catch {}
 
   if (depth < 2) {
-    for (const k of Object.keys(record)) {
-      const val = record[k];
-      if (val && typeof val === 'object') {
-        if (purge(val, depth + 1, effectiveMode)) modified = true;
-      }
+    let keys: string[] = [];
+    try {
+      keys = Object.keys(record);
+    } catch {
+      keys = [];
+    }
+    for (const k of keys) {
+      try {
+        const val = record[k];
+        if (val && typeof val === 'object') {
+          if (purge(val, depth + 1, effectiveMode)) modified = true;
+        }
+      } catch {}
     }
   } else {
     for (const key of [
@@ -269,10 +321,12 @@ export function purge(
       'data',
       'response',
     ]) {
-      const val = record[key];
-      if (val && typeof val === 'object') {
-        if (purge(val, depth + 1, effectiveMode)) modified = true;
-      }
+      try {
+        const val = record[key];
+        if (val && typeof val === 'object') {
+          if (purge(val, depth + 1, effectiveMode)) modified = true;
+        }
+      } catch {}
     }
   }
 
@@ -356,7 +410,9 @@ if (typeof window !== 'undefined') {
     const origJson = Response.prototype.json;
     async function patchedResponseJson(this: Response): Promise<unknown> {
       const data = await origJson.call(this);
-      purge(data, 0, getRuntimeYouTubeAdMode());
+      try {
+        purge(data, 0, getRuntimeYouTubeAdMode());
+      } catch {}
       return data;
     }
     Response.prototype.json = disguise(patchedResponseJson, origJson);

@@ -298,4 +298,23 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     resetSabrBackoffFallback();
     expect(getEffectiveYouTubeAdMode('auto')).toBe('strict-defuser');
   });
+
+  it('inspectSabrBackoff và purge không treo hay ném lỗi trên object vòng lặp, getter lỗi hoặc Object.freeze', () => {
+    resetSabrBackoffFallback();
+    const cyclic: Record<string, unknown> = { adPlacements: [{ id: 1 }] };
+    for (let i = 0; i < 12; i++) cyclic[`ref${i}`] = cyclic;
+    Object.defineProperty(cyclic, 'brokenGetter', {
+      enumerable: true,
+      get() {
+        throw new Error('SecurityError');
+      },
+    });
+    expect(() => inspectSabrBackoff(cyclic)).not.toThrow();
+    expect(inspectSabrBackoff(cyclic)).toBe(0);
+    expect(() => purge(cyclic, 0, 'auto')).not.toThrow();
+    expect(cyclic.adPlacements).toEqual([]);
+
+    const frozen = Object.freeze({ adPlacements: [{ id: 1 }], adBreakParams: 'x' });
+    expect(() => purge(frozen, 0, 'auto')).not.toThrow();
+  });
 });

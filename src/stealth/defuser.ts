@@ -39,7 +39,12 @@ if (!isLocalTest) {
   const DEFUSED_THROTTLE_MS = 2000;
 
   function purge(obj: unknown): boolean {
-    const removed = purgeAdPayload(obj, 0, getRuntimeYouTubeAdMode());
+    let removed = false;
+    try {
+      removed = purgeAdPayload(obj, 0, getRuntimeYouTubeAdMode());
+    } catch {
+      return false;
+    }
     if (removed && typeof window !== 'undefined') {
       const now = Date.now();
       if (now - _lastDefusedAt >= DEFUSED_THROTTLE_MS) {
@@ -311,7 +316,23 @@ if (!isLocalTest) {
       }
     }
 
-    if (removedEnforcement) releaseScrollLockIfSafe(document);
+    function resumeAfterPopup(reason: string): void {
+      const tryResume = () => {
+        if (isRecentUserPauseGesture(1200)) return;
+        const v = document.querySelector<HTMLVideoElement>('#movie_player video, video');
+        if (!v || !isWatchPlayerVideo(v) || !v.paused || v.ended || v.readyState < 2) return;
+        const player = getPlayer(v);
+        if (isAdShowing(player)) return;
+        playViaPlayer(player, v, reason);
+      };
+      tryResume();
+      window.setTimeout(tryResume, 250);
+    }
+
+    if (removedEnforcement) {
+      releaseScrollLockIfSafe(document);
+      resumeAfterPopup('after-enforcement');
+    }
 
     for (const el of candidates) {
       if (
@@ -331,10 +352,7 @@ if (!isLocalTest) {
         text.includes('trình chặn')
       ) {
         el.remove();
-        const v = document.querySelector<HTMLVideoElement>('#movie_player video, video');
-        if (v && v.paused && !v.ended && v.readyState >= 3) {
-          playViaPlayer(getPlayer(v), v, 'after-popup');
-        }
+        resumeAfterPopup('after-popup');
       }
     }
   }
@@ -565,8 +583,15 @@ if (!isLocalTest) {
       if (!isWatchPlayerVideo(video)) return;
       (video as any)._adfPlaybackGuard = true;
 
+      let resumeTimers: number[] = [];
+      const clearResumeTimers = () => {
+        for (const id of resumeTimers) window.clearTimeout(id);
+        resumeTimers = [];
+      };
+
       video.addEventListener('loadstart', () => {
         if (!isWatchPlayerVideo(video)) return;
+        clearResumeTimers();
         resetCycle('loadstart');
       });
       video.addEventListener('loadeddata', () => tryStartupAutoplay(video));
@@ -579,39 +604,46 @@ if (!isLocalTest) {
       video.addEventListener('canplaythrough', () => tryStartupAutoplay(video));
       video.addEventListener('playing', () => {
         if (!isWatchPlayerVideo(video)) return;
+        clearResumeTimers();
         dbg('playing', video);
         if (isYouTubeLivePlayer(getPlayer(video))) tryLiveHead(video);
       });
 
-      // Pause ngầm (do YouTube tự dừng lúc load, do buffer, hoặc do ad break):
+      // Pause ngầm (do YouTube tự dừng lúc load, do buffer, chuyển bài Mix/Playlist, hoặc do enforcement):
       // Tự động khôi phục playback nếu KHÔNG CÓ cử chỉ Pause thật của người dùng trong 1.2s qua.
       video.addEventListener('pause', () => {
         if (!isWatchPlayerVideo(video)) return;
+        clearResumeTimers();
         const isUserPause = isRecentUserPauseGesture(1200);
         dbg('pause', video, { userGesture: isUserPause });
         if (video.ended || isUserPause) return; // Người dùng chủ động pause -> Tôn trọng tuyệt đối
-        if (video.readyState < 2) return; // Tránh ép play trước khi MediaSource nạp đủ khung hình
 
         let handled = false;
-        const resumeNow = () => {
+        const resumeNow = (reason: string) => {
           if (handled) return;
           if (!isWatchPlayerVideo(video)) return;
           const player = getPlayer(video);
           if (!video.paused || video.ended || video.readyState < 2) return;
           const playerState =
             player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
-          if (playerState === 3) return; // Player đang BUFFERING ở 0:00, không ngắt nhịp nạp stream
+          if (playerState === 3) return; // Player đang BUFFERING ở 0:00, chờ nhịp sau thay vì ép cắt luồng
           if (isAdShowing(player) || isRecentUserPauseGesture(1200)) return;
           handled = true;
-          playViaPlayer(player, video, 'auto-resume-0ms');
+          clearResumeTimers();
+          playViaPlayer(player, video, reason);
         };
-        if (typeof queueMicrotask === 'function') {
-          queueMicrotask(resumeNow);
+        if (video.readyState >= 2) {
+          if (typeof queueMicrotask === 'function') {
+            queueMicrotask(() => resumeNow('auto-resume-0ms'));
+          }
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => resumeNow('auto-resume-0ms'));
+          }
+          resumeTimers.push(window.setTimeout(() => resumeNow('auto-resume-0ms'), 0));
         }
-        if (typeof requestAnimationFrame === 'function') {
-          requestAnimationFrame(resumeNow);
-        }
-        window.setTimeout(resumeNow, 0);
+        // Nhịp kiểm tra trễ khi pause xảy ra lúc readyState < 2 hoặc đang BUFFERING (playerState === 3)
+        resumeTimers.push(window.setTimeout(() => resumeNow('auto-resume-250ms'), 250));
+        resumeTimers.push(window.setTimeout(() => resumeNow('auto-resume-700ms'), 700));
       });
 
       // Video đã nạp sẵn từ trước khi gắn listener
