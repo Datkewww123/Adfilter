@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.6] - 2026-11-23
+
+### Fixed
+- **Sửa lỗi vào Livestream YouTube bị đứng/lag 15–20 giây (`tryLiveHead`):**
+  - Cập nhật `tryLiveHead()` trong `src/stealth/defuser.ts`: thêm chốt `if (video.currentTime > 1.5) { _liveHeadDone = true; return; }` để chỉ tua về live head khi đầu phát thực sự kẹt ở đầu DVR (`0..1.5s`), tránh xóa bộ đệm 4–6s của YouTube khi mới vào live.
+  - Nâng ngưỡng `edge > 10` cho nhánh `seekToStreamTime` / fallback và lùi an toàn về `edge - 3` (thay vì `edge - 0.5`).
+
 ## [3.1.5] - 2026-11-22
 
 ### Added
@@ -32,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sửa lỗi treo tua quảng cáo ngầm 8–15s trên YouTube SABR & cải thiện nhận diện trạng thái YouTube trên Popup:**
   - `src/content/playerObserver.ts` & `src/content/index.ts`: thêm `wasAdShowing` chỉ kích hoạt `onInstant` ở sườn lên `.ad-showing` và thêm `trySeekAdOnce()` chỉ thử tua `SEEK_TO_END` tối đa 3 lần khi `readyState >= 2` (loại bỏ vòng lặp gán `v.currentTime` mỗi 250ms làm xóa buffer MSE), giữ riêng `Chế độ A (fast-skip)` cho phép lướt QC đầu phiên ~0.3–1s để các video sau mở `<1s` không bị phạt 6–7s SABR, còn `Chế độ B (strict-defuser)` xóa trắng `adPlacements`/`adSlots` tại nguồn JSON.
   - `src/content/index.ts`, `src/popup/popup.ts` & `src/core/statusText.ts`: cho phép Popup truy vấn trực tiếp `GET_STATUS` từ tab YouTube đang mở và hiển thị trạng thái đúng theo tên miền (`www.youtube.com` vs các trang web khác).
-  - `src/stealth/interceptor.ts`, `src/stealth/defuser.ts` & `src/content/index.ts`: tăng độ sâu duyệt `purge()` lên `depth < 6` (tối đa `8` trên các key chứa response), bổ sung lọc `PatchedXHR` khi `responseType === 'json'`, bẫy thêm `ytplayer.bootstrapPlayerResponse` & toàn bộ cây `ytInitialData`, sửa `trySeekAdOnce()` chỉ khóa `lastSoughtDuration` sau khi `v.readyState >= 2` (tối đa 3 lần thử) kèm tự động `resumePlay()` & điều chỉnh tốc độ tua (`4x` khi `readyState < 3`), và giới hạn `tryLiveHead()` chỉ tua khi đầu phát livestream thực sự kẹt ở `0..1.5s` (`edge - 3s`) để vào live mượt không bị lag 15–20s.
+  - `src/stealth/interceptor.ts`, `src/stealth/defuser.ts` & `src/content/index.ts`: tăng độ sâu duyệt `purge()` lên `depth < 6` (tối đa `8` trên các key chứa response), bổ sung lọc `PatchedXHR` khi `responseType === 'json'`, bẫy thêm `ytplayer.bootstrapPlayerResponse` & toàn bộ cây `ytInitialData`, và sửa `trySeekAdOnce()` chỉ khóa `lastSoughtDuration` sau khi `v.readyState >= 2` (tối đa 3 lần thử) kèm tự động `resumePlay()` & điều chỉnh tốc độ tua (`4x` khi `readyState < 3`) để quảng cáo không bị treo buffer phía sau màn hình che đen.
 
 ## [3.1.4] - 2026-11-22
 
