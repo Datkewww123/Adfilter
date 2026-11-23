@@ -1,4 +1,5 @@
 import { ext } from '../platform/api';
+import { log } from '../core/log';
 import { isMsg, statusKey } from '../core/messages';
 import { getFilterListsConfig, syncDynamicFilters } from './dynamicFilters';
 import { installPopunderTabGuard } from './popunderTabGuard';
@@ -30,7 +31,7 @@ ext.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
   console.log('[AdFilter Background] 📩 Nhận được message:', raw, 'từ tab:', sender.tab?.id);
 
   if (!isMsg(raw)) {
-    console.warn('[AdFilter Background] ⚠️ Tin nhắn không hợp lệ theo isMsg:', raw);
+    log.warn('Background tin nhắn không hợp lệ theo isMsg:', raw);
     return false;
   }
 
@@ -44,7 +45,7 @@ ext.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
   if (raw.kind === 'STATUS_UPDATE') {
     const tabId = sender.tab?.id;
     if (tabId === undefined) {
-      console.warn('[AdFilter Background] ⚠️ sender.tab.id không tồn tại!');
+      log.warn('Background sender.tab.id không tồn tại!');
       return false;
     }
     console.log(`[AdFilter Background] 💾 Lưu status tab:${tabId} vào storage:`, raw.status);

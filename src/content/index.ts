@@ -1,6 +1,6 @@
 import { ext } from '../platform/api';
 import { log } from '../core/log';
-import { canAct, emptyBreaker, trip, type Breaker } from '../core/circuitBreaker';
+import { canAct, emptyBreaker, recordFailure, trip, type Breaker } from '../core/circuitBreaker';
 import { initialState, step, type DetectorState } from '../core/detector';
 import { plan, SEEK_AFTER_MS, type Action, type ActionType } from '../core/intervention';
 import { emptyStatus, type Msg, type TabStatus } from '../core/messages';
@@ -49,6 +49,8 @@ let done: ActionType[] = [];
 let breaker: Breaker = emptyBreaker();
 let lastSignals: Signals | null = null;
 let lastSoughtDuration: number | null = null;
+let lastSeekAttemptAt = 0;
+let seekAttemptsThisAd = 0;
 let lastCurrentTime = 0;
 
 const recorder = new Recorder();
@@ -58,10 +60,10 @@ const actuator = new Actuator({
     const btn = getSkipButton(document);
     if (!btn) return false;
 
-    // Khi nút Skip xuất hiện, lập tức tua video về cuối và ép play()
+    // Khi nút Skip xuất hiện, giữ tắt tiếng + tốc độ cao và bấm Skip (không gán currentTime gây kẹt SABR)
     const v = getActiveVideo(document);
-    if (v && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
+    if (v) {
+      v.muted = true;
       v.playbackRate = cfg.maxSpeed;
       if (v.paused) void v.play().catch(() => undefined);
     }
@@ -93,12 +95,21 @@ function syncMainWorldAdMode(mode: YouTubeAdMode): void {
   } catch {}
 }
 
+function syncMaskActiveState(now = Date.now()): boolean {
+  const active = cfg.enabled && !cfg.dryRun && canAct(breaker, now);
+  document.documentElement?.classList.toggle('adfilter-inactive', !active);
+  if (!active) removeMask();
+  return active;
+}
+
 syncMainWorldAdMode(cfg.youtubeAdMode);
+syncMaskActiveState();
 
 void loadConfig()
   .then((c) => {
     cfg = c;
     syncMainWorldAdMode(cfg.youtubeAdMode);
+    syncMaskActiveState();
     log.info('config', cfg);
   })
   .catch(() => undefined);
@@ -111,6 +122,7 @@ ext.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && ch) {
     cfg = normalizeConfig(ch.newValue);
     syncMainWorldAdMode(cfg.youtubeAdMode);
+    syncMaskActiveState();
     log.info('config đã đổi', cfg);
     if (!cfg.enabled) actuator.restore();
   }
@@ -123,6 +135,7 @@ window.addEventListener('keydown', (e) => {
     breaker = emptyBreaker();
     void saveBreaker(breaker).catch(() => undefined);
     void saveConfig({ enabled: !cfg.enabled }).catch(() => undefined);
+    syncMaskActiveState();
   }
 });
 
@@ -167,6 +180,31 @@ function resumePlay(): void {
   void v.play().catch(() => undefined);
 }
 
+function trySeekAdOnce(v: HTMLVideoElement): boolean {
+  if (!cfg.allowSeek || !Number.isFinite(v.duration) || v.duration <= 0) return false;
+  // Chờ nạp metadata/frame hiện tại (readyState >= 2) mới tua để tránh bị MSE bỏ qua
+  if (v.readyState < 2) return false;
+  const targetTime = Math.max(0, v.duration - 0.1);
+  if (v.currentTime >= targetTime - 0.3) {
+    lastSoughtDuration = v.duration;
+    return false;
+  }
+  const now = Date.now();
+  const sameDuration =
+    lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5;
+  if (sameDuration && (seekAttemptsThisAd >= 3 || now - lastSeekAttemptAt < 400)) {
+    return false;
+  }
+  if (!sameDuration) {
+    seekAttemptsThisAd = 0;
+  }
+  lastSoughtDuration = v.duration;
+  lastSeekAttemptAt = now;
+  seekAttemptsThisAd++;
+  v.currentTime = targetTime;
+  return true;
+}
+
 /**
  * Can thiệp tức thời 0ms — được gọi ngay khi phát hiện .ad-showing,
  * tôn trọng hoàn toàn cấu hình maxSpeed, dryRun, allowSeek.
@@ -188,8 +226,7 @@ function instantIntervene(): void {
   for (const v of targetVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
+    if (trySeekAdOnce(v)) {
       resumePlay();
     }
   }
@@ -223,9 +260,8 @@ function verifyLater(a: Action, startedAt: number): void {
     if (!ok) {
       log.warn('xác minh chưa đạt, cho phép thử lại', a.type);
       if (a.type === 'CLICK_SKIP') {
-        done = done.filter((t) => t !== 'SEEK_TO_END');
-        lastSoughtDuration = null;
-      } else {
+        done = done.filter((t) => t !== 'CLICK_SKIP');
+      } else if (a.type !== 'SEEK_TO_END') {
         done = done.filter((t) => t !== a.type);
       }
     }
@@ -233,12 +269,16 @@ function verifyLater(a: Action, startedAt: number): void {
 }
 
 function watchPlayback(): void {
-  const first = lastSignals;
-  if (!first) return;
+  const first = extractSignals(document, Date.now());
   window.setTimeout(() => {
-    const second = lastSignals;
-    if (second && isStuck(first, second)) {
-      log.warn('video có vẻ bị kẹt sau can thiệp');
+    const v = getActiveVideo(document);
+    // Không báo kẹt nếu video đang nạp dữ liệu mạng / SABR buffer (readyState < 3) hoặc đã kết thúc
+    if (!v || v.ended || v.readyState < 3) return;
+    const second = extractSignals(document, Date.now());
+    lastSignals = second;
+    if (!second.adShowing && isStuck(first, second)) {
+      log.warn('video có vẻ bị kẹt sau can thiệp, thử kích phát lại');
+      resumePlay();
       recordAction({
         at: second.t,
         action: 'PLAYBACK_STUCK',
@@ -246,7 +286,7 @@ function watchPlayback(): void {
         ok: false,
         error: 'playback-stuck',
       });
-      breaker = trip(second.t);
+      breaker = recordFailure(breaker, second.t);
       void saveBreaker(breaker).catch(() => undefined);
     }
   }, 3000);
@@ -272,19 +312,14 @@ function execute(a: Action, s: Signals): void {
     onSeekExecuted();
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
-      lastSoughtDuration = v.duration;
-      v.currentTime = Math.max(0, v.duration - 0.1);
+      const alreadySought =
+        lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) <= 0.5;
+      trySeekAdOnce(v);
       v.playbackRate = cfg.maxSpeed;
       resumePlay();
-    }
-    const videos = Array.from((player || document).querySelectorAll<HTMLVideoElement>('video'));
-    for (const vid of videos) {
-      if (vid !== v && Number.isFinite(vid.duration) && vid.duration > 0) {
-        vid.currentTime = Math.max(0, vid.duration - 0.1);
-        vid.playbackRate = cfg.maxSpeed;
-        if (vid.paused && !vid.ended) {
-          void vid.play().catch(() => undefined);
-        }
+      if (alreadySought) {
+        recordAction({ at: s.t, action: a.type, dryRun: false, ok: true });
+        return;
       }
     }
   }
@@ -306,15 +341,37 @@ function planStep(s: Signals): void {
 
   const v = getActiveVideo(document);
   if (v && Number.isFinite(v.duration) && v.duration > 0) {
-    if (v.currentTime < v.duration - 0.2) {
-      done = done.filter((t) => t !== 'SEEK_TO_END');
+    const switchedToNextAd =
+      (lastSoughtDuration !== null && Math.abs(v.duration - lastSoughtDuration) > 0.5) ||
+      v.currentTime + 1 < lastCurrentTime;
+    if (switchedToNextAd) {
+      done = [];
       lastSoughtDuration = null;
-    } else {
+      seekAttemptsThisAd = 0;
+    }
+
+    if (v.currentTime >= v.duration - 0.2 || (v.paused && !v.ended && v.readyState >= 2)) {
       resumePlay();
     }
     if (Number.isFinite(v.currentTime)) {
       lastCurrentTime = v.currentTime;
     }
+  }
+
+  // Ép giữ liên tục trạng thái tắt tiếng + tua tốc độ phù hợp (tránh 16x gây đói buffer khi readyState == 2)
+  const targetAdRate = v && v.readyState < 3 ? Math.min(cfg.maxSpeed, 4) : cfg.maxSpeed;
+  if (v && (!v.muted || Math.abs(v.playbackRate - targetAdRate) > 0.01)) {
+    done = done.filter((t) => t !== 'MUTE_SPEEDUP');
+    if (!cfg.dryRun && cfg.enabled && canAct(breaker, s.t)) {
+      actuator.noteBaseline();
+      v.muted = true;
+      v.playbackRate = targetAdRate;
+      actuator.touch();
+    }
+  }
+
+  if (s.skipVisible && !cfg.dryRun) {
+    done = done.filter((t) => t !== 'CLICK_SKIP');
   }
 
   const msIntoAd = cfg.allowSeek ? Math.max(SEEK_AFTER_MS, s.t - adStartedAt) : s.t - adStartedAt;
@@ -334,6 +391,7 @@ function planStep(s: Signals): void {
 
 function handle(s: Signals): void {
   lastSignals = s;
+  syncMaskActiveState(s.t);
   const res = step(det, s);
   det = res.next;
 
@@ -349,6 +407,7 @@ function handle(s: Signals): void {
     }
     breaker = trip(s.t);
     void saveBreaker(breaker).catch(() => undefined);
+    syncMaskActiveState(s.t);
     log.warn('phát hiện cảnh báo trang, ngắt mạch tạm khóa can thiệp');
     actuator.restore();
   }
@@ -356,10 +415,13 @@ function handle(s: Signals): void {
   const events = res.events;
   for (const e of events) {
     if (e.type === 'AD_START') {
-      onAdStart();
+      if (syncMaskActiveState(e.at)) {
+        onAdStart();
+      }
       adStartedAt = e.at;
       done = [];
       lastSoughtDuration = null;
+      seekAttemptsThisAd = 0;
       lastCurrentTime = 0;
       obs = newObservation(e.at);
       log.info(clock(e.emittedAt), 'AD_START, độ trễ', e.emittedAt - e.at, 'ms');
@@ -389,6 +451,7 @@ function handle(s: Signals): void {
       };
       done = [];
       lastSoughtDuration = null;
+      seekAttemptsThisAd = 0;
       lastCurrentTime = 0;
       actuator.restore();
 
@@ -448,6 +511,15 @@ const observer = new PlayerObserver(handle, {
 });
 observer.start();
 send({ kind: 'STATUS_UPDATE', status: currentStatus });
+
+ext.runtime.onMessage?.addListener?.((raw: unknown, _sender, sendResponse) => {
+  if (raw && typeof raw === 'object' && (raw as { kind?: string }).kind === 'GET_STATUS') {
+    send({ kind: 'STATUS_UPDATE', status: currentStatus });
+    sendResponse(currentStatus);
+    return false;
+  }
+  return false;
+});
 
 // Watchdog kiểm tra định kỳ 60 giây
 window.setInterval(() => {

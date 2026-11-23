@@ -1,7 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8')) as {
+  description?: string;
+  icons?: Record<string, string>;
+  action?: { default_icon?: Record<string, string> };
   permissions: string[];
   host_permissions: string[];
   declarative_net_request?: {
@@ -10,7 +14,7 @@ const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8')) as {
 };
 
 const ALLOWED_PERMISSIONS = ['storage', 'declarativeNetRequest'];
-const ALLOWED_HOSTS = ['*://*.youtube.com/*', '*://youtube.com/*', '*://m.youtube.com/*', '<all_urls>'];
+const ALLOWED_HOSTS = ['<all_urls>'];
 
 describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
   it('chỉ dùng các permission đã được duyệt', () => {
@@ -54,5 +58,18 @@ describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
       expect(excluded).toContain('*://accounts.google.com/*');
       expect(excluded).toContain('*://login.microsoftonline.com/*');
     }
+  });
+
+  it('khai báo đầy đủ icons 16/32/48/128, tệp tồn tại trên đĩa và mô tả không chứa nhãn hiệu bên thứ ba', () => {
+    const requiredSizes = ['16', '32', '48', '128'];
+    for (const size of requiredSizes) {
+      const iconPath = manifest.icons?.[size];
+      const actionIconPath = manifest.action?.default_icon?.[size];
+      expect(iconPath).toBe(`icons/icon${size}.png`);
+      expect(actionIconPath).toBe(`icons/icon${size}.png`);
+      expect(existsSync(resolve('src', iconPath!))).toBe(true);
+    }
+    expect(manifest.description).toBeDefined();
+    expect(manifest.description).not.toMatch(/brave/i);
   });
 });

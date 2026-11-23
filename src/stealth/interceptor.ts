@@ -142,7 +142,7 @@ export function purge(
   let modified = false;
 
   if (Array.isArray(obj)) {
-    if (depth <= 2) {
+    if (depth < 6) {
       for (const item of obj) {
         if (purge(item, depth + 1, mode)) modified = true;
       }
@@ -151,8 +151,8 @@ export function purge(
   }
 
   const record = obj as Record<string, unknown>;
-  // Ở chế độ fast-skip, giữ nguyên adPlacements/playerAds/adSlots/adBreaks để video đầu
-  // vào fast-skip + VisualMask (~0.3s) và các video kế tiếp trong phiên sạch QC (<1s).
+  // Ở chế độ fast-skip (Chế độ A), giữ nguyên adPlacements/playerAds/adSlots/adBreaks để
+  // video đầu lướt qua bằng fast-skip + VisualMask (~0.3–1s) và các video sau tải <1s (không bị phạt 6–7s SABR).
   if (mode === 'strict-defuser') {
     for (const key of AD_KEYS) {
       if (key in record) {
@@ -197,20 +197,22 @@ export function purge(
     }
   }
 
-  if (depth < 2) {
+  if (depth < 6) {
     for (const k of Object.keys(record)) {
       const val = record[k];
       if (val && typeof val === 'object') {
         if (purge(val, depth + 1, mode)) modified = true;
       }
     }
-  } else {
+  } else if (depth < 8) {
     for (const key of [
       'playerResponse',
       'watchNextResponse',
       'onResponseReceivedEndpoints',
+      'onResponseReceivedActions',
       'data',
       'response',
+      'contents',
     ]) {
       const val = record[key];
       if (val && typeof val === 'object') {
@@ -368,7 +370,12 @@ if (typeof window !== 'undefined') {
       if (this.responseType === '' || this.responseType === 'text') {
         return this.responseText;
       }
-      return super.response;
+      const raw = super.response;
+      const mode = getRuntimeYouTubeAdMode();
+      if (this.responseType === 'json' && isPlayerDataUrl(this._url) && raw && typeof raw === 'object') {
+        purge(raw, 0, mode);
+      }
+      return raw;
     }
   }
 

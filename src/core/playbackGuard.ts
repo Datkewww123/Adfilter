@@ -7,6 +7,7 @@ import type { Signals } from './types';
  * - currentTime giữa 2 lần kiểm tra chênh lệch < 0.01s (đứng yên).
  */
 export function isStuck(prev: Signals, next: Signals): boolean {
+  if (next.adShowing) return false;
   if (next.paused !== false) return false;
   if (prev.currentTime === null || next.currentTime === null) return false;
   if (next.t - prev.t < 2000) return false;

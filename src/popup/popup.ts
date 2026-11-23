@@ -90,11 +90,18 @@ async function refresh(): Promise<void> {
 
   try {
     const msg: Msg = { kind: 'GET_STATUS', tabId };
-    const status = (await ext.runtime.sendMessage(msg)) as TabStatus | null;
-    show(describeStatus(status));
+    let status = (await ext.runtime.sendMessage(msg)) as TabStatus | null;
+    if (!status) {
+      try {
+        status = (await ext.tabs.sendMessage(tabId, msg)) as TabStatus | null;
+      } catch {
+        // Tab chưa nạp content script hoặc không phải YouTube
+      }
+    }
+    show(describeStatus(status, currentHostname));
   } catch (e) {
     log.warn('popup refresh failed', e);
-    show(['Đang bảo vệ duyệt web và xem phim.']);
+    show(describeStatus(null, currentHostname));
   }
 }
 

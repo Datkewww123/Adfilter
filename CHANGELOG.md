@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.5] - 2026-11-22
+
+### Added
+- **Tích hợp bộ logo & icon thương hiệu chính thức (`16x16`, `32x32`, `48x48`, `128x128`, `300x300`):**
+  - Tạo bộ icon chuẩn Chrome Web Store trong `src/icons/` (`icon16.png`, `icon32.png`, `icon48.png`, `icon128.png`) và `docs/assets/logo-300.png` cho trang giới thiệu & Store listing.
+  - Khai báo đầy đủ `"icons"` và `"action.default_icon"` trong `src/manifest.json`, đồng thời cập nhật `scripts/build.ts` sao chép `src/icons` vào thư mục đóng gói đầu ra.
+  - Hiển thị logo thương hiệu trực tiếp trên tiêu đề Popup (`src/popup/popup.html`), Options (`src/options/options.html`) và `README.md`.
+
+### Changed
+- **Chuẩn hóa tuân thủ chính sách Chrome Web Store (Nhóm 1 & Nhóm 2):**
+  - Cập nhật `"description"` trong `src/manifest.json` và `package.json` theo hướng trung tính, loại bỏ tên thương hiệu bên thứ ba (`Brave`, `YouTube` / `Stealth`) khỏi metadata và nhãn giao diện (`Popup` / `Options`).
+  - Tinh gọn `"host_permissions"` trong `src/manifest.json` thành `["<all_urls>"]` (loại bỏ khai báo dư thừa trùng với `<all_urls>`).
+  - Gỡ bỏ checkbox telemetry chưa nối mạch (`#telemetry`) khỏi `src/options/options.html` và `src/options/options.ts` để thống nhất hoàn toàn với cam kết không thu thập dữ liệu người dùng.
+  - Cấu hình `sourcemap: dev` trong `scripts/build.ts` để bản phát hành chính thức (`dist/` & `release/*.zip`) không chứa file `.js.map` mang đường dẫn nội bộ máy phát triển.
+
+### Fixed
+- **Sửa lỗi báo nhầm kẹt video (`[AdFilter] video có vẻ bị kẹt sau can thiệp`) và ngắt mạch sớm khi video YouTube đang nạp đệm SABR (`DcCISK3sCYg`):**
+  - Cập nhật `watchPlayback()` trong `src/content/index.ts` đo thời gian phát thực tế qua `extractSignals(document, Date.now())` thay vì đọc `lastSignals` cũ, bỏ qua khi `v.readyState < 3` (đang tải đệm SABR) hoặc đang ở lượt quảng cáo (`adShowing`), tự động gọi `resumePlay()`, và dùng `recordFailure()` (ngưỡng 3 lần) thay vì `trip()` khóa cứng 30 phút ngay lần đầu.
+  - Cập nhật `isStuck()` trong `src/core/playbackGuard.ts` trả về `false` khi `next.adShowing` đang bật.
+  - Định tuyến `log.warn` / `log.error` qua `console.info` gắn nhãn `[WARN]` / `[ERROR]` trong `src/core/log.ts` và dùng chung trong `src/background/index.ts` để trang `chrome://extensions` không gắn cờ **"Lỗi"** cho log vận hành thông thường.
+- **Sửa lỗi nút Skip bị vô hiệu hóa & quảng cáo phát ngầm có tiếng sau màn hình đen trên YouTube (`apqe_u3VJQ4`):**
+  - `src/stealth/cosmetic.css`: đổi `.ytp-ad-module` và `.ytp-ad-player-overlay-layout` từ `display: none !important` sang `opacity: 0 !important; visibility: hidden !important; pointer-events: none !important` để vẫn ẩn hoàn toàn với mắt người dùng nhưng giữ kích thước layout cho nút Skip, đồng thời bọc toàn bộ rule ẩn video `.ad-showing` dưới `html:not(.adfilter-inactive)`.
+  - `src/content/selectors.ts` & `tests/unit/selectors.test.ts`: bổ sung `isSkipElementRendered()` kiểm tra cây cha không `display: none` và bổ sung 2 unit test cho cấu trúc `.ytp-ad-module > .ytp-ad-player-overlay-layout`.
+  - `src/content/index.ts`: thêm `syncMaskActiveState()` đảm bảo chỉ bật `VisualMask` khi extension thực sự đang hoạt động (`enabled && !dryRun && canAct`), ép giữ liên tục `v.muted = true` và `v.playbackRate = cfg.maxSpeed` trong `planStep()`, reset `done` khi chuyển quảng cáo trong cùng cụm và thử bấm lại `CLICK_SKIP` ngay khi nút sẵn sàng.
+- **Sửa lỗi treo tua quảng cáo ngầm 8–15s trên YouTube SABR & cải thiện nhận diện trạng thái YouTube trên Popup:**
+  - `src/content/playerObserver.ts` & `src/content/index.ts`: thêm `wasAdShowing` chỉ kích hoạt `onInstant` ở sườn lên `.ad-showing` và thêm `trySeekAdOnce()` chỉ thử tua `SEEK_TO_END` tối đa 3 lần khi `readyState >= 2` (loại bỏ vòng lặp gán `v.currentTime` mỗi 250ms làm xóa buffer MSE), giữ riêng `Chế độ A (fast-skip)` cho phép lướt QC đầu phiên ~0.3–1s để các video sau mở `<1s` không bị phạt 6–7s SABR, còn `Chế độ B (strict-defuser)` xóa trắng `adPlacements`/`adSlots` tại nguồn JSON.
+  - `src/content/index.ts`, `src/popup/popup.ts` & `src/core/statusText.ts`: cho phép Popup truy vấn trực tiếp `GET_STATUS` từ tab YouTube đang mở và hiển thị trạng thái đúng theo tên miền (`www.youtube.com` vs các trang web khác).
+  - `src/stealth/interceptor.ts`, `src/stealth/defuser.ts` & `src/content/index.ts`: tăng độ sâu duyệt `purge()` lên `depth < 4` (tối đa `6` trên các key chứa response), bổ sung lọc `PatchedXHR` khi `responseType === 'json'`, bẫy thêm `ytplayer.bootstrapPlayerResponse` & toàn bộ cây `ytInitialData`, và sửa `trySeekAdOnce()` chỉ khóa `lastSoughtDuration` sau khi `v.readyState >= 2` (tối đa 3 lần thử) kèm tự động `resumePlay()` & điều chỉnh tốc độ tua (`4x` khi `readyState < 3`) để quảng cáo không bị treo buffer phía sau màn hình che đen.
+
 ## [3.1.4] - 2026-11-22
 
 ### Fixed

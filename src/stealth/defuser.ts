@@ -87,6 +87,7 @@ if (!isLocalTest) {
     if (!playerObj || typeof playerObj !== 'object') return;
     let _cfg = playerObj.config;
     if (_cfg) purgePlayerConfig(_cfg);
+    if (playerObj.bootstrapPlayerResponse) purge(playerObj.bootstrapPlayerResponse);
     if ((playerObj as any)._adfConfigTrapped) return;
     try {
       const existing = Object.getOwnPropertyDescriptor(playerObj, 'config');
@@ -102,6 +103,21 @@ if (!isLocalTest) {
           _cfg = nextCfg;
         },
       });
+      const existingBootstrap = Object.getOwnPropertyDescriptor(playerObj, 'bootstrapPlayerResponse');
+      if (!existingBootstrap || existingBootstrap.configurable) {
+        let _bootstrap = playerObj.bootstrapPlayerResponse;
+        origDefine(playerObj, 'bootstrapPlayerResponse', {
+          configurable: true,
+          enumerable: true,
+          get() {
+            return _bootstrap;
+          },
+          set(nextBootstrap: any) {
+            purge(nextBootstrap);
+            _bootstrap = nextBootstrap;
+          },
+        });
+      }
       Object.defineProperty(playerObj, '_adfConfigTrapped', { value: true, configurable: true });
     } catch {}
   }
@@ -210,6 +226,7 @@ if (!isLocalTest) {
     },
     set(val: unknown) {
       if (val != null && typeof val === 'object') {
+        purge(val);
         const record = val as Record<string, unknown>;
         record['adSlots'] = [];
         delete record['promotedSparklesWebRenderer'];

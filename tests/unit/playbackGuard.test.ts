@@ -35,4 +35,8 @@ describe('isStuck', () => {
   it('thiếu dữ liệu thời gian (null) -> không kết luận', () => {
     expect(isStuck(s(0, { currentTime: null }), s(3000))).toBe(false);
   });
+
+  it('đang ở luồng quảng cáo (adShowing) -> không tính là kẹt video chính', () => {
+    expect(isStuck(s(0), s(3000, { adShowing: true }))).toBe(false);
+  });
 });

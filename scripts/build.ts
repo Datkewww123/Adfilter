@@ -33,7 +33,7 @@ async function build() {
     outdir: out,
     format: 'esm',
     target: 'es2022',
-    sourcemap: true,
+    sourcemap: dev,
     define: { __E2E__: String(dev) },
   });
 
@@ -68,6 +68,22 @@ async function build() {
     await fs.cp(resourcesSrc, resourcesDest, { recursive: true });
   } catch {
     // resources dir optional
+  }
+
+  const iconsSrc = 'src/icons';
+  const iconsDest = `${out}/icons`;
+  try {
+    await fs.cp(iconsSrc, iconsDest, { recursive: true });
+  } catch {
+    // icons dir optional
+  }
+
+  if (!dev) {
+    for (const entry of await fs.readdir(out)) {
+      if (entry.endsWith('.map')) {
+        await fs.unlink(`${out}/${entry}`);
+      }
+    }
   }
 
   // Nếu là Chromium bản chính thức, đồng bộ ra dist/ gốc

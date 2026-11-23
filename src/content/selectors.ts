@@ -52,6 +52,23 @@ export function getActiveVideo(doc: Document): HTMLVideoElement | null {
   return videos[0];
 }
 
+function isSkipElementRendered(el: HTMLElement, player: Element): boolean {
+  let cur: HTMLElement | null = el;
+  while (cur && cur !== player) {
+    if (cur.hidden || cur.style.display === 'none') return false;
+    if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+      if (window.getComputedStyle(cur).display === 'none') return false;
+    }
+    cur = cur.parentElement;
+  }
+  return (
+    el.getClientRects().length > 0 ||
+    el.offsetWidth > 0 ||
+    el.offsetHeight > 0 ||
+    el.style.width !== ''
+  );
+}
+
 /** Tìm chính xác nút Bỏ qua quảng cáo (Skip Ad) KHI ĐÃ SẴN SÀNG CLICK */
 export function getSkipButton(doc: Document): HTMLElement | null {
   const player = doc.querySelector(SEL.player);
@@ -79,8 +96,7 @@ export function getSkipButton(doc: Document): HTMLElement | null {
     const isCountdownOnly = /^\d+$/.test(text);
     if (isCountdownOnly) continue;
 
-    const isVisible = el.getClientRects().length > 0 || el.offsetWidth > 0 || el.offsetHeight > 0;
-    if ((isSkipWord || isSkipClass) && isVisible) {
+    if ((isSkipWord || isSkipClass) && isSkipElementRendered(el, player)) {
       return el;
     }
   }
@@ -88,11 +104,9 @@ export function getSkipButton(doc: Document): HTMLElement | null {
   const buttons = player.querySelectorAll<HTMLElement>('button, [role="button"]');
   for (const b of buttons) {
     if (b.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button')) continue;
+    if (b.hasAttribute('disabled') || b.getAttribute('aria-disabled') === 'true') continue;
     const text = (b.textContent || '').trim().toLowerCase();
-    if (
-      (text.includes('skip') || text.includes('bỏ qua')) &&
-      (b.getClientRects().length > 0 || b.offsetWidth > 0)
-    ) {
+    if ((text.includes('skip') || text.includes('bỏ qua')) && isSkipElementRendered(b, player)) {
       return b;
     }
   }
