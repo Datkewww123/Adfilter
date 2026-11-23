@@ -63,13 +63,16 @@ export const AD_NETWORK_BLOCK_PATTERNS = [
 
 const AD_SIGNAL_HINT_REGEX =
   /adPlacements|playerAds|adSlots|adBreak|RemarketingUrl|reelWatchEndpoint/;
+const FAST_SKIP_SIGNAL_HINT_REGEX = /RemarketingUrl|reelWatchEndpoint/;
 
 export function containsAdSignalText(
   text: string,
-  _mode: YouTubeAdMode = 'strict-defuser',
+  mode: YouTubeAdMode = 'strict-defuser',
 ): boolean {
   if (text.length < 16) return false;
-  return AD_SIGNAL_HINT_REGEX.test(text);
+  return mode === 'fast-skip'
+    ? FAST_SKIP_SIGNAL_HINT_REGEX.test(text)
+    : AD_SIGNAL_HINT_REGEX.test(text);
 }
 
 export function extractRequestUrl(input: unknown): string {
@@ -148,20 +151,22 @@ export function purge(
   }
 
   const record = obj as Record<string, unknown>;
-  // Luôn xóa trắng adPlacements/playerAds/adSlots/adBreaks ngay từ gói JSON nguồn ở cả 2 chế độ
-  // để YouTube không bao giờ nạp hay chạy video quảng cáo ngầm phía sau màn hình đen.
-  for (const key of AD_KEYS) {
-    if (key in record) {
-      const val = record[key];
-      if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
-        const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
-        if (!Array.isArray(val) || val.length > 0) {
-          record[key] = [];
+  // Ở chế độ fast-skip (Chế độ A), giữ nguyên adPlacements/playerAds/adSlots/adBreaks để
+  // video đầu lướt qua bằng fast-skip + VisualMask (~0.3–1s) và các video sau tải <1s (không bị phạt 6–7s SABR).
+  if (mode === 'strict-defuser') {
+    for (const key of AD_KEYS) {
+      if (key in record) {
+        const val = record[key];
+        if (key === 'adPlacements' || key === 'playerAds' || key === 'adSlots') {
+          const hadAds = Array.isArray(val) ? val.length > 0 : val != null;
+          if (!Array.isArray(val) || val.length > 0) {
+            record[key] = [];
+          }
+          if (hadAds) modified = true;
+        } else {
+          delete record[key];
+          modified = true;
         }
-        if (hadAds) modified = true;
-      } else {
-        delete record[key];
-        modified = true;
       }
     }
   }

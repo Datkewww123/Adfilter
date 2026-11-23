@@ -157,7 +157,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
       },
     ];
 
-    expect(purge(deepPayload, 0, 'fast-skip')).toBe(true);
+    expect(purge(deepPayload, 0, 'strict-defuser')).toBe(true);
     expect(deepPayload[0].response.playerResponse.adPlacements).toEqual([]);
     expect(deepPayload[0].response.playerResponse.adSlots).toEqual([]);
     expect(
@@ -175,7 +175,7 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     expect(isStreamingWatchUrl('https://www.youtube.com/youtubei/v1/next?key=AIzaSy')).toBe(false);
   });
 
-  it('chế độ fast-skip xóa sạch adSlots/adPlacements tại nguồn JSON và cho phép /api/stats/ads 1st-party trong khi vẫn chặn remarketing, Shorts ad, /pagead/ và ad_break', () => {
+  it('chế độ fast-skip giữ nguyên adSlots/adPlacements và /api/stats/ads 1st-party nhưng vẫn chặn remarketing, Shorts ad, /pagead/ và ad_break', () => {
     expect(isAdNetworkUrl('https://www.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
     expect(isAdNetworkUrl('https://m.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
     expect(isAdNetworkUrl('https://s.youtube.com/api/stats/ads?foo=1', 'fast-skip')).toBe(false);
@@ -224,15 +224,15 @@ describe('interceptor: nhận diện đúng URL và thanh lọc dữ liệu qu�
     };
 
     expect(purge(payload, 0, 'fast-skip')).toBe(true);
-    expect(payload.adPlacements).toEqual([]);
-    expect(payload.playerAds).toEqual([]);
-    expect(payload.adSlots).toEqual([]);
-    expect(payload.adBreakParams).toBeUndefined();
+    expect(payload.adPlacements).toHaveLength(1);
+    expect(payload.playerAds).toHaveLength(1);
+    expect(payload.adSlots).toHaveLength(1);
+    expect(payload.adBreakParams).toBe('keep-for-cooldown');
     expect(payload.playbackTracking.googleRemarketingUrl).toBeUndefined();
     expect(payload.playbackTracking.ptrackingUrl).toBeDefined();
     expect(payload.entries).toHaveLength(1);
 
-    expect(containsAdSignalText('{"adSlots":[{}]}', 'fast-skip')).toBe(true);
+    expect(containsAdSignalText('{"adSlots":[{}]}', 'fast-skip')).toBe(false);
     expect(containsAdSignalText('{"googleRemarketingUrl":{}}', 'fast-skip')).toBe(true);
     expect(containsAdSignalText('{"reelWatchEndpoint":{}}', 'fast-skip')).toBe(true);
   });
