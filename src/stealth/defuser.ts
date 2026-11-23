@@ -87,7 +87,6 @@ if (!isLocalTest) {
     if (!playerObj || typeof playerObj !== 'object') return;
     let _cfg = playerObj.config;
     if (_cfg) purgePlayerConfig(_cfg);
-    if (playerObj.bootstrapPlayerResponse) purge(playerObj.bootstrapPlayerResponse);
     if ((playerObj as any)._adfConfigTrapped) return;
     try {
       const existing = Object.getOwnPropertyDescriptor(playerObj, 'config');
@@ -103,21 +102,6 @@ if (!isLocalTest) {
           _cfg = nextCfg;
         },
       });
-      const existingBootstrap = Object.getOwnPropertyDescriptor(playerObj, 'bootstrapPlayerResponse');
-      if (!existingBootstrap || existingBootstrap.configurable) {
-        let _bootstrap = playerObj.bootstrapPlayerResponse;
-        origDefine(playerObj, 'bootstrapPlayerResponse', {
-          configurable: true,
-          enumerable: true,
-          get() {
-            return _bootstrap;
-          },
-          set(nextBootstrap: any) {
-            purge(nextBootstrap);
-            _bootstrap = nextBootstrap;
-          },
-        });
-      }
       Object.defineProperty(playerObj, '_adfConfigTrapped', { value: true, configurable: true });
     } catch {}
   }
@@ -226,7 +210,6 @@ if (!isLocalTest) {
     },
     set(val: unknown) {
       if (val != null && typeof val === 'object') {
-        purge(val);
         const record = val as Record<string, unknown>;
         record['adSlots'] = [];
         delete record['promotedSparklesWebRenderer'];
@@ -471,8 +454,9 @@ if (!isLocalTest) {
         player && typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
     } catch {}
     if (playerState === -1 || playerState === 5) return;
-    // Chỉ sửa live head khi đầu phát thực sự bị kẹt ở đầu DVR (0..1.5s);
-    // nếu YouTube đã đặt sẵn ở cuối live thì tuyệt đối không tua lại để tránh xóa buffer gây lag 15–20s.
+
+    // Nếu video đã được YouTube đặt vị trí phát ngoài mốc 0:00 (> 1.5s), không ép seek thêm
+    // để tránh xóa sạch buffer 4-6s khiến livestream bị đơ xoay vòng 15-20s khi mới vào.
     if (video.currentTime > 1.5) {
       _liveHeadDone = true;
       return;
@@ -495,13 +479,13 @@ if (!isLocalTest) {
       } catch {}
     }
 
-    // 2. Thử qua seekToStreamTime chỉ khi không chắc đã ở live head & có dấu hiệu livestream
+    // 2. Thử qua seekToStreamTime chỉ khi thực sự bị kẹt ở đầu DVR (currentTime <= 1.5s) & mép live ở xa
     if (typeof player.seekToStreamTime === 'function') {
       try {
         let shouldSeekStream = video.duration === Infinity;
         if (!shouldSeekStream && video.seekable && video.seekable.length > 0) {
           const edge = video.seekable.end(video.seekable.length - 1);
-          if (Number.isFinite(edge) && edge > 10 && edge - video.currentTime > 3) {
+          if (Number.isFinite(edge) && edge > 10) {
             shouldSeekStream = true;
           }
         }
@@ -514,11 +498,11 @@ if (!isLocalTest) {
       } catch {}
     }
 
-    // 3. Fallback: Nếu video bị kẹt ở mốc 0:00 của DVR mà mép live đã cách xa > 10s -> tua tới edge - 3s để giữ bộ đệm
+    // 3. Fallback: Nếu video bị kẹt ở mốc 0:00 của DVR mà mép live đã cách xa > 10s -> tua tới gần mép live
     try {
       if (video.seekable && video.seekable.length > 0) {
         const edge = video.seekable.end(video.seekable.length - 1);
-        if (Number.isFinite(edge) && edge > 10 && edge - video.currentTime > 3) {
+        if (Number.isFinite(edge) && edge > 10) {
           video.currentTime = Math.max(0, edge - 3);
           _liveHeadDone = true;
           dbg('seekToLiveEdge fallback', video, { edge, currentTime: video.currentTime });

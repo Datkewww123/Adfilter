@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.6] - 2026-11-23
 
+### Changed
+- **Khôi phục luồng xử lý quảng cáo YouTube nhanh và ổn định của `v3.1.3` (`b3a1bde`):**
+  - Đưa `src/content/index.ts` (`instantIntervene`, `planStep`, `execute`, `verifyLater`, `clickSkip`), `src/content/playerObserver.ts`, `src/stealth/cosmetic.css`, `src/content/selectors.ts` và `src/stealth/interceptor.ts` về đúng luồng xử lý tức thì đã chứng minh độ ổn định cao trên `v3.1.3` (tốc độ dập quảng cáo `~0.2–0.3s`), kết hợp giữ lại toàn bộ cải tiến của `v3.1.4` – `v3.1.5` (logo thương hiệu Adfilter, chuẩn hóa Chrome Web Store, sửa chặn nhầm ChatGPT/OAuth, nhận diện trạng thái YouTube trên Popup).
+
 ### Fixed
 - **Sửa lỗi vào Livestream YouTube bị đứng/lag 15–20 giây (`tryLiveHead`):**
   - Cập nhật `tryLiveHead()` trong `src/stealth/defuser.ts`: thêm chốt `if (video.currentTime > 1.5) { _liveHeadDone = true; return; }` để chỉ tua về live head khi đầu phát thực sự kẹt ở đầu DVR (`0..1.5s`), tránh xóa bộ đệm 4–6s của YouTube khi mới vào live.
   - Nâng ngưỡng `edge > 10` cho nhánh `seekToStreamTime` / fallback và lùi an toàn về `edge - 3` (thay vì `edge - 0.5`).
+- **Giữ nguyên bản vá `watchPlayback()` chống ngắt mạch oan trên `v3.1.3`:**
+  - Chỉ kiểm tra `isStuck` khi `v.readyState >= 3` và `!second.adShowing`, tự gọi `resumePlay()`, và dùng `recordFailure()` (ngưỡng 3 lần) thay vì `trip()` khóa 30 phút ngay lần đầu.
 
 ## [3.1.5] - 2026-11-22
 

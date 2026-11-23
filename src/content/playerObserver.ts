@@ -10,7 +10,6 @@ export class PlayerObserver {
   private observed?: Element;
   private tick?: number;
   private last = 0;
-  private wasAdShowing = false;
 
   // Callback riêng được gọi tức thời (0ms) khi DOM phát hiện .ad-showing
   private onInstant?: () => void;
@@ -40,7 +39,6 @@ export class PlayerObserver {
 
     this.mo?.disconnect();
     this.observed = player;
-    this.wasAdShowing = false;
     this.mo = new MutationObserver(this.onMutation);
     this.mo.observe(player, {
       attributes: true,
@@ -64,13 +62,9 @@ export class PlayerObserver {
         m.target === this.observed
       ) {
         const el = m.target as Element;
-        const isAd = el.classList.contains('ad-showing') || el.classList.contains('ad-interrupting');
-        if (isAd && !this.wasAdShowing) {
-          this.wasAdShowing = true;
-          // Gọi ngay lập tức ở sườn lên — KHÔNG lặp lại khi YouTube chỉ đổi class phụ
+        if (el.classList.contains('ad-showing') || el.classList.contains('ad-interrupting')) {
+          // Gọi ngay lập tức — KHÔNG qua throttle hay debounce
           if (this.onInstant) this.onInstant();
-        } else if (!isAd) {
-          this.wasAdShowing = false;
         }
         break;
       }
