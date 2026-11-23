@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.7] - 2026-11-23
+
+### Changed
+- **Hợp nhất cơ chế xử lý quảng cáo YouTube thành 1 chế độ `Tự động thông minh (auto)` làm mặc định:**
+  - Cập nhật `defaultConfig.youtubeAdMode = 'auto'` trong `src/storage/config.ts`: mặc định chạy **Chặn tuyệt đối tại nguồn (`strict-defuser`)** để xóa trắng 100% `adPlacements`/`playerAds`/`adSlots` tại nguồn JSON (vào thẳng video gốc không nháy quảng cáo).
+  - Bổ sung cơ chế tự động phát hiện SABR backoff (`inspectSabrBackoff` trong `src/stealth/interceptor.ts`): nếu YouTube trả tín hiệu phạt `backoffTimeMs >= 3000` trong phiên, tự động lùi tạm sang `fast-skip` cho phiên đó để không bị xoay vòng chờ 4–8 giây.
+  - Làm gọn Popup (`src/popup/popup.html`, `src/popup/popup.ts`): bỏ thẻ chuyển Chế độ A/B khỏi Popup, chuyển tùy chọn ép thủ công (`Tự động thông minh` / `Luôn chặn tuyệt đối` / `Luôn tải nhanh`) vào trang `⚙️ Cài đặt Bộ lọc` (`src/options/options.html`, `src/options/options.ts`).
+
 ## [3.1.6] - 2026-11-23
 
 ### Changed

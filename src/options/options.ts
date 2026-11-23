@@ -1,5 +1,5 @@
 import { loadConfig, saveConfig } from '../storage/configStore';
-import type { YouTubeAdMode } from '../storage/config';
+import { normalizeYouTubeAdMode, type YouTubeAdMode } from '../storage/config';
 import { defaultStealthConfig, STEALTH_CONFIG_KEY, type StealthConfig } from '../core/stealthConfig';
 import { ext } from '../platform/api';
 import {
@@ -21,10 +21,16 @@ const fallback = document.getElementById('fastSeekFallback') as HTMLInputElement
 
 function renderYouTubeAdModeHint(mode: YouTubeAdMode): void {
   if (!youtubeAdModeHintEl) return;
-  youtubeAdModeHintEl.textContent =
-    mode === 'fast-skip'
-      ? 'Chế độ A (khuyến nghị): Che đen + tắt tiếng + tua hết QC video đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s (vẫn chặn 3rd-party DNR, /pagead/ & ad_break).'
-      : 'Chế độ B: Chặn tuyệt đối tại nguồn (không gửi ping /api/stats/ads 1st-party), nhưng server YouTube có thể giữ luồng video 4–8 giây ở từng video có QC.';
+  if (mode === 'fast-skip') {
+    youtubeAdModeHintEl.textContent =
+      'Luôn tải nhanh (Chế độ A): Che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s.';
+  } else if (mode === 'strict-defuser') {
+    youtubeAdModeHintEl.textContent =
+      'Luôn chặn tuyệt đối tại nguồn (Chế độ B): Xóa trắng 100% adPlacements/playerAds/adSlots ngay trong JSON trước khi trình phát đọc.';
+  } else {
+    youtubeAdModeHintEl.textContent =
+      'Tự động thông minh (Mặc định): Ưu tiên chặn tuyệt đối tại nguồn JSON như Chế độ B; tự động lùi sang tải nhanh nếu phát hiện máy chủ YouTube phạt SABR backoff.';
+  }
 }
 
 const filterGlobalEl = document.getElementById('filterGlobalEnabled') as HTMLInputElement | null;
@@ -110,11 +116,10 @@ speed?.addEventListener('change', () => {
 seek?.addEventListener('change', () => void saveConfig({ allowSeek: seek.checked }));
 
 youtubeAdModeEl?.addEventListener('change', () => {
-  const mode: YouTubeAdMode =
-    youtubeAdModeEl.value === 'strict-defuser' ? 'strict-defuser' : 'fast-skip';
+  const mode = normalizeYouTubeAdMode(youtubeAdModeEl.value);
   renderYouTubeAdModeHint(mode);
   void saveConfig({ youtubeAdMode: mode }).then(() =>
-    saveStealthConfig({ defuserEnabled: mode === 'strict-defuser' }),
+    saveStealthConfig({ defuserEnabled: mode !== 'fast-skip' }),
   );
 });
 cosmetic?.addEventListener('change', () => void saveStealthConfig({ cosmeticEnabled: cosmetic.checked }));

@@ -2,11 +2,11 @@
   <img src="docs/assets/logo-banner.png" alt="Adfilter Logo" width="360" />
 </p>
 
-# AdFilter v3.1.6 — Universal AdFilter (Manifest V3) & Cloud Observability
+# AdFilter v3.1.7 — Universal AdFilter (Manifest V3) & Cloud Observability
 
 [![Verify CI](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml/badge.svg)](https://github.com/Datkewww123/Adfilter/actions/workflows/verify.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.1.6-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.1.7-brightgreen.svg)](CHANGELOG.md)
 
 **AdFilter** là tiện ích (extension) chặn quảng cáo cho trình duyệt **Chrome, Cốc Cốc, Edge, Brave**: chặn quảng cáo YouTube, popup/tab quảng cáo tự bật và banner cờ bạc trên web xem phim, web đọc truyện.
 
@@ -21,12 +21,12 @@
 #### Bước 1: Tải đúng file gói tiện ích về máy
 1. Mở trang phát hành chính thức: **👉 [https://github.com/Datkewww123/Adfilter/releases/latest](https://github.com/Datkewww123/Adfilter/releases/latest)**
 2. Kéo xuống cuối bản ghi chú, tìm mục **Assets (Tệp đính kèm)**.
-3. Bấm trực tiếp vào dòng **`adfilter-chromium-v3.1.6.zip`** để tải về máy:
+3. Bấm trực tiếp vào dòng **`adfilter-chromium-v3.1.7.zip`** để tải về máy:
 
 | Tên file trong mục Assets | Dành cho trình duyệt nào? | Cần tải không? |
 | :--- | :--- | :---: |
-| **`adfilter-chromium-v3.1.6.zip`** | **Google Chrome, Cốc Cốc, Microsoft Edge, Brave, Opera** | ✅ **TẢI FILE NÀY** |
-| `adfilter-firefox-v3.1.6.zip` | Mozilla Firefox | 🦊 Chỉ tải nếu dùng Firefox |
+| **`adfilter-chromium-v3.1.7.zip`** | **Google Chrome, Cốc Cốc, Microsoft Edge, Brave, Opera** | ✅ **TẢI FILE NÀY** |
+| `adfilter-firefox-v3.1.7.zip` | Mozilla Firefox | 🦊 Chỉ tải nếu dùng Firefox |
 | `SHA256SUMS.txt` | File kiểm tra mã băm bảo mật (dành cho kỹ thuật) | Không bắt buộc |
 | `Source code (zip)` / `Source code (tar.gz)` | Mã nguồn lập trình chưa biên dịch | ❌ **KHÔNG TẢI** |
 
@@ -34,13 +34,13 @@
 > **Tuyệt đối KHÔNG** bấm nút màu xanh **`<> Code` → `Download ZIP`** ở trang chủ GitHub và **KHÔNG** tải `Source code (zip)`. Đó là mã nguồn thô chưa đóng gói, khi nạp vào Chrome sẽ báo lỗi không dùng được. File đúng bắt buộc phải có chữ **`adfilter-chromium`** trong tên.
 
 #### Bước 2: Giải nén file vào một thư mục cố định
-1. Mở thư mục **Downloads (Tải xuống)** trên máy tính, tìm file `adfilter-chromium-v3.1.6.zip`.
+1. Mở thư mục **Downloads (Tải xuống)** trên máy tính, tìm file `adfilter-chromium-v3.1.7.zip`.
 2. **Đặt ở nơi cố định trước khi cài:** Nên copy file `.zip` này sang một thư mục riêng mà bạn không bao giờ xóa (ví dụ `D:\AdFilter\` hoặc `Documents\AdFilter\`), vì sau khi cài trình duyệt sẽ đọc trực tiếp từ thư mục giải nén.
 3. **Giải nén:**
-   - **Trên Windows:** Nhấp **chuột phải** vào `adfilter-chromium-v3.1.6.zip` → chọn **"Extract All..." (Giải nén tất cả)** → bấm **Extract** *(hoặc nếu dùng WinRAR / 7-Zip thì chọn `Extract to "adfilter-chromium-v3.1.6\"`)*.
-   - **Trên macOS:** Nhấp đúp chuột trái vào file `adfilter-chromium-v3.1.6.zip` để tự giải nén ra thư mục cùng tên.
-4. **Kiểm tra thư mục sau khi giải nén:** Mở thư mục `adfilter-chromium-v3.1.6` ra, bạn phải thấy ngay file **`manifest.json`** nằm cùng cấp với `background.js`, `content.js`, `defuser.js` và thư mục `rules`.
-   *(Lưu ý: Nếu mở `adfilter-chromium-v3.1.6` ra mà lại thấy thêm một thư mục `adfilter-chromium-v3.1.6` nữa bên trong, thì ở Bước 3 bạn nhớ chọn **thư mục con bên trong cùng** nơi chứa trực tiếp file `manifest.json`).*
+   - **Trên Windows:** Nhấp **chuột phải** vào `adfilter-chromium-v3.1.7.zip` → chọn **"Extract All..." (Giải nén tất cả)** → bấm **Extract** *(hoặc nếu dùng WinRAR / 7-Zip thì chọn `Extract to "adfilter-chromium-v3.1.7\"`)*.
+   - **Trên macOS:** Nhấp đúp chuột trái vào file `adfilter-chromium-v3.1.7.zip` để tự giải nén ra thư mục cùng tên.
+4. **Kiểm tra thư mục sau khi giải nén:** Mở thư mục `adfilter-chromium-v3.1.7` ra, bạn phải thấy ngay file **`manifest.json`** nằm cùng cấp với `background.js`, `content.js`, `defuser.js` và thư mục `rules`.
+   *(Lưu ý: Nếu mở `adfilter-chromium-v3.1.7` ra mà lại thấy thêm một thư mục `adfilter-chromium-v3.1.7` nữa bên trong, thì ở Bước 3 bạn nhớ chọn **thư mục con bên trong cùng** nơi chứa trực tiếp file `manifest.json`).*
 
 > [!IMPORTANT]
 > **Không xóa, không đổi tên và không di chuyển** thư mục đã giải nén sau khi cài xong. Nếu xóa thư mục này, tiện ích sẽ bị mất khỏi trình duyệt ở lần mở máy tiếp theo.
@@ -55,8 +55,8 @@
    - Trên **Chrome / Cốc Cốc / Brave**: công tắc nằm ở **góc trên cùng bên phải**.
    - Trên **Microsoft Edge**: công tắc nằm ở **thanh menu bên trái** (hoặc góc trên phải tùy phiên bản).
 3. Sau khi bật, một hàng nút mới sẽ hiện ra ở góc trên bên trái. Bấm vào nút **"Load unpacked" (Tải tiện ích đã giải nén)**.
-4. Trong cửa sổ chọn thư mục: tìm và bấm chọn **thư mục `adfilter-chromium-v3.1.6`** (thư mục có chứa file `manifest.json` ở Bước 2) → bấm **Select Folder (Chọn thư mục)**.
-5. ✅ Hoàn tất! Thẻ **AdFilter `3.1.6`** sẽ xuất hiện trong danh sách tiện ích với công tắc đang **Bật**.
+4. Trong cửa sổ chọn thư mục: tìm và bấm chọn **thư mục `adfilter-chromium-v3.1.7`** (thư mục có chứa file `manifest.json` ở Bước 2) → bấm **Select Folder (Chọn thư mục)**.
+5. ✅ Hoàn tất! Thẻ **AdFilter `3.1.7`** sẽ xuất hiện trong danh sách tiện ích với công tắc đang **Bật**.
 
 #### Bước 4: Ghim biểu tượng ra thanh công cụ & làm mới tab
 1. Bấm vào biểu tượng **mảnh ghép 🧩 (Extensions)** ở góc phải thanh địa chỉ trình duyệt.
@@ -64,7 +64,7 @@
 3. Quay lại các tab YouTube, web xem phim hoặc web đọc truyện đang mở sẵn và nhấn **`F5` (Tải lại trang)** để tiện ích bắt đầu bảo vệ ngay lập tức.
 
 ### B. Cài đặt trên Mozilla Firefox
-- Tải file **`adfilter-firefox-v3.1.6.zip`** trong mục **Assets** của trang **[Releases](https://github.com/Datkewww123/Adfilter/releases/latest)**.
+- Tải file **`adfilter-firefox-v3.1.7.zip`** trong mục **Assets** của trang **[Releases](https://github.com/Datkewww123/Adfilter/releases/latest)**.
 - Để dùng thử nhanh trong phiên: gõ `about:debugging#/runtime/this-firefox` vào thanh địa chỉ → bấm **Load Temporary Add-on...** → chọn file `adfilter-firefox-v3.1.4.zip`.
 - Để cài đặt cố định lâu dài không bị mất khi tắt Firefox: làm theo hướng dẫn chi tiết tại **[docs/notes/firefox-install.md](docs/notes/firefox-install.md)**.
 
@@ -88,22 +88,17 @@ Khi đang ở bất kỳ trang web nào, bấm chuột trái vào biểu tượn
 | :--- | :--- |
 | **Nhãn `Đang bảo vệ`** | Báo hiệu lớp lọc và bảo vệ nội dung trong trình duyệt đang hoạt động bình thường. |
 | **Thẻ `Trang web hiện tại`**<br>*(Nút **`Tạm dừng`** / **`Bật lại`**)* | **Tắt/bật chặn quảng cáo cho riêng trang web đang mở (Whitelist theo tên miền):**<br>• Dùng khi bạn vào trang ngân hàng, cổng dịch vụ công, hoặc khi một trang web bị lỗi hiển thị cần kiểm tra.<br>• **Cách dùng:** Bấm **`Tạm dừng`** (trạng thái chuyển sang *"Đã tạm dừng trên trang này"*) → nhấn **`F5`** tải lại trang. Các trang web khác vẫn được chặn quảng cáo bình thường.<br>• Muốn bảo vệ lại trang đó: mở Popup bấm **`Bật lại`** → nhấn **`F5`**. |
-| **Thẻ `Chế độ YouTube`**<br>*(Nút **`Sang Chế độ B`** / **`Sang Chế độ A`**)* | **Chuyển đổi tức thời giữa 2 chế độ xử lý quảng cáo YouTube** mà không cần tải lại tiện ích (xem bảng so sánh chi tiết ngay bên dưới). |
 | **Ô trạng thái luồng phát** | Hiển thị trạng thái bảo vệ thời gian thực trên tab hiện tại, tổng số quảng cáo đã chặn và thời gian chờ đã tiết kiệm được. |
 | **Nút `🎯 Chọn để xóa`** | Công cụ xóa thủ công bất kỳ khung quảng cáo/banner cứng đầu nào còn sót trên trang web (hướng dẫn 4 bước ở mục 2.2 bên dưới). |
 | **Nút `Xuất nhật ký`** | Tải về máy file `adfilter-log-YYYY-MM-DD.json` chứa nhật ký hoạt động kỹ thuật cục bộ (dùng để kiểm tra hoặc đính kèm khi báo lỗi). |
 | **Nút `⚙️ Cài đặt Bộ lọc`** | Mở trang **Cài đặt nâng cao** trong tab mới (bật/tắt bộ lọc Quốc tế/Việt Nam, thêm link filter từ xa, viết quy tắc chặn tùy chỉnh, chỉnh tốc độ tua...). |
 
-#### 2.1. Nên chọn `Chế độ A` hay `Chế độ B` khi xem YouTube?
+#### 2.1. Cơ chế `Tự động thông minh` trên YouTube (Hợp nhất)
 
-YouTube hiện sử dụng giao thức truyền phát máy chủ **SABR (`Server-driven ABR`)**: nếu tiện ích xóa trắng toàn bộ tín hiệu quảng cáo ngay trong gói tin gốc, máy chủ `googlevideo.com` sẽ phạt trì hoãn luồng dữ liệu video **`4–8 giây`** (`NextRequestPolicy.backoffTimeMs`) trước khi phát mỗi video có kiếm tiền. Để giải quyết triệt để, AdFilter cung cấp **2 chế độ** để bạn chuyển đổi chỉ bằng 1 cú nhấp chuột:
-
-| Tiêu chí | ⚡ Chế độ A: Tải nhanh `<1s` *(Mặc định — Khuyến nghị)* | 🔒 Chế độ B: Chặn tuyệt đối tại nguồn *(Strict Defuser)* |
-| :--- | :--- | :--- |
-| **Cơ chế hoạt động** | • Ở video có quảng cáo đầu tiên trong phiên: tự động che màn đen (`VisualMask`), tắt tiếng (`mute`) và tua hết quảng cáo trong **`~0.3–1 giây`**.<br>• Cho phép duy nhất gói tin xác nhận 1st-party `youtube.com/api/stats/ads` đi qua để YouTube ghi nhận phiên đã hoàn tất quảng cáo (vẫn chặn 100% tên miền quảng cáo bên thứ 3 như `doubleclick.net`, `/pagead/`, `/player/ad_break`, Remarketing và quảng cáo Shorts). | • Xóa trắng 100% dữ liệu quảng cáo (`adPlacements`, `playerAds`, `adSlots`, `adBreaks`) ngay trong gói JSON và chặn luôn cả `youtube.com/api/stats/ads`. |
-| **Tốc độ mở các video tiếp theo** | **Phát ngay lập tức dưới `< 1 giây` (`~0.35–0.9s`)**, không còn quảng cáo và không bị máy chủ phạt chờ. | Máy chủ YouTube có thể giữ luồng chờ **`4–8 giây`** ở đầu mỗi video có bật kiếm tiền. |
-| **Chất lượng hình ảnh** | **Giữ nguyên chất lượng gốc cao nhất (Full HD / 2K / 4K)** ngay từ khung hình đầu tiên. | Giữ nguyên chất lượng gốc cao nhất. |
-| **Khi nào nên dùng?** | **Dùng hàng ngày** khi muốn bấm chuyển video liên tục mở nhanh `<1s` và không bị khựng. | Dùng khi bạn muốn chặn tuyệt đối mọi ping thống kê quảng cáo 1st-party và chấp nhận chờ `4–8s` lúc đầu video. |
+AdFilter hợp nhất 2 cơ chế thành **1 chế độ `Tự động thông minh (auto)` mặc định**:
+1. **Bình thường (Chặn tuyệt đối tại nguồn):** Xóa trắng 100% dữ liệu quảng cáo (`adPlacements`, `playerAds`, `adSlots`, `adBreaks`) ngay trong gói JSON để trình phát vào thẳng video gốc, không nháy màn đen.
+2. **Tự thích ứng khi gặp SABR Backoff:** Nếu máy chủ YouTube trả tín hiệu phạt trì hoãn (`backoffTimeMs >= 3000ms`), hệ thống tự động lùi tạm sang cơ chế tua nhanh (`fast-skip`) trong phiên đó để video mở ngay không bị xoay vòng 4–8 giây.
+*(Bạn vẫn có thể ép cố định chế độ trong `⚙️ Cài đặt Bộ lọc` nếu muốn).*
 
 #### 2.2. Cách dùng công cụ `🎯 Chọn để xóa` (Xóa sạch quảng cáo còn sót)
 Nếu một trang web mới đổi mã nguồn khiến một khung banner hoặc hộp nổi còn sót lại trên màn hình:
@@ -142,7 +137,7 @@ Khi bấm **`⚙️ Cài đặt Bộ lọc`** trong Popup, trang cài đặt chi
   ```
 
 #### Nhóm 2: Cấu hình Trình phát Video (YouTube)
-- **Chế độ xử lý quảng cáo YouTube:** Chọn giữa **`Chế độ A: Tải nhanh (Mặc định)`** và **`Chế độ B: Chặn tuyệt đối tại nguồn`** (đồng bộ 2 chiều với nút chuyển trên Popup).
+- **Chế độ xử lý quảng cáo YouTube:** Chọn giữa **`Tự động thông minh (Mặc định)`**, **`Luôn chặn tuyệt đối tại nguồn (Chế độ B)`** và **`Luôn tải nhanh (Chế độ A)`**.
 - **Lớp 2 — Cosmetic (`Ẩn banner/overlay`):** Ẩn các khung quảng cáo tĩnh trên giao diện YouTube.
 - **Lớp 3 — Visual Mask (`Che mắt 0ms`):** Tự phủ lớp màn đen mịn trong tích tắc tua quảng cáo để mắt bạn không thấy khung hình quảng cáo nháy lên.
 - **Lớp 4 — Fast-Seek (`Tua 16x dự phòng`):** Tự động tắt tiếng và đẩy tốc độ/thời gian quảng cáo về cuối ngay khi phát hiện luồng quảng cáo.
@@ -174,7 +169,7 @@ Khi có bản phát hành mới trên GitHub Releases, bạn có thể cập nh�
 
 **1. Lúc bấm "Load unpacked", Chrome báo lỗi `Manifest file is missing or unreadable`?**
 - **Nguyên nhân:** Bạn đã tải nhầm file `Source code (zip)` hoặc chọn nhầm thư mục cha bên ngoài chưa chứa trực tiếp file `manifest.json`.
-- **Cách xử lý:** Kiểm tra lại xem bạn đã tải đúng file **`adfilter-chromium-v3.1.6.zip`** chưa; khi chọn thư mục trong `Load unpacked`, hãy mở vào đúng cấp thư mục mà bên trong nhìn thấy ngay file `manifest.json`.
+- **Cách xử lý:** Kiểm tra lại xem bạn đã tải đúng file **`adfilter-chromium-v3.1.7.zip`** chưa; khi chọn thư mục trong `Load unpacked`, hãy mở vào đúng cấp thư mục mà bên trong nhìn thấy ngay file `manifest.json`.
 
 **2. Mở Chrome lên hiện thông báo *"Disable developer mode extensions / Tắt tiện ích ở chế độ nhà phát triển"*?**
 - Đây là thông báo mặc định của Chrome đối với mọi tiện ích cài bằng `Load unpacked` ngoài Chrome Web Store. Bạn chỉ cần bấm **dấu `X`** hoặc nút **"Giữ lại / Cancel"** để đóng thông báo (**không** bấm "Disable / Tắt").
@@ -249,10 +244,10 @@ Chi tiết phân tích kỹ thuật và nguồn đo lường xem tại **[docs/C
 ## 3. Cài đặt từ mã nguồn (Developer) & Cơ chế An toàn
 
 ### Cài đặt trên Google Chrome / Chromium:
-1. Tải gói `adfilter-chromium-v3.1.6.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` / `pnpm package` để tạo `dist/chromium/` và `release/`).
+1. Tải gói `adfilter-chromium-v3.1.7.zip` và `SHA256SUMS.txt` từ trang **[Releases](https://github.com/Datkewww123/Adfilter/releases)** (hoặc chạy `pnpm build` / `pnpm package` để tạo `dist/chromium/` và `release/`).
 2. Kiểm tra tính toàn vẹn SHA-256:
    ```powershell
-   Get-FileHash adfilter-chromium-v3.1.6.zip -Algorithm SHA256
+   Get-FileHash adfilter-chromium-v3.1.7.zip -Algorithm SHA256
    ```
 3. Mở `chrome://extensions/`, bật **Developer mode**, bấm **Load unpacked** và chọn thư mục đã giải nén (`dist/chromium/`).
 
@@ -276,7 +271,7 @@ pnpm install
 # Biên dịch bộ lọc ABP/uBO -> DNR JSON + Cosmetic/Scriptlet Index
 pnpm compile:filters
 
-# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 402 Unit Tests + Quality Gate Eval + Multi-target Build)
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 403 Unit Tests + Quality Gate Eval + Multi-target Build)
 pnpm verify:all
 
 # Đóng gói bản Dev và chạy 13 kịch bản kiểm thử đầu cuối Playwright E2E
@@ -307,12 +302,12 @@ pnpm --dir server test
 
 ## 6. Trạng thái Dự án & Chính sách
 
-- **Phiên bản hiện tại:** **`v3.1.6`** (Phát hành ngày `2026-11-23` — xem [CHANGELOG.md](CHANGELOG.md)).
+- **Phiên bản hiện tại:** **`v3.1.7`** (Phát hành ngày `2026-11-23` — xem [CHANGELOG.md](CHANGELOG.md)).
 - **Tiến độ đã hoàn thành (Tuần 1 – Tuần 29):**
   - **Tuần 1–20:** Kiến trúc Pure Core YouTube, Circuit Breaker, Canary Observability & AWS Terraform CD.
   - **Tuần 21–25:** Mở rộng Universal Web (Anti-Popup, IAB Heuristic, VAST Interceptor, Element Picker, Vietnamese Manga Shield).
   - **Tuần 26–29 (`v3.0.0`):** Nâng cấp thành **Brave-Style Universal Engine** (Filter Compiler `filters/*.txt`, `noop.*` Redirects, Scriptlet Engine `+js`, `attachShadow` Shield, Procedural Engine `:has-text`/`:upward`, Dynamic DNR & Remote Filter Updater, tách làn an toàn YouTube).
-  - **Tuần 30 & các bản vá (`v3.1.0` – `v3.1.6`):** Universal Movie Shield (iframe player, anti-popunder, pause-ad), nhận diện banner cờ bạc mọi web phim, Zero-Flash, tự đóng tab popunder, cô lập `#movie_player`, Chế độ A tải nhanh YouTube `<1s`, cách ly khung xác thực bảo mật, siết regex chống chặn nhầm ChatGPT / OAuth / URL hợp lệ, tích hợp logo Adfilter + chuẩn hóa Chrome Web Store, và sửa lỗi lag Livestream `tryLiveHead()`.
+  - **Tuần 30 & các bản vá (`v3.1.0` – `v3.1.7`):** Universal Movie Shield (iframe player, anti-popunder, pause-ad), nhận diện banner cờ bạc mọi web phim, Zero-Flash, tự đóng tab popunder, cô lập `#movie_player`, đặt mặc định Chế độ B chặn tuyệt đối tại nguồn JSON kèm Chế độ A tải nhanh YouTube, cách ly khung xác thực bảo mật, siết regex chống chặn nhầm ChatGPT / OAuth / URL hợp lệ, tích hợp logo Adfilter + chuẩn hóa Chrome Web Store, và sửa lỗi lag Livestream `tryLiveHead()`.
 - **Bảo mật & Quyền truy cập:** Xem chi tiết tại **[SECURITY.md](SECURITY.md)** và **[docs/notes/permissions-review.md](docs/notes/permissions-review.md)**.
 
 ---
