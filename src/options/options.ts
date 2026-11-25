@@ -21,16 +21,10 @@ const fallback = document.getElementById('fastSeekFallback') as HTMLInputElement
 
 function renderYouTubeAdModeHint(mode: YouTubeAdMode): void {
   if (!youtubeAdModeHintEl) return;
-  if (mode === 'fast-skip') {
-    youtubeAdModeHintEl.textContent =
-      'Luôn tải nhanh (Chế độ A): Che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s.';
-  } else if (mode === 'strict-defuser') {
-    youtubeAdModeHintEl.textContent =
-      'Luôn chặn tuyệt đối tại nguồn (Chế độ B): Xóa trắng 100% adPlacements/playerAds/adSlots ngay trong JSON trước khi trình phát đọc.';
-  } else {
-    youtubeAdModeHintEl.textContent =
-      'Tự động thông minh (Mặc định): Ưu tiên chặn tuyệt đối tại nguồn JSON như Chế độ B; tự động lùi sang tải nhanh nếu phát hiện máy chủ YouTube phạt SABR backoff.';
-  }
+  youtubeAdModeHintEl.textContent =
+    mode === 'fast-skip'
+      ? 'Tải nhanh (Mặc định): Che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s (vẫn chặn 3rd-party DNR, /pagead/ & ad_break).'
+      : 'Chặn tuyệt đối tại nguồn (Strict Defuser): Xóa trắng 100% adPlacements/playerAds/adSlots ngay trong JSON (lưu ý: máy chủ YouTube SABR có thể giữ luồng chờ 4–10 giây khi chuyển bài).';
 }
 
 const filterGlobalEl = document.getElementById('filterGlobalEnabled') as HTMLInputElement | null;

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.8] - 2026-11-24
+
+### Fixed
+- **Sửa lỗi chuyển video YouTube tốn 8–10 giây (phạt SABR) & lỗi không lên video trên `v3.1.7`:**
+  - Khôi phục mặc định chuẩn `v3.1.3` (`defaultConfig.youtubeAdMode = 'fast-skip'` trong `src/storage/config.ts`) và tự động chuyển cấu hình `'auto'` cũ của `v3.1.7` về `'fast-skip'` để toàn bộ video chuyển tiếp mở nhanh `< 1 giây` (tránh phạt SABR `4–10s` từ `googlevideo.com` khi chạy `strict-defuser`).
+  - Gỡ bỏ hoàn toàn hàm `inspectSabrBackoff()` đệ quy 6 tầng khỏi `src/stealth/interceptor.ts`; giữ lại toàn bộ bảo vệ `try/catch` và loại trừ `Node`/`Window` trong `purge()`, `patchedResponseJson()` và `src/stealth/defuser.ts` để tuyệt đối không làm sập script khởi tạo trình phát video.
+  - Tinh gọn `src/options/options.html` & `src/options/options.ts` về 2 lựa chọn rõ ràng (`Tải nhanh (<1s) — Mặc định` và `Chặn tuyệt đối tại nguồn`), giữ Popup gọn sạch không có thẻ A/B.
+- **Sửa lỗi video YouTube tự bị Pause ngầm (Mix/Playlist hoặc sau khi gỡ hộp thoại Enforcement):**
+  - `src/stealth/defuser.ts`: bổ sung `resumeAfterPopup()` gọi `playViaPlayer()` (ngay lập tức + kiểm tra lại sau `250ms`) ngay khi `removeInterruptionPopups()` gỡ `ytd-enforcement-message-view-model`.
+  - `src/stealth/defuser.ts`: nâng cấp listener `pause` trong `attachPlaybackGuard()` bổ sung 2 nhịp kiểm tra phục hồi an toàn ở `250ms` và `700ms` (hủy ngay nếu người dùng tự bấm Space/Click pause trong `1200ms`) khi YouTube tự pause lúc `readyState < 2` hoặc đang buffering (`playerState === 3`).
+
 ## [3.1.7] - 2026-11-23
 
 ### Changed
