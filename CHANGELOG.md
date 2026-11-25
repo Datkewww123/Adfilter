@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.1.9] - 2026-11-25
 
 ### Changed
-- **Tối ưu tốc độ vượt cụm nhiều quảng cáo YouTube (`Ad 1 of 2` -> `Ad 2 of 2`) ở mức `0ms`:**
+- **Tối ưu tốc độ mở Video đầu tiên & vượt cụm nhiều quảng cáo YouTube (`Ad 1 of 2` -> `Ad 2 of 2`) ở mức `0ms`:**
+  - `src/manifest.json`, `src/content/playerObserver.ts` & `src/stealth/visual-mask.ts`: chuyển `content.js` và `cosmetic.css` từ `"run_at": "document_idle"` sang **`"run_at": "document_start"`**, bổ sung `bootMo` tự bắt `#movie_player` ngay khoảnh khắc phần tử này vừa sinh ra trong HTML (và tự ngắt `bootMo` ngay sau khi gắn xong) — cắt bỏ hoàn toàn `1.5 – 3.5 giây` trễ nạp ở đúng video đầu tiên khi mới mở tab hoặc F5.
   - `src/stealth/cosmetic.css` & `src/content/selectors.ts`: chuyển `.ytp-ad-module`, `.ytp-ad-player-overlay` và `.ytp-ad-player-overlay-layout` từ `display: none !important` sang `opacity: 0 !important; pointer-events: none !important;` để mắt người dùng vẫn không thấy bất kỳ khung hình quảng cáo nào nhưng nút `Skip Ads` giữ nguyên kích thước DOM, cho phép `getSkipButton()` bấm hủy cả cụm nhiều quảng cáo trong 1 lần thay vì chờ tua lẻ từng clip.
   - `src/content/index.ts`: bổ sung bộ bắt sự kiện media pha capture (`loadedmetadata`, `durationchange`, `loadeddata`) để kích hoạt `instantIntervene()` ngay ở mili-giây `0ms` khi `v.duration` của quảng cáo vừa nạp xong (loại bỏ độ trễ chờ vòng lặp `250–500ms`), kèm chốt `v.currentTime < v.duration - 0.2` tránh tua ngược làm lỡ nhịp `ended`.
   - `src/content/playerObserver.ts`: kích hoạt `onInstant()` cho cả các biến đổi DOM con bên trong `#movie_player` khi đang `.ad-showing` (với nhịp chống spam `50ms`) để bấm nút Skip hoặc xử lý quảng cáo kế tiếp trong cụm ngay khi vừa xuất hiện.

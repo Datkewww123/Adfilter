@@ -107,7 +107,7 @@
       ],
       "js": ["content.js"],
       "css": ["cosmetic.css"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     },
     {
       "matches": ["<all_urls>"],

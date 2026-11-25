@@ -8,6 +8,7 @@ const INSTANT_CHILD_GAP_MS = 50;
 
 export class PlayerObserver {
   private mo?: MutationObserver;
+  private bootMo?: MutationObserver;
   private observed?: Element;
   private tick?: number;
   private last = 0;
@@ -24,21 +25,45 @@ export class PlayerObserver {
   }
 
   start(): void {
+    document.addEventListener('DOMContentLoaded', this.attach);
+    document.addEventListener('yt-navigate-start', this.attach);
     document.addEventListener('yt-navigate-finish', this.attach);
     this.attach();
+    this.startBootstrapWatcher();
     this.tick = window.setInterval(this.emit, SAFETY_TICK_MS);
   }
 
   stop(): void {
+    document.removeEventListener('DOMContentLoaded', this.attach);
+    document.removeEventListener('yt-navigate-start', this.attach);
     document.removeEventListener('yt-navigate-finish', this.attach);
     this.mo?.disconnect();
+    this.bootMo?.disconnect();
     if (this.tick !== undefined) clearInterval(this.tick);
+  }
+
+  private startBootstrapWatcher(): void {
+    if (this.observed || this.bootMo) return;
+    const root = document.documentElement;
+    if (!root) return;
+    this.bootMo = new MutationObserver(() => {
+      if (document.querySelector(SEL.player)) {
+        this.attach();
+      }
+    });
+    this.bootMo.observe(root, { childList: true, subtree: true });
   }
 
   private attach = (): void => {
     const player = document.querySelector(SEL.player);
-    if (!player || player === this.observed) return;
+    if (!player) {
+      this.startBootstrapWatcher();
+      return;
+    }
+    if (player === this.observed) return;
 
+    this.bootMo?.disconnect();
+    this.bootMo = undefined;
     this.mo?.disconnect();
     this.observed = player;
     this.mo = new MutationObserver(this.onMutation);
@@ -48,6 +73,13 @@ export class PlayerObserver {
       childList: true,
       subtree: true,
     });
+    if (
+      this.onInstant &&
+      (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
+    ) {
+      this.lastInstant = Date.now();
+      this.onInstant();
+    }
     this.emit();
   };
 

@@ -270,7 +270,7 @@ pnpm install
 # Biên dịch bộ lọc ABP/uBO -> DNR JSON + Cosmetic/Scriptlet Index
 pnpm compile:filters
 
-# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 404 Unit Tests + Quality Gate Eval + Multi-target Build)
+# Chạy một lệnh kiểm tra tổng hợp toàn bộ dự án (Lint + Typecheck + 405 Unit Tests + Quality Gate Eval + Multi-target Build)
 pnpm verify:all
 
 # Đóng gói bản Dev và chạy 13 kịch bản kiểm thử đầu cuối Playwright E2E
