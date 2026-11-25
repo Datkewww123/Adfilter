@@ -4,12 +4,14 @@ import type { Signals } from '../core/types';
 
 const SAFETY_TICK_MS = 250;
 const MIN_GAP_MS = SAFETY_TICK_MS;
+const INSTANT_CHILD_GAP_MS = 50;
 
 export class PlayerObserver {
   private mo?: MutationObserver;
   private observed?: Element;
   private tick?: number;
   private last = 0;
+  private lastInstant = 0;
 
   // Callback riêng được gọi tức thời (0ms) khi DOM phát hiện .ad-showing
   private onInstant?: () => void;
@@ -54,6 +56,7 @@ export class PlayerObserver {
    * và gọi onInstant trước khi qua throttle + debounce bình thường.
    */
   private onMutation = (mutations: MutationRecord[]): void => {
+    let handledClassInstant = false;
     // Kiểm tra nhanh nếu có mutation nào thay đổi class của #movie_player
     for (const m of mutations) {
       if (
@@ -64,11 +67,30 @@ export class PlayerObserver {
         const el = m.target as Element;
         if (el.classList.contains('ad-showing') || el.classList.contains('ad-interrupting')) {
           // Gọi ngay lập tức — KHÔNG qua throttle hay debounce
+          this.lastInstant = Date.now();
+          handledClassInstant = true;
           if (this.onInstant) this.onInstant();
         }
         break;
       }
     }
+
+    // Nếu #movie_player đang chiếu QC và DOM con biến đổi (nút Skip vừa xuất hiện / chuyển Ad 1 -> Ad 2),
+    // kích hoạt onInstant ngay với nhịp chống spam 50ms thay vì chờ chu kỳ 250ms.
+    if (
+      !handledClassInstant &&
+      this.onInstant &&
+      this.observed &&
+      (this.observed.classList.contains('ad-showing') ||
+        this.observed.classList.contains('ad-interrupting'))
+    ) {
+      const now = Date.now();
+      if (now - this.lastInstant >= INSTANT_CHILD_GAP_MS) {
+        this.lastInstant = now;
+        this.onInstant();
+      }
+    }
+
     // Sau đó mới emit theo cơ chế throttle bình thường
     this.emit();
   };

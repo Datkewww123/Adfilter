@@ -1,6 +1,6 @@
 {
   "name": "adfilter",
-  "version": "3.1.8",
+  "version": "3.1.9",
   "description": "Universal Manifest V3 Ad Blocker & Content Filter Extension for Web & Video Streaming",
   "main": "index.js",
   "scripts": {

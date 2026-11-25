@@ -52,6 +52,28 @@ export function getActiveVideo(doc: Document): HTMLVideoElement | null {
   return videos[0];
 }
 
+function isSkipElementBlocked(el: HTMLElement, player: Element): boolean {
+  if (
+    el.hasAttribute('disabled') ||
+    el.getAttribute('aria-disabled') === 'true' ||
+    el.hasAttribute('hidden')
+  ) {
+    return true;
+  }
+  let cur: HTMLElement | null = el;
+  while (cur && cur !== player) {
+    if (
+      cur.hasAttribute('hidden') ||
+      cur.style?.display === 'none' ||
+      cur.style?.visibility === 'hidden'
+    ) {
+      return true;
+    }
+    cur = cur.parentElement;
+  }
+  return false;
+}
+
 /** Tìm chính xác nút Bỏ qua quảng cáo (Skip Ad) KHI ĐÃ SẴN SÀNG CLICK */
 export function getSkipButton(doc: Document): HTMLElement | null {
   const player = doc.querySelector(SEL.player);
@@ -64,7 +86,7 @@ export function getSkipButton(doc: Document): HTMLElement | null {
     if (el.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button')) {
       continue;
     }
-    if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
+    if (isSkipElementBlocked(el, player)) {
       continue;
     }
 
@@ -88,6 +110,7 @@ export function getSkipButton(doc: Document): HTMLElement | null {
   const buttons = player.querySelectorAll<HTMLElement>('button, [role="button"]');
   for (const b of buttons) {
     if (b.closest('.ytp-ad-avatar-lockup-card, .ytp-ad-visit-advertiser-button')) continue;
+    if (isSkipElementBlocked(b, player)) continue;
     const text = (b.textContent || '').trim().toLowerCase();
     if (
       (text.includes('skip') || text.includes('bỏ qua')) &&
