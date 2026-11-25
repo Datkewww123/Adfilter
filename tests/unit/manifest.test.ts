@@ -72,4 +72,15 @@ describe('manifest: không phình quyền & cấu hình hợp lệ', () => {
     expect(manifest.description).toBeDefined();
     expect(manifest.description).not.toMatch(/brave/i);
   });
+
+  it('nạp cả defuser.js và content.js + cosmetic.css trên YouTube ngay tại document_start để không trễ ở video đầu tiên', () => {
+    const fullManifest = JSON.parse(readFileSync('src/manifest.json', 'utf8')) as {
+      content_scripts: Array<{ js?: string[]; css?: string[]; run_at?: string }>;
+    };
+    const ytContent = fullManifest.content_scripts.find((cs) => cs.js?.includes('content.js'));
+    const ytDefuser = fullManifest.content_scripts.find((cs) => cs.js?.includes('defuser.js'));
+    expect(ytDefuser?.run_at).toBe('document_start');
+    expect(ytContent?.run_at).toBe('document_start');
+    expect(ytContent?.css).toContain('cosmetic.css');
+  });
 });

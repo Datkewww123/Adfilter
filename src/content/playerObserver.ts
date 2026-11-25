@@ -4,12 +4,15 @@ import type { Signals } from '../core/types';
 
 const SAFETY_TICK_MS = 250;
 const MIN_GAP_MS = SAFETY_TICK_MS;
+const INSTANT_CHILD_GAP_MS = 50;
 
 export class PlayerObserver {
   private mo?: MutationObserver;
+  private bootMo?: MutationObserver;
   private observed?: Element;
   private tick?: number;
   private last = 0;
+  private lastInstant = 0;
 
   // Callback riêng được gọi tức thời (0ms) khi DOM phát hiện .ad-showing
   private onInstant?: () => void;
@@ -22,21 +25,45 @@ export class PlayerObserver {
   }
 
   start(): void {
+    document.addEventListener('DOMContentLoaded', this.attach);
+    document.addEventListener('yt-navigate-start', this.attach);
     document.addEventListener('yt-navigate-finish', this.attach);
     this.attach();
+    this.startBootstrapWatcher();
     this.tick = window.setInterval(this.emit, SAFETY_TICK_MS);
   }
 
   stop(): void {
+    document.removeEventListener('DOMContentLoaded', this.attach);
+    document.removeEventListener('yt-navigate-start', this.attach);
     document.removeEventListener('yt-navigate-finish', this.attach);
     this.mo?.disconnect();
+    this.bootMo?.disconnect();
     if (this.tick !== undefined) clearInterval(this.tick);
+  }
+
+  private startBootstrapWatcher(): void {
+    if (this.observed || this.bootMo) return;
+    const root = document.documentElement;
+    if (!root) return;
+    this.bootMo = new MutationObserver(() => {
+      if (document.querySelector(SEL.player)) {
+        this.attach();
+      }
+    });
+    this.bootMo.observe(root, { childList: true, subtree: true });
   }
 
   private attach = (): void => {
     const player = document.querySelector(SEL.player);
-    if (!player || player === this.observed) return;
+    if (!player) {
+      this.startBootstrapWatcher();
+      return;
+    }
+    if (player === this.observed) return;
 
+    this.bootMo?.disconnect();
+    this.bootMo = undefined;
     this.mo?.disconnect();
     this.observed = player;
     this.mo = new MutationObserver(this.onMutation);
@@ -46,6 +73,13 @@ export class PlayerObserver {
       childList: true,
       subtree: true,
     });
+    if (
+      this.onInstant &&
+      (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
+    ) {
+      this.lastInstant = Date.now();
+      this.onInstant();
+    }
     this.emit();
   };
 
@@ -54,6 +88,7 @@ export class PlayerObserver {
    * và gọi onInstant trước khi qua throttle + debounce bình thường.
    */
   private onMutation = (mutations: MutationRecord[]): void => {
+    let handledClassInstant = false;
     // Kiểm tra nhanh nếu có mutation nào thay đổi class của #movie_player
     for (const m of mutations) {
       if (
@@ -64,11 +99,30 @@ export class PlayerObserver {
         const el = m.target as Element;
         if (el.classList.contains('ad-showing') || el.classList.contains('ad-interrupting')) {
           // Gọi ngay lập tức — KHÔNG qua throttle hay debounce
+          this.lastInstant = Date.now();
+          handledClassInstant = true;
           if (this.onInstant) this.onInstant();
         }
         break;
       }
     }
+
+    // Nếu #movie_player đang chiếu QC và DOM con biến đổi (nút Skip vừa xuất hiện / chuyển Ad 1 -> Ad 2),
+    // kích hoạt onInstant ngay với nhịp chống spam 50ms thay vì chờ chu kỳ 250ms.
+    if (
+      !handledClassInstant &&
+      this.onInstant &&
+      this.observed &&
+      (this.observed.classList.contains('ad-showing') ||
+        this.observed.classList.contains('ad-interrupting'))
+    ) {
+      const now = Date.now();
+      if (now - this.lastInstant >= INSTANT_CHILD_GAP_MS) {
+        this.lastInstant = now;
+        this.onInstant();
+      }
+    }
+
     // Sau đó mới emit theo cơ chế throttle bình thường
     this.emit();
   };

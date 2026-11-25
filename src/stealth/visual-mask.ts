@@ -37,10 +37,13 @@ function _scheduleAutoRemove(): void {
 }
 
 export function applyMask(): void {
-  if (maskActive) return;
-  maskActive = true;
+  const player = document.querySelector('#movie_player');
+  if (!player) return;
 
   let mask = document.getElementById(MASK_ID);
+  if (maskActive && mask && mask.isConnected) return;
+  maskActive = true;
+
   if (!mask) {
     mask = document.createElement('div');
     mask.id = MASK_ID;
@@ -54,11 +57,10 @@ export function applyMask(): void {
       zIndex: '9999',
       pointerEvents: 'none', // KHÔNG block click — chỉ che hình ảnh QC
     });
-    const player = document.querySelector('#movie_player');
-    if (player) {
-      (player as HTMLElement).style.position = 'relative';
-      player.appendChild(mask);
-    }
+  }
+  if (!mask.isConnected || mask.parentElement !== player) {
+    (player as HTMLElement).style.position = 'relative';
+    player.appendChild(mask);
   }
   mask.style.display = 'block';
 

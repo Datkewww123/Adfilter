@@ -58,10 +58,12 @@ const actuator = new Actuator({
     const btn = getSkipButton(document);
     if (!btn) return false;
 
-    // Khi nút Skip xuất hiện, lập tức tua video về cuối và ép play()
+    // Khi nút Skip xuất hiện, lập tức tua video về cuối (nếu chưa sát cuối) và ép play()
     const v = getActiveVideo(document);
     if (v && Number.isFinite(v.duration) && v.duration > 0) {
-      v.currentTime = Math.max(0, v.duration - 0.1);
+      if (v.currentTime < Math.max(0, v.duration - 0.2)) {
+        v.currentTime = Math.max(0, v.duration - 0.1);
+      }
       v.playbackRate = cfg.maxSpeed;
       if (v.paused) void v.play().catch(() => undefined);
     }
@@ -133,9 +135,31 @@ window.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------------------
 
 let _ctxDead = false;
+
+const onAdMediaReady = (e: Event): void => {
+  if (_ctxDead || !cfg.enabled || cfg.dryRun) return;
+  const target = e.target;
+  if (typeof HTMLVideoElement !== 'undefined' && !(target instanceof HTMLVideoElement)) return;
+  const player = document.querySelector(SEL.player);
+  if (
+    player &&
+    (target instanceof Node ? player.contains(target) : true) &&
+    (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))
+  ) {
+    instantIntervene();
+  }
+};
+
+document.addEventListener('loadedmetadata', onAdMediaReady, true);
+document.addEventListener('durationchange', onAdMediaReady, true);
+document.addEventListener('loadeddata', onAdMediaReady, true);
+
 function teardown(): void {
   if (_ctxDead) return;
   _ctxDead = true;
+  document.removeEventListener('loadedmetadata', onAdMediaReady, true);
+  document.removeEventListener('durationchange', onAdMediaReady, true);
+  document.removeEventListener('loadeddata', onAdMediaReady, true);
   actuator.restore();
   observer.stop();
   log.info('extension context invalidated - content script stopped');
@@ -188,7 +212,12 @@ function instantIntervene(): void {
   for (const v of targetVideos) {
     v.muted = true;
     v.playbackRate = cfg.maxSpeed;
-    if (cfg.allowSeek && Number.isFinite(v.duration) && v.duration > 0) {
+    if (
+      cfg.allowSeek &&
+      Number.isFinite(v.duration) &&
+      v.duration > 0 &&
+      v.currentTime < Math.max(0, v.duration - 0.2)
+    ) {
       v.currentTime = Math.max(0, v.duration - 0.1);
       resumePlay();
     }
