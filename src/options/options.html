@@ -108,16 +108,16 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Cấu hình Trình phát Video (YouTube)</div>
+      <div class="card-title">Cấu hình Trình phát Video Trực tuyến</div>
       <div class="row">
-        <label for="youtubeAdMode">Chế độ xử lý quảng cáo YouTube</label>
+        <label for="youtubeAdMode">Chế độ lọc quảng cáo Video</label>
         <select id="youtubeAdMode">
           <option value="fast-skip">Tải nhanh (&lt;1s) — Mặc định</option>
-          <option value="strict-defuser">Chặn tuyệt đối tại nguồn (Strict Defuser)</option>
+          <option value="strict-defuser">Chặn tuyệt đối tại nguồn</option>
         </select>
       </div>
       <div class="note" id="youtubeAdModeHint" style="margin-bottom: 12px;">
-        Tải nhanh (Mặc định): Che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s) và cho phép /api/stats/ads 1st-party để các video kế tiếp tải &lt;1s (không bị phạt SABR 4–10s).
+        Tải nhanh (Mặc định): Che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s) để các video kế tiếp tải &lt;1s mà không bị máy chủ truyền phát phạt trễ.
       </div>
       <div class="row">
         <label for="cosmeticEnabled">Lớp 2: Cosmetic (Ẩn banner/overlay)</label>
@@ -143,7 +143,7 @@
         <label for="allowSeek">Cho phép tua về cuối video QC</label>
         <input type="checkbox" id="allowSeek" />
       </div>
-      <div class="note">Thay đổi sẽ có hiệu lực ngay lập tức trên các tab YouTube đang mở.</div>
+      <div class="note">Thay đổi sẽ có hiệu lực ngay lập tức trên các tab đang mở.</div>
     </div>
 
     <script type="module" src="options.js"></script>

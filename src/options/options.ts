@@ -23,8 +23,8 @@ function renderYouTubeAdModeHint(mode: YouTubeAdMode): void {
   if (!youtubeAdModeHintEl) return;
   youtubeAdModeHintEl.textContent =
     mode === 'fast-skip'
-      ? 'Tải nhanh (Mặc định): Che đen + tắt tiếng + tua hết QC đầu phiên (~0.3s), cho phép /api/stats/ads 1st-party để các video kế tiếp tải <1s (vẫn chặn 3rd-party DNR, /pagead/ & ad_break).'
-      : 'Chặn tuyệt đối tại nguồn (Strict Defuser): Xóa trắng 100% adPlacements/playerAds/adSlots ngay trong JSON (lưu ý: máy chủ YouTube SABR có thể giữ luồng chờ 4–10 giây khi chuyển bài).';
+      ? 'Tải nhanh (Mặc định): Che đen + tắt tiếng + tua nhanh QC đầu phiên (~0.3s) để các video kế tiếp mở <1s (vẫn chặn 100% tên miền quảng cáo bên thứ 3).'
+      : 'Chặn tuyệt đối tại nguồn: Lọc sạch dữ liệu quảng cáo ngay từ phản hồi gốc (lưu ý: một số máy chủ truyền phát có thể giữ luồng chờ 4–10 giây khi chuyển bài).';
 }
 
 const filterGlobalEl = document.getElementById('filterGlobalEnabled') as HTMLInputElement | null;
@@ -57,7 +57,7 @@ function renderLastUpdated(ts: number): void {
   if (!lastUpdatedLabelEl) return;
   lastUpdatedLabelEl.textContent = ts > 0
     ? `Cập nhật bộ lọc từ xa gần nhất: ${new Date(ts).toLocaleString('vi-VN')}`
-    : 'Mọi quy tắc tùy chỉnh luôn tự động loại trừ YouTube để giữ luồng phát an toàn.';
+    : 'Mọi quy tắc tùy chỉnh luôn tự động cách ly trình phát video trực tuyến để giữ luồng phát an toàn.';
 }
 
 async function requestFilterSync(kind: 'SYNC_FILTERS' | 'UPDATE_REMOTE_FILTERS'): Promise<void> {

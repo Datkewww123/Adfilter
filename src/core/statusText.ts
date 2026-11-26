@@ -15,12 +15,12 @@ function isYouTubeHost(hostname?: string): boolean {
 export function describeStatus(s: TabStatus | null, hostname?: string): string[] {
   if (!s) {
     if (isYouTubeHost(hostname)) {
-      return ['🏠 Đang ở YouTube — Sẵn sàng bảo vệ (nhấn F5 nếu bạn vừa tải lại tiện ích).'];
+      return ['🏠 Trình phát trực tuyến — Sẵn sàng bảo vệ (nhấn F5 nếu bạn vừa tải lại tiện ích).'];
     }
     if (hostname) {
       return ['🛡️ Đang lọc quảng cáo, banner & chống popup trên trang này.'];
     }
-    return ['Chưa có dữ liệu cho tab này. Hãy mở trang YouTube.'];
+    return ['Chưa có dữ liệu cho tab này. Hãy mở trang web hoặc trình phát video.'];
   }
 
   // Hiển thị trạng thái theo ngôn ngữ tự nhiên thay vì số liệu kỹ thuật

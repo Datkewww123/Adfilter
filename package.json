@@ -1,6 +1,6 @@
 {
   "name": "adfilter",
-  "version": "3.1.9",
+  "version": "3.2.0",
   "description": "Universal Manifest V3 Ad Blocker & Content Filter Extension for Web & Video Streaming",
   "main": "index.js",
   "scripts": {
@@ -20,6 +20,7 @@
     "sweep": "tsx scripts/sweep.ts",
     "summarize": "tsx scripts/summarize-actions.ts",
     "canary": "tsx canary/check.ts",
+    "canary:ai": "tsx canary/ai-sentinel.ts",
     "package": "tsx scripts/package.ts",
     "e2e": "playwright test"
   },

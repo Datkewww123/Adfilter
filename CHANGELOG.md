@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-11-26
+
+### Added
+- **Hệ thống `AI Canary Sentinel` tự động phát hiện cập nhật DOM & đề xuất quy tắc lọc mới (`canary/aiSentinelCore.ts`, `canary/ai-sentinel.ts`, `.github/workflows/ai-canary.yml`):**
+  - Chạy tách biệt hoàn toàn trên GitHub Actions (không nằm trong gói `.zip` của người dùng), sử dụng Playwright nạp `dist/chromium/` tuần tra định kỳ hằng ngày và chỉ gọi Gemini Interactions API (`gemini-4-hydrogen`, `store: false`, JSON Schema) khi phát hiện cấu trúc quảng cáo mới hoặc thiếu selector cốt lõi.
+  - Tích hợp cổng kiểm duyệt an toàn (`validateProposedFindings`) kiểm tra qua `compileCustomFilters()` và chặn tuyệt đối mọi bộ chọn nguy hiểm (`#movie_player`, `video`, `body`, thẻ chung không gắn domain) trước khi tự động mở GitHub Issue báo cáo.
+- **Hoàn thiện trọn bộ Hồ sơ & Tài nguyên Đăng tải Chrome Web Store (`PRIVACY.md`, `docs/CHROME-WEB-STORE.md`, `docs/store-assets/`):**
+  - Bổ sung chính sách quyền riêng tư song ngữ Anh/Việt `PRIVACY.md` khẳng định 100% xử lý cục bộ, không thu thập dữ liệu người dùng, đồng bộ với `SECURITY.md` và `docs/DONE.md`.
+  - Tạo sẵn ảnh quảng bá chuẩn RGB 24-bit không kênh alpha (`docs/store-assets/screenshot-1280x800.png`, `docs/store-assets/promo-440x280.png`) và tài liệu copy-paste giải trình quyền trên Dashboard (`docs/CHROME-WEB-STORE.md`).
+
+### Changed
+- **Chuẩn hóa giao diện & mã đóng gói cho quy trình xét duyệt Chrome Web Store:**
+  - Gỡ dòng `console.log` chứa từ khóa nội bộ `Stealth / Anti-Detection` khỏi `src/stealth/interceptor.ts`.
+  - Trung tính hóa nhãn giao diện trong `src/options/options.html`, `src/options/options.ts` và `src/core/statusText.ts` sang *"Trình phát Video Trực tuyến"* (giữ nguyên 100% hiệu năng chặn quảng cáo).
+  - Chặn cảnh báo vàng `Permissions policy violation: unload` từ các trang web cũ trong `src/stealth/scriptlets/coreScriptlets.ts` bằng kiểm tra `permissionsPolicy.allowsFeature('unload')`.
+
 ## [3.1.9] - 2026-11-25
 
 ### Changed
