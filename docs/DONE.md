@@ -10,10 +10,11 @@ Tài liệu này đối chiếu từng tiêu chí hoàn thành (Definition of Do
 | :--- | :---: | :--- |
 | Lệnh kiểm tra tổng hợp `pnpm verify:all` chạy xanh 100% | ✅ Đạt | [`package.json`](../package.json) (`lint`, `typecheck`, `test`, `eval`, `build`, `build:firefox`) |
 | Kiểm tra kiểu tĩnh TypeScript Strict (`noEmit`) cho cả Client và Server (0 lỗi) | ✅ Đạt | [`tsconfig.json`](../tsconfig.json), [`server/tsconfig.json`](../server/tsconfig.json) |
-| Bộ Unit Test cho Lõi Thuần & Lớp Vỏ đạt 100% pass (**34 files / 253 tests**) | ✅ Đạt | [`tests/unit/`](../tests/unit/) (`pnpm test`) |
+| Bộ Unit Test cho Lõi Thuần, Universal Engine & AI Canary đạt 100% pass (**61 files / 410 tests**) | ✅ Đạt | [`tests/unit/`](../tests/unit/) (`pnpm test`) |
 | Bộ Unit & Integration Test cho Telemetry/Canary API Server (**4 files / 12 tests**) | ✅ Đạt | [`server/tests/`](../server/tests/) (`pnpm --dir server test`) |
 | Cổng chất lượng Detector (`Quality Gate`) trên tập 17 fixtures thực tế đạt **Precision = 1.000, Recall = 1.000** ($\ge 0.90$) | ✅ Đạt | [`scripts/eval.ts`](../scripts/eval.ts), [`docs/notes/eval-baseline.md`](notes/eval-baseline.md), [`.github/workflows/verify.yml`](../.github/workflows/verify.yml) |
-| Kiểm thử đầu cuối Playwright E2E trên Chromium (**7 kịch bản**, 35/35 lần chạy lặp không flaky) | ✅ Đạt | [`tests/e2e/skip.spec.ts`](../tests/e2e/skip.spec.ts), [`tests/e2e/safety.spec.ts`](../tests/e2e/safety.spec.ts), [`docs/notes/test-coverage.md`](notes/test-coverage.md) |
+| Kiểm thử đầu cuối Playwright E2E trên Chromium (**13 kịch bản** bao phủ Video, Manga, Movie, News, Pop-up & Safety) | ✅ Đạt | [`tests/e2e/`](../tests/e2e/) (`pnpm e2e`), [`docs/notes/test-coverage.md`](notes/test-coverage.md) |
+| Hồ sơ tuân thủ Chrome Web Store & AI Canary Sentinel tự động phát hiện cập nhật DOM (`v3.2.0`) | ✅ Đạt | [`PRIVACY.md`](../PRIVACY.md), [`docs/CHROME-WEB-STORE.md`](CHROME-WEB-STORE.md), [`canary/aiSentinelCore.ts`](../canary/aiSentinelCore.ts), [`.github/workflows/ai-canary.yml`](../.github/workflows/ai-canary.yml) |
 
 ---
 

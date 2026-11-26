@@ -404,6 +404,4 @@ if (typeof window !== 'undefined') {
     PatchedXHR as unknown as (...args: any[]) => any,
     OrigXHR as unknown as (...args: any[]) => any,
   ) as unknown as typeof XMLHttpRequest;
-
-  console.log('[AdFilter Stealth] Interceptor đã bọc fetch(), Response.json() & XHR với Anti-Detection + Fast-Path');
 }

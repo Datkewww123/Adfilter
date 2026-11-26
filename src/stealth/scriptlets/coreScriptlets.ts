@@ -189,6 +189,17 @@ export function addEventListenerDefuserScriptlet(
         return;
       }
     }
+    if (type === 'unload') {
+      try {
+        const doc = (win as unknown as { document?: Record<string, any> }).document;
+        const policy = doc?.permissionsPolicy ?? doc?.featurePolicy;
+        if (policy && typeof policy.allowsFeature === 'function' && !policy.allowsFeature('unload')) {
+          return;
+        }
+      } catch {
+        // Bỏ qua nếu trình duyệt không hỗ trợ API kiểm tra policy
+      }
+    }
     return originalAdd.call(this, type, listener, options);
   };
 

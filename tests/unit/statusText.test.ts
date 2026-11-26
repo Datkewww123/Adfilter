@@ -4,12 +4,14 @@ import { describeStatus } from '../../src/core/statusText';
 
 describe('describeStatus', () => {
   it('null trả về thông báo chưa có dữ liệu', () => {
-    expect(describeStatus(null)).toEqual(['Chưa có dữ liệu cho tab này. Hãy mở trang YouTube.']);
+    expect(describeStatus(null)).toEqual([
+      'Chưa có dữ liệu cho tab này. Hãy mở trang web hoặc trình phát video.',
+    ]);
   });
 
-  it('null nhưng đang ở domain YouTube thì báo sẵn sàng bảo vệ YouTube', () => {
+  it('null nhưng đang ở domain video trực tuyến thì báo sẵn sàng bảo vệ', () => {
     const lines = describeStatus(null, 'www.youtube.com');
-    expect(lines[0]).toContain('Đang ở YouTube');
+    expect(lines[0]).toContain('Sẵn sàng bảo vệ');
   });
 
   it('null nhưng đang ở trang web khác thì báo đang lọc quảng cáo trên trang đó', () => {
